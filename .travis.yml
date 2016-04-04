@@ -7,4 +7,5 @@ install:
   - npm install purescript pulp bower purescript-psa
   - bower install
 script:
-  - pulp --censor-lib test
+  - pulp build --censor-lib
+  - pulp test
