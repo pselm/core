@@ -20,7 +20,7 @@ assertEqual name expected actual =
 tests :: ∀ e. TestUnit e
 tests = do
     test "conversion" do
-        assert "fromString good" <| toMaybe (fromString "May 27, 2014") == fromEpochMilliseconds (Milliseconds 1401166800000.0)
+        assert "fromString good" <| toMaybe (Elm.Debug.log "fromString" (fromString "May 27, 2014")) == Elm.Debug.log "from millis" (fromEpochMilliseconds (Milliseconds 1401166800000.0))
         assert "fromString bad"  <| toMaybe (fromString "bob") == (Nothing :: Maybe Date)
 
         assert "fromTime" <| Ok (fromTime 1318258080000.0) == fromString "2011-10-10T14:48:00Z"
