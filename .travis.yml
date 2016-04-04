@@ -1,0 +1,10 @@
+language: node_js
+dist: trusty
+node_js: 5
+env:
+  - PATH=./node_modules/.bin:$PATH
+install:
+  - npm install purescript pulp bower
+  - bower install
+script:
+  - pulp test
