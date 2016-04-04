@@ -1,3 +1,6 @@
+[![Latest release](http://img.shields.io/bower/v/purescript-elm-compat.svg)](https://github.com/rgrempel/purescript-elm-compat/releases)
+[![Dependency Status](https://www.versioneye.com/user/projects/5701e80bfcd19a00415afff5/badge.svg?style=flat)](https://www.versioneye.com/user/projects/5701e80bfcd19a00415afff5)
+[![Build Status](https://travis-ci.org/rgrempel/purescript-elm-compat.svg?branch=master)](https://travis-ci.org/rgrempel/purescript-elm-compat)
 
 # purescript-elm-compat
 
