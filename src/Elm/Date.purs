@@ -12,7 +12,7 @@
 
 module Elm.Date
     ( module Virtual
-    , fromString, toTime, fromTime
+    , fromString, toTime, fromTime, Time
     , year, month, day, dayOfWeek
     , hour, minute, second, millisecond
     ) where
