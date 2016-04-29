@@ -27,7 +27,7 @@ import Elm.Foldable (foldl) as Virtual
 
 -- Internal
 
-import Prelude (class Ord, flip, (<<<))
+import Prelude (class Ord, (<<<))
 import Data.Set (Set, delete, difference, intersection, fromList, toList, insert, empty)
 import Data.Foldable (foldr)
 import Elm.Foldable (foldl)

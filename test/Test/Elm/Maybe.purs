@@ -49,7 +49,7 @@ tests = do
         assert "first" <| oneOf ( Just 42 : Just 71 : Nothing : Nil ) == Just 42
         assert "second" <| oneOf ( Nothing : Just 42 : Just 71 : Nil ) == Just 42
         assert "third" <| oneOf ( Nothing : Nothing : Just 71 : Nil ) == Just 71
-        assert "none" <| oneOf ( Nothing :: Maybe Int : Nothing : Nothing : Nil ) == (Nothing :: Maybe Int)
+        assert "none" <| oneOf ( (Nothing :: Maybe Int) : Nothing : Nothing : Nil ) == (Nothing :: Maybe Int)
         assert "nil" <| oneOf (Nil :: List (Maybe Int)) == (Nothing :: Maybe Int)
 
     test "oneOf with array" do

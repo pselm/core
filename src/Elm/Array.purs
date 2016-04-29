@@ -32,10 +32,7 @@ import Data.Sequence
     )
 
 import Elm.Basics (Bool)
-import Elm.List (List(..))
-import Data.List ((:), reverse)
-import Data.Tuple (Tuple(..))
-import Data.Foldable (class Foldable, foldr)
+import Data.Foldable (class Foldable)
 import Data.Unfoldable (class Unfoldable)
 import Data.Ord (clamp)
 import Elm.Maybe (Maybe)

@@ -70,7 +70,7 @@ import Data.Foldable (foldr)
 import Data.Tuple (Tuple(..))
 import Data.Function (on)
 import Control.Apply (lift3, lift4, lift5)
-import Prelude (class Eq, class Semiring, class Ord, (-), ($), compare, flip, (>))
+import Prelude (class Eq, class Ord, (-), ($), compare, flip, (>))
 import Elm.Basics (Order, Bool)
 
 

@@ -34,7 +34,7 @@ import Prelude
     ( class Functor, (<$>)
     , class Apply, pure
     , class Applicative, (<*>)
-    , class Bind, class Monad, bind
+    , class Bind, class Monad
     , class Semiring, (++), one, zero, add
     , class Semigroup, append, mul
     , class Bounded, top, bottom
