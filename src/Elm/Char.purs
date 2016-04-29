@@ -31,12 +31,12 @@ isBetween low high char =
                 toCode char
 
 
--- | True for upper case letters.
+-- | True for upper case ASCII letters.
 isUpper :: Char -> Bool
 isUpper = isBetween 'A' 'Z'
 
 
--- | True for lower case letters.
+-- | True for lower case ASCII letters.
 isLower :: Char -> Bool
 isLower = isBetween 'a' 'z'
 

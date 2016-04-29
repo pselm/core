@@ -130,9 +130,13 @@ scanl func memo list =
 -- | Apply a function that may succeed to all values in the list, but only keep
 -- | the successes.
 -- |
--- |     toInt :: String -> Maybe Int
+-- |     filterMap isTeen [3, 15, 12, 18, 24] == [15, 18]
 -- |
--- |     filterMap toInt ("3" : "4.0" : "5" : "hats" : Nil) == (3 : 5 : Nil)
+-- |     isTeen :: Int -> Maybe Int
+-- |     isTeen n =
+-- |         if 13 <= n && n <= 19
+-- |             then Just n
+-- |             else Nothing
 -- |
 -- | Equivalent to Purescript's `mapMaybe`.
 filterMap :: ∀ a b. (a -> Maybe b) -> List a -> List b

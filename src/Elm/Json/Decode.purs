@@ -125,8 +125,8 @@ instance monadDecoder :: Monad Decoder
 -- | Using a certain decoder, attempt to parse a JSON string. If the decoder
 -- | fails, you will get a string message telling you why.
 -- |
--- |     decodeString (tuple2 Tuple float float) "[3,4]"                  -- Ok (Tuple 3 4)
--- |     decodeString (tuple2 Tuple float float) "{ \"x\": 3, \"y\": 4 }" -- Err ""
+-- |     decodeString (tuple2 (,) Tuple float float) "[3,4]"                  -- Ok (Tuple 3 4)
+-- |     decodeString (tuple2 (,) Tuple float float) "{ \"x\": 3, \"y\": 4 }" -- Err ""
 decodeString :: ∀ a. Decoder a -> String -> Result String a
 decodeString (Decoder decoder) str =
     toResult (parseJSON str) >>= decoder
@@ -202,8 +202,8 @@ object2 = lift2
 -- |
 -- |     type Job = { name :: String, id :: Int, completed :: Bool }
 -- |
--- |     point :: Decoder Job
--- |     point =
+-- |     job :: Decoder Job
+-- |     job =
 -- |         object3 Job
 -- |           ("name" := string)
 -- |           ("id" := int)

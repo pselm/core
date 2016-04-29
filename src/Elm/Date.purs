@@ -59,16 +59,20 @@ fromString str =
         (Data.Date.fromString str)
 
 
--- | Convert a date into a time since midnight (UTC) of 1 January 1970 (i.e.
--- | [UNIX time](http://en.wikipedia.org/wiki/Unix_time)). Given the date 23 June
--- | 1990 at 11:45AM this returns the corresponding time.
+-- | Convert a `Date` to a time in milliseconds.
+-- |
+-- | A time is the number of milliseconds since
+-- | [the Unix epoch](http://en.wikipedia.org/wiki/Unix_time).
 toTime :: Date -> Time
 toTime date =
     case toEpochMilliseconds date of
          Milliseconds millis -> millis
 
 
--- | Take a UNIX time and convert it to a `Date`.
+-- | Convert a time in milliseconds into a `Date`.
+-- |
+-- | A time is the number of milliseconds since
+-- | [the Unix epoch](http://en.wikipedia.org/wiki/Unix_time).
 fromTime :: Time -> Date
 fromTime time =
     case fromEpochMilliseconds (Milliseconds time) of
@@ -87,7 +91,7 @@ year d =
 
 
 -- | Extract the month of a given date. Given the date 23 June 1990 at 11:45AM
--- | this returns the Month `June` as defined below.
+-- | this returns the month `June` as defined below.
 -- |
 -- | Note that in Purescript, the constructors for `Month` are fully spelled out,
 -- | so it is 'June` instead of `Jun`.
@@ -108,7 +112,7 @@ day d =
 
 
 -- | Extract the day of the week for a given date. Given the date 23 June
--- | 1990 at 11:45AM this returns the Day `Thursday` as defined below.
+-- | 1990 at 11:45AM this returns the day `Saturday` as defined below.
 -- |
 -- | Note that in Purescript, the days of the week are fully spelled out,
 -- | so it is `Thursday` instead of `Thu`.

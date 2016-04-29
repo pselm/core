@@ -338,7 +338,7 @@ composeFlipped = (>>>)
 infixl 0 applyFnFlipped as |>
 
 -- | Forward function application `x |> f == f x`. This function is useful
--- | for avoiding parenthesis and writing code in a more natural way.
+-- | for avoiding parentheses and writing code in a more natural way.
 -- | Consider the following code to create a pentagon:
 -- |
 -- |     scale 2 (move (10,10) (filled blue (ngon 5 30)))
@@ -358,7 +358,7 @@ applyFnFlipped = (#)
 infixr 0 applyFn as <|
 
 -- | Backward function application `f <| x == f x`. This function is useful for
--- | avoiding parenthesis. Consider the following code to create a text element:
+-- | avoiding parentheses. Consider the following code to create a text element:
 -- |
 -- |     leftAligned (monospace (fromString "code"))
 -- |

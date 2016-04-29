@@ -6,18 +6,20 @@
 -- | [`bool`](#v:bool) and [`int`](#v:int) that you can build up into fancier
 -- | generators with functions like [`list`](#v:list) and [`map`](#v:map).
 -- |
--- | You use a `Generator` by running the [`generate`](#v:generate) function. If you
--- | need random values across many frames, you will probably want to store the
--- | most recent seed in your application state.
+-- | It may be helpful to
+-- | [read about JSON decoders](https://evancz.gitbooks.io/an-introduction-to-elm/content/interop/json.html)
+-- | because they work very similarly.
 -- |
--- | *Note:* This is an implementation of the Portable Combined Generator of
+-- | > *Note:* This is an implementation of the Portable Combined Generator of
 -- | L'Ecuyer for 32-bit computers. It is almost a direct translation from the
 -- | [System.Random](http://hackage.haskell.org/package/random-1.0.1.1/docs/System-Random.html)
 -- | module. It has a period of roughly 2.30584e18.
 -- |
--- | This is a translation of the Elm code to Purescript. I suppose the more idiomatic
--- | Purescript way of doing things like this would be to use the `Arbitrary` class in
--- | the purescript-quickcheck library.
+-- | *This is a translation of the Elm code to Purescript. I suppose the more idiomatic
+-- | Purescript way of doing things like this would be to use the `Arbitrary` class
+-- | (and other facilities) in the
+-- | [purescript-quickcheck](https://pursuit.purescript.org/packages/purescript-quickcheck)
+-- | library.*
 
 -- Note that the code here is substantially derived from Elm's `Random` module. Please
 -- see the LICENSE file for the Elm license.
@@ -132,12 +134,12 @@ iLogBase b i =
                    else go base (value / base) (accum + 1)
 
 
--- | The maximum value for randomly generated 32-bit ints.
+-- | The maximum value for randomly generated 32-bit ints: 2147483647.
 maxInt :: Int53
 maxInt = fromInt 2147483647
 
 
--- | The minimum value for randomly generated 32-bit ints.
+-- | The minimum value for randomly generated 32-bit ints: -2147483648.
 minInt :: Int53
 minInt = round (-2147483648.0)
 
