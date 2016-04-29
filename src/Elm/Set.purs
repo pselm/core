@@ -34,6 +34,8 @@ import Elm.Foldable (foldl)
 import Elm.Basics (Bool)
 
 
+-- TODO: Check that foldl, foldr, and toList preserve order.
+
 -- | Remove a value from a set. If the value is not found, no changes are made.
 -- |
 -- | Equivalent to Purescript's `delete`.
