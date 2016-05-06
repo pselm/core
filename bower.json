@@ -29,7 +29,7 @@
     "purescript-int-53": "~1.0.0",
     "purescript-sets": "~0.5.7",
     "purescript-foreign": "~0.7.2",
-    "purescript-sequences": "~0.5.0"
+    "purescript-sequences": "~0.6.0"
   },
   "devDependencies": {
     "purescript-test-unit": "~4.1.0",
