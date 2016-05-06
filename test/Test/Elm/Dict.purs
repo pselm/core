@@ -1,6 +1,6 @@
 module Test.Elm.Dict (tests) where
 
-import Test.Unit (TestUnit, Assertion, test)
+import Test.Unit (TestSuite, suite, Test, test)
 import Test.Unit.Assert (assert)
 
 import Elm.Dict as Dict
@@ -17,7 +17,7 @@ tuple :: ∀ a b. a -> b -> Tuple a b
 tuple = Tuple
 
 
-assertEqual :: ∀ a e. (Eq a) => String -> a -> a -> Assertion e
+assertEqual :: ∀ a e. (Eq a) => String -> a -> a -> Test e
 assertEqual name expected actual =
     assert name <| expected == actual
 
@@ -39,8 +39,8 @@ animalsPlus =
         )
 
 
-tests :: ∀ e. TestUnit e
-tests = do
+tests :: ∀ e. TestSuite e
+tests = suite "Elm.Dict" do
     test "build" do
         assertEqual "empty" (Dict.fromList (Nil :: List (Tuple String String))) (Dict.empty)
         assertEqual "singleton" (Dict.fromList ("k" := "v" : Nil)) (Dict.singleton "k" "v")

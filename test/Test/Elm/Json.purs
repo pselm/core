@@ -1,6 +1,6 @@
 module Test.Elm.Json (tests) where
 
-import Test.Unit (TestUnit, Assertion, test)
+import Test.Unit (TestSuite, suite, Test, test)
 import Test.Unit.Assert (equal)
 
 import Elm.Json.Encode as JE
@@ -42,7 +42,7 @@ import Prelude
 
 infixl 9 equals as ===
 
-equals :: ∀ a e. (Eq a, Show a) => a -> a -> Assertion e
+equals :: ∀ a e. (Eq a, Show a) => a -> a -> Test e
 equals = flip equal
 
 
@@ -52,7 +52,7 @@ tuple :: ∀ a b. a -> b -> Tuple a b
 tuple = Tuple
 
 
-check :: ∀ e a. (Eq a, Show a) => JD.Decoder a -> Tuple String (Maybe a) -> Assertion e
+check :: ∀ e a. (Eq a, Show a) => JD.Decoder a -> Tuple String (Maybe a) -> Test e
 check decoder (Tuple value expected) =
     toMaybe (JD.decodeString decoder value) === expected
 
@@ -91,8 +91,8 @@ instance eqShape :: Eq Shape where
 -- TODO: The docs for Elm.Json.Encode.float say that infinity and NaN
 -- are encoded as null ... should test that.
 
-tests :: ∀ e. TestUnit (random :: RANDOM, err :: EXCEPTION, console :: CONSOLE | e)
-tests = do
+tests :: ∀ e. TestSuite (random :: RANDOM, err :: EXCEPTION, console :: CONSOLE | e)
+tests = suite "Elm.Json" do
     test "encode object with scalar types" do
         let
             person =
@@ -547,13 +547,14 @@ tests = do
             , "[17.5, 18]" ==> Nothing
             ]
 
-    liftEff do
-        checkFunctor proxyDecoder
-        checkAlt proxyDecoder
-        checkApply proxyDecoder
-        checkApplicative proxyDecoder
-        checkBind proxyDecoder
-        checkMonad proxyDecoder
+    test "laws" $
+        liftEff do
+            checkFunctor proxyDecoder
+            checkAlt proxyDecoder
+            checkApply proxyDecoder
+            checkApplicative proxyDecoder
+            checkBind proxyDecoder
+            checkMonad proxyDecoder
 
 
 -- We test the laws via a newtype, in order to avoid making spurious

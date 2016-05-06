@@ -1,6 +1,6 @@
 module Test.Elm.String (tests) where
 
-import Test.Unit (TestUnit, Assertion, test)
+import Test.Unit (TestSuite, suite, Test, test)
 import Test.Unit.Assert (assert)
 import Test.Unit.QuickCheck (quickCheck)
 import Test.QuickCheck ((===))
@@ -15,18 +15,18 @@ import Elm.Result (Result(..))
 import Data.List (toList) as List
 
 
-assertEqual :: ∀ a e. (Eq a) => String -> a -> a -> Assertion e
+assertEqual :: ∀ a e. (Eq a) => String -> a -> a -> Test e
 assertEqual name expected actual =
     assert name <| expected == actual
 
 
-assertResult :: ∀ a e. (Eq a) => String -> Result String a -> Result String a -> Assertion e
+assertResult :: ∀ a e. (Eq a) => String -> Result String a -> Result String a -> Test e
 assertResult name expected actual =
     assert name <| expected == actual
 
 
-tests :: ∀ e. TestUnit (random :: RANDOM | e)
-tests = do
+tests :: ∀ e. TestSuite (random :: RANDOM | e)
+tests = suite "Elm.String" do
     test "Simple Stuff" do
         assert "is empty" (isEmpty "")
         assert "is not empty" (not (isEmpty ("the world")))
@@ -165,7 +165,7 @@ checkConsLength a b =
     length (cons a b) === (length b) + 1
 
 
-quick :: ∀ e. TestUnit (random :: RANDOM | e)
-quick = do
+quick :: ∀ e. TestSuite (random :: RANDOM | e)
+quick = suite "Quickcheck" do
     test "repeatLength" $ quickCheck repeatLength
     test "isEmpty" $ quickCheck isEmptyLength

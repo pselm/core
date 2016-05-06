@@ -32,7 +32,7 @@
     "purescript-sequences": "~0.6.0"
   },
   "devDependencies": {
-    "purescript-test-unit": "~4.1.0",
+    "purescript-test-unit": "~6.0.0",
     "purescript-generics": "~0.7.2",
     "purescript-quickcheck-laws": "~0.1.1"
   },

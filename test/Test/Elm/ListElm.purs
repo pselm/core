@@ -1,6 +1,6 @@
 module Test.Elm.ListElm (tests) where
 
-import Test.Unit (TestUnit, Assertion, test)
+import Test.Unit (TestSuite, suite, Test, test)
 import Test.Unit.Assert (assert)
 
 import Elm.List
@@ -11,20 +11,20 @@ import Data.Tuple (Tuple(..))
 import Prelude (bind, class Eq, negate, (*), (/), (++), (-), flip, (&&))
 
 
-assertEqual :: ∀ a e. (Eq a) => String -> a -> a -> Assertion e
+assertEqual :: ∀ a e. (Eq a) => String -> a -> a -> Test e
 assertEqual name expected actual =
     assert name <| expected == actual
 
 
-tests :: ∀ e. TestUnit e
-tests = do
+tests :: ∀ e. TestSuite e
+tests = suite "Elm.ListElm" do
     testListOfN 0
     testListOfN 1
     testListOfN 2
     testListOfN 1000
 
 
-testListOfN :: ∀ e. Int -> TestUnit e
+testListOfN :: ∀ e. Int -> TestSuite e
 testListOfN n =
     let
         xs =

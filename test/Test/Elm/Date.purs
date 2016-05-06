@@ -1,6 +1,6 @@
 module Test.Elm.Date (tests) where
 
-import Test.Unit (TestUnit, Assertion, test)
+import Test.Unit (TestSuite, suite, Test, test)
 import Test.Unit.Assert (assert)
 
 import Elm.Date
@@ -12,13 +12,13 @@ import Elm.Result (toMaybe, Result(..))
 import Data.Maybe (Maybe(..))
 
 
-assertEqual :: ∀ a e. (Eq a) => String -> a -> a -> Assertion e
+assertEqual :: ∀ a e. (Eq a) => String -> a -> a -> Test e
 assertEqual name expected actual =
     assert name <| expected == actual
 
 
-tests :: ∀ e. TestUnit e
-tests = do
+tests :: ∀ e. TestSuite e
+tests = suite "Elm.Date" do
     test "conversion" do
         assert "fromString good" <| toMaybe (fromString "May 27, 2014 00:00 CDT") == fromEpochMilliseconds (Milliseconds 1401166800000.0)
         assert "fromString bad"  <| toMaybe (fromString "bob") == (Nothing :: Maybe Date)

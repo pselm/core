@@ -1,6 +1,6 @@
 module Test.Elm.Maybe (tests) where
 
-import Test.Unit (TestUnit, test)
+import Test.Unit (TestSuite, suite, test)
 import Test.Unit.Assert (assert)
 
 import Elm.Maybe
@@ -9,8 +9,8 @@ import Elm.List (List(..), (:))
 import Prelude (bind)
 
 
-tests :: ∀ e. TestUnit e
-tests = do
+tests :: ∀ e. TestSuite e
+tests = suite "Elm.Maybe" do
     test "withDefault" do
         assert "with Just" <| withDefault 100 (Just 42) == 42
         assert "with Nothing" <| withDefault 100 Nothing == 100

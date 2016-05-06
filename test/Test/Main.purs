@@ -1,6 +1,7 @@
 module Test.Main where
 
-import Test.Unit (TIMER, test, runTest)
+import Test.Unit (TIMER)
+import Test.Unit.Main (runTest)
 import Test.Unit.Console (TESTOUTPUT)
 
 import Control.Monad.Eff (Eff)
@@ -9,7 +10,7 @@ import Control.Monad.Eff.Console (CONSOLE)
 import Control.Monad.Eff.Exception (EXCEPTION)
 import Control.Monad.Aff.AVar (AVAR)
 
-import Prelude (Unit, ($), bind)
+import Prelude (Unit, bind)
 
 main :: ∀ e. Eff
     ( timer :: TIMER
@@ -19,21 +20,22 @@ main :: ∀ e. Eff
     , err :: EXCEPTION
     , console :: CONSOLE
     | e) Unit
+
 main = runTest do
-    test "Elm.Array\n" $ Test.Elm.Array.tests
-    test "Elm.Basics\n" $ Test.Elm.Basics.tests
-    test "Elm.BasicsElm\n" $ Test.Elm.BasicsElm.tests
-    test "Elm.Bitwise\n" $ Test.Elm.Bitwise.tests
-    test "Elm.Char\n" $ Test.Elm.Char.tests
-    test "Elm.Date\n" $ Test.Elm.Date.tests
-    test "Elm.Dict\n" $ Test.Elm.Dict.tests
-    test "Elm.Json\n" $ Test.Elm.Json.tests
-    test "Elm.List\n" $ Test.Elm.List.tests
-    test "Elm.ListElm\n" $ Test.Elm.ListElm.tests
-    test "Elm.Maybe\n" $ Test.Elm.Maybe.tests
-    test "Elm.Randon\n" $ Test.Elm.Random.tests
-    test "Elm.Regex\n" $ Test.Elm.Regex.tests
-    test "Elm.Result\n" $ Test.Elm.Result.tests
-    test "Elm.Set\n" $ Test.Elm.Set.tests
-    test "Elm.String\n" $ Test.Elm.String.tests
-    test "Elm.Trampoline\n" $ Test.Elm.Trampoline.tests
+    Test.Elm.Array.tests
+    Test.Elm.Basics.tests
+    Test.Elm.BasicsElm.tests
+    Test.Elm.Bitwise.tests
+    Test.Elm.Char.tests
+    Test.Elm.Date.tests
+    Test.Elm.Dict.tests
+    Test.Elm.Json.tests
+    Test.Elm.List.tests
+    Test.Elm.ListElm.tests
+    Test.Elm.Maybe.tests
+    Test.Elm.Random.tests
+    Test.Elm.Regex.tests
+    Test.Elm.Result.tests
+    Test.Elm.Set.tests
+    Test.Elm.String.tests
+    Test.Elm.Trampoline.tests

@@ -1,6 +1,6 @@
 module Test.Elm.List (tests) where
 
-import Test.Unit (TestUnit, test)
+import Test.Unit (TestSuite, suite, test)
 import Test.Unit.Assert (assert)
 
 import Elm.List
@@ -12,8 +12,8 @@ import Data.Tuple (Tuple(..))
 import Prelude (bind, Ordering(..))
 
 
-tests :: ∀ e. TestUnit e
-tests = do
+tests :: ∀ e. TestSuite e
+tests = suite "Elm.List" do
     test "(:)" do
         assert "with rest" <| (1 : 2 : 3 : Nil) == (Cons 1 (Cons 2 (Cons 3 Nil)))
         assert "by itself" <| (1 : Nil) == (Cons 1 Nil)

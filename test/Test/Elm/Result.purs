@@ -1,6 +1,6 @@
 module Test.Elm.Result (tests) where
 
-import Test.Unit (TestUnit, Assertion, test)
+import Test.Unit (TestSuite, suite, Test, test)
 import Test.Unit.Assert (assert)
 
 import Elm.Result as Result
@@ -46,12 +46,12 @@ import Prelude
     )
 
 
-assertEqual :: ∀ e. String -> Result String Int -> Result String Int -> Assertion e
+assertEqual :: ∀ e. String -> Result String Int -> Result String Int -> Test e
 assertEqual name expected actual =
     assert name <| expected == actual
 
 
-assertMaybe :: ∀ e. String -> Maybe Int -> Maybe Int -> Assertion e
+assertMaybe :: ∀ e. String -> Maybe Int -> Maybe Int -> Test e
 assertMaybe name expected actual =
     assert name <| expected == actual
 
@@ -78,8 +78,8 @@ add5 a b c d e =
     a + b + c + d + e
 
 
-tests :: ∀ e. TestUnit (random :: RANDOM, err :: EXCEPTION, console :: CONSOLE | e)
-tests = do
+tests :: ∀ e. TestSuite (random :: RANDOM, err :: EXCEPTION, console :: CONSOLE | e)
+tests = suite "Elm.Result" do
     test "map" do
         assertEqual "map Ok"  (Ok 3)        (Result.map ((+) 1) (Ok 2))
         assertEqual "map Err" (Err "error") (Result.map ((+) 1) (Err "error"))
@@ -124,18 +124,19 @@ tests = do
         assertEqual "Ok"  (Result.fromMaybe "bad" (Just 27)) (Ok 27)
         assertEqual "Err" (Result.fromMaybe "bad" (Nothing)) (Err "bad")
 
-    liftEff do
-        checkFunctor prx2Result
-        checkApply prx2Result
-        checkApplicative prx2Result
-        checkAlt prx2Result
-        checkBind prx2Result
-        checkMonad prx2Result
-        checkExtend prx2Result
-        checkEq prxResult
-        checkOrd prxResult
-        checkBounded prxResult
-        checkSemigroup prxResult
+    test "laws" $
+        liftEff do
+            checkFunctor prx2Result
+            checkApply prx2Result
+            checkApplicative prx2Result
+            checkAlt prx2Result
+            checkBind prx2Result
+            checkMonad prx2Result
+            checkExtend prx2Result
+            checkEq prxResult
+            checkOrd prxResult
+            checkBounded prxResult
+            checkSemigroup prxResult
 
 
 prxResult :: Proxy (Testable A B)

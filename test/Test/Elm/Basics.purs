@@ -1,6 +1,6 @@
 module Test.Elm.Basics (tests) where
 
-import Test.Unit (TestUnit, test)
+import Test.Unit (TestSuite, suite, test)
 import Test.Unit.Assert (assert)
 
 import Elm.Basics
@@ -9,8 +9,8 @@ import Data.Int (even)
 import Prelude (bind, Ordering(..))
 
 
-tests :: ∀ e. TestUnit e
-tests = do
+tests :: ∀ e. TestSuite e
+tests = suite "Elm.Basics" do
     test "(==)" do
         assert "true" <| 5 == 5
         assert "false" <| not <| 4 == 5

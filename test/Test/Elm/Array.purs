@@ -1,6 +1,6 @@
 module Test.Elm.Array (tests) where
 
-import Test.Unit (TestUnit, Assertion, test)
+import Test.Unit (TestSuite, suite, Test, test)
 import Test.Unit.Assert (assert)
 
 import Elm.Array as Array
@@ -12,7 +12,7 @@ import Elm.Basics ((<|), identity, sqrt, (%), always)
 import Data.Tuple (Tuple(..))
 
 
-assertEqual :: ∀ a e. (Eq a) => String -> a -> a -> Assertion e
+assertEqual :: ∀ a e. (Eq a) => String -> a -> a -> Test e
 assertEqual name expected actual =
     assert name <| expected == actual
 
@@ -44,8 +44,8 @@ mapArray array =
     ) array
 
 
-tests :: ∀ e. TestUnit e
-tests = do
+tests :: ∀ e. TestSuite e
+tests = suite "Elm.Array" do
     test "Creation" do
         assertEqual "empty" Array.empty (Array.fromList (Nil :: List Int))
         assertEqual "initialize" (Array.initialize 4 identity) (Array.fromList [0,1,2,3])

@@ -1,6 +1,6 @@
 module Test.Elm.Regex (tests) where
 
-import Test.Unit (TestUnit, Assertion, test)
+import Test.Unit (TestSuite, suite, Test, test)
 import Test.Unit.Assert (assert)
 
 import Elm.Regex
@@ -13,7 +13,7 @@ import Data.Maybe (Maybe(..))
 import Elm.Maybe (withDefault)
 
 
-assertEqual :: ∀ a e. (Eq a) => String -> a -> a -> Assertion e
+assertEqual :: ∀ a e. (Eq a) => String -> a -> a -> Test e
 assertEqual name expected actual =
     assert name <| expected == actual
 
@@ -35,8 +35,8 @@ match =
     }
 
 
-tests :: ∀ e. TestUnit e
-tests = do
+tests :: ∀ e. TestSuite e
+tests = suite "Elm.Regex" do
     test "contains" do
         let containsExp = regex("a")
         let containsTarget = "abcd"

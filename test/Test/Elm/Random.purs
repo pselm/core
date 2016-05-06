@@ -1,6 +1,6 @@
 module Test.Elm.Random (tests) where
 
-import Test.Unit (TestUnit, test)
+import Test.Unit (TestSuite, suite, test)
 import Test.Unit.Assert (assert)
 
 import Elm.Random
@@ -48,8 +48,8 @@ doer = do
     int 0 y
 
 
-tests :: ∀ e. TestUnit e
-tests = do
+tests :: ∀ e. TestSuite e
+tests = suite "Elm.Random" do
     test "bool" do
         assert "seed1" <| false == (generate bool seed1).value
         assert "seed2" <| false == (generate bool seed2).value
