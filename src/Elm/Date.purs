@@ -1,7 +1,7 @@
 
 -- | Library for working with dates.
 -- |
--- | Implemented using Puresript's `Data.Date` module.
+-- | Implemented using Purescript's `Data.Date` module.
 -- |
 -- | Note that the Purescript `Month` and `DayOfWeek` types
 -- | spell out the entire word for constructors ... e.g.
