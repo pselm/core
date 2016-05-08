@@ -175,12 +175,12 @@ tests = do
         assert "turns" <| turns 0.5 == pi
 
     test "fromPolar" do
-        let result = fromPolar {r: 9.0, theta: degrees 45.0}
-        assert "fromPolar" <| result.x - 6.3 < 0.1 && result.y - 6.3 < 0.1
+        let result = fromPolar (Tuple 9.0 (degrees 45.0))
+        assert "fromPolar" <| (fst result) - 6.3 < 0.1 && (snd result) - 6.3 < 0.1
 
     test "toPolar" do
-        let result = toPolar {x: 6.364, y: 6.364}
-        assert "toPolar" <| result.r - 8.9 < 0.2 && result.theta - 44.5 < 1.0
+        let result = toPolar (Tuple 6.364 6.364)
+        assert "toPolar" <| (fst result) - 8.9 < 0.2 && (snd result) - 44.5 < 1.0
 
     test "toString" do
         assert "integer" <| toString 42 == "42"

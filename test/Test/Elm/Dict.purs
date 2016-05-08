@@ -9,6 +9,7 @@ import Elm.Basics (Tuple(..), (++), (<|), (==))
 import Prelude (bind, class Eq, (<$>))
 import Elm.List (List(..), (:))
 import Elm.Maybe (Maybe(..))
+import Data.Tuple(fst, snd)
 
 
 infixl 9 tuple as :=
@@ -75,8 +76,8 @@ tests = do
         assertEqual "filter" (Dict.singleton "Tom" "cat") (Dict.filter (\k v -> k == "Tom") animals)
 
         let partitioned = Dict.partition (\k v -> k == "Tom") animals
-        assertEqual "partition trues" (Dict.singleton "Tom" "cat") partitioned.trues
-        assertEqual "partition falses" (Dict.singleton "Jerry" "mouse") partitioned.falses
+        assertEqual "partition trues" (Dict.singleton "Tom" "cat") (fst partitioned)
+        assertEqual "partition falses" (Dict.singleton "Jerry" "mouse") (snd partitioned)
 
         assertEqual "keys" ("Jerry" : "Tom" : Nil) (Dict.keys animals)
         assertEqual "values" ("mouse" : "cat" : Nil) (Dict.values animals)

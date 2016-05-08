@@ -30,6 +30,7 @@ import Data.Map
 import Prelude (class Ord, flip, (>>>))
 import Data.Map (Map, lookup, alter, delete, member, insert, empty, toList, fromList)
 import Data.Unfoldable (class Unfoldable)
+import Data.Bifunctor (lmap, rmap)
 import Elm.Maybe (Maybe)
 import Elm.List (List)
 import Elm.Basics (Bool)
@@ -103,19 +104,13 @@ filter predicate =
 -- | Partition a dictionary according to a predicate. The first dictionary
 -- | contains all key-value pairs which satisfy the predicate, and the second
 -- | contains the rest.
--- |
--- | The result is a record of `{trues, falses}`, which is different from the Elm
--- | version, which returns a `Tuple`.
-partition :: ∀ k v. (Ord k) => (k -> v -> Bool) -> Dict k v -> {trues :: Dict k v, falses :: Dict k v}
-partition predicate dict =
-  let
-      add key value pair =
-          if predicate key value
-             then pair { trues  = insert key value pair.trues }
-             else pair { falses = insert key value pair.falses }
+partition :: ∀ k v. (Ord k) => (k -> v -> Bool) -> Dict k v -> Tuple (Dict k v) (Dict k v)
+partition predicate =
+    foldl add (Tuple empty empty)
 
-   in
-       foldl add {trues: empty, falses: empty} dict
+    where
+        add key value =
+            (if predicate key value then lmap else rmap) (insert key value)
 
 
 -- | Apply a function to all values in a dictionary.

@@ -8,7 +8,7 @@ import Elm.List
 import Elm.Basics (sqrt, (+), compare, (<|), (==), not, (<), (&&))
 import Elm.Maybe (Maybe(..))
 import Data.Int (even)
-import Data.Tuple (Tuple(..))
+import Data.Tuple (Tuple(..), fst, snd)
 import Prelude (bind, Ordering(..))
 
 
@@ -113,7 +113,7 @@ tests = do
 
     test "partition" do
         let result = partition (\x -> x < 3) (0 .. 5)
-        assert "partition" <| result.trues == (0 : 1 : 2 : Nil) && result.falses == (3 : 4 : 5 : Nil)
+        assert "partition" <| (fst result) == (0 : 1 : 2 : Nil) && (snd result) == (3 : 4 : 5 : Nil)
 
     test "unzip" do
         assert "unzip" <| unzip (Tuple 0 true : Tuple 17 false : Tuple 1337 true : Nil ) == Tuple (0 : 17 : 1337 : Nil) (true : false : true : Nil)

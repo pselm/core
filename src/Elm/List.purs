@@ -69,6 +69,7 @@ import Elm.Maybe (Maybe(..))
 import Data.Foldable (foldr)
 import Data.Tuple (Tuple(..))
 import Data.Function (on)
+import Data.Bifunctor (lmap, rmap)
 import Control.Apply (lift3, lift4, lift5)
 import Prelude (class Eq, class Ord, (-), ($), compare, flip, (>))
 import Elm.Basics (Order, Bool)
@@ -147,19 +148,15 @@ filterMap = mapMaybe
 -- | that satisfy the predicate, and the second list contains all the value that do
 -- | not.
 -- |
--- |     partition (\x -> x < 3) (0..5) == {trues: (0 : 1 : 2 : Nil), falses: (3 : 4 : 5 : Nil)}
--- |     partition isEven        (0..5) == {trues: (0 : 2 : 4 : Nil), falses: (1 : 3 : 5 : Nil)}
--- |
--- | Note that the result is a record of `{trues, falses}`, whereas in Elm the result
--- | was a `Tuple`.
-partition :: ∀ a. (a -> Bool) -> List a -> { trues :: List a, falses :: List a }
-partition pred list =
-    foldr step { trues: Nil, falses: Nil } list
-        where
-            step x memo =
-                if pred x
-                    then memo { trues = x : memo.trues }
-                    else memo { falses = x : memo.falses }
+-- |     partition (\x -> x < 3) (0..5) == Tuple (0 : 1 : 2 : Nil) (3 : 4 : 5 : Nil)
+-- |     partition isEven        (0..5) == Tuple (0 : 2 : 4 : Nil) (1 : 3 : 5 : Nil)
+partition :: ∀ a. (a -> Bool) -> List a -> Tuple (List a) (List a)
+partition pred =
+    foldr step (Tuple Nil Nil)
+
+    where
+        step x =
+            (if pred x then lmap else rmap) (Cons x)
 
 
 -- | Combine two lists, combining them with the given function.

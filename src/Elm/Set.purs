@@ -29,6 +29,8 @@ import Elm.Foldable (foldl) as Virtual
 
 import Prelude (class Ord, (<<<))
 import Data.Set (Set, delete, difference, intersection, fromList, toList, insert, empty)
+import Data.Tuple (Tuple(..))
+import Data.Bifunctor (lmap, rmap)
 import Data.Foldable (foldr)
 import Elm.Foldable (foldl)
 import Elm.Basics (Bool)
@@ -70,13 +72,10 @@ filter func =
 
 -- | Create two new sets; the first consisting of elements which satisfy a
 -- | predicate, the second consisting of elements which do not.
--- |
--- | Note that the result is a record of `{trues, falses}`, rather than a `Tuple`.
-partition :: ∀ a. (Ord a) => (a -> Bool) -> Set a -> {trues :: Set a, falses :: Set a}
-partition pred set =
-    foldr step { trues: empty, falses: empty } set
-        where
-            step x memo =
-                if pred x
-                    then memo { trues = insert x memo.trues }
-                    else memo { falses = insert x memo.falses }
+partition :: ∀ a. (Ord a) => (a -> Bool) -> Set a -> Tuple (Set a) (Set a)
+partition pred =
+    foldr step (Tuple empty empty)
+
+    where
+        step x =
+            (if pred x then lmap else rmap) (insert x)

@@ -33,9 +33,9 @@
 -- |           , snd: 2
 -- |           }
 -- |
--- | In converting Elm APIs, I've sometimes used the `Tuple` type, and sometimes
--- | converted to using records instead. In either case, you'll need to make some
--- | modifications to your own code that uses Tuples.
+-- | In converting Elm APIs, I have consistently used `Data.Tuple`. (I had originally
+-- | sometimes used records instead. However, on reflection, it seemed best to keep the
+-- | translation from Elm to Purescript as mechanical as possible.)
 
 
 module Elm.Basics
@@ -89,6 +89,7 @@ import Prelude
 
 import Math (cos, sqrt, log, pi, sin, atan2)
 import Data.Int (round, toNumber)
+import Data.Tuple (Tuple(..))
 import Elm.Debug (crash)
 
 
@@ -118,34 +119,32 @@ turns t =
     2.0 * pi * t
 
 
--- | Convert polar coordinates `{r, theta}` to Cartesian coordinates `{x, y}`.
+-- | Convert polar coordinates `Tuple r theta` to Cartesian coordinates `Tuple x y`.
 -- |
--- | Note that the Elm version uses tuples ... it seemed like this was a good
--- | candidate for records instead. (Since Purescript does not have tuple
--- | literals, Elm code using Tuples nees some modification in any event).
+-- | *Note that it would normally be better to use a record type here, rather than
+-- | tuples. However, it seems best to match the Elm API as closely as possible.*
 -- |
--- | If you want some more sophisticated handling of complex numbers, see
--- | [purescript-complex](http://pursuit.purescript.org/packages/purescript-complex).
-fromPolar :: {r :: Float, theta :: Float} -> {x :: Float, y :: Float}
-fromPolar {r, theta} =
-    { x: r * cos theta
-    , y: r * sin theta
-    }
+-- | *If you want some more sophisticated handling of complex numbers, see
+-- | [purescript-complex](http://pursuit.purescript.org/packages/purescript-complex).*
+fromPolar :: Tuple Float Float -> Tuple Float Float
+fromPolar (Tuple r theta) =
+    Tuple
+        (r * cos theta)
+        (r * sin theta)
 
 
--- | Convert Cartesian coordinates `{x, y}` to polar coordinates `{r, theta}`.
+-- | Convert Cartesian coordinates `Tuple x y` to polar coordinates `Tuple r theta`.
 -- |
--- | Note that the Elm version uses tuples ... it seemed like this was a good
--- | candidate for records instead. (Since Purescript does not have tuple
--- | literals, Elm code using Tuples nees some modification in any event).
+-- | *Note that it would normally be better to use a record type here, rather than
+-- | tuples. However, it seems best to match the Elm API as closely as possible.*
 -- |
--- | If you want some more sophisticated handling of complex numbers, see
--- | [purescript-complex](http://pursuit.purescript.org/packages/purescript-complex).
-toPolar :: {x :: Float, y :: Float} -> {r :: Float, theta :: Float}
-toPolar {x, y} =
-    { r: sqrt (x * x + y * y)
-    , theta: atan2 y x
-    }
+-- | *If you want some more sophisticated handling of complex numbers, see
+-- | [purescript-complex](http://pursuit.purescript.org/packages/purescript-complex).*
+toPolar :: Tuple Float Float -> Tuple Float Float
+toPolar (Tuple x y) =
+    Tuple
+        (sqrt (x * x + y * y))
+        (atan2 y x)
 
 
 infixl 7 intDiv as //

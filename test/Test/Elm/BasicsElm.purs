@@ -5,6 +5,7 @@ import Test.Unit.Assert (assert)
 
 import Elm.Basics
 import Elm.List (List(..), (:))
+import Data.Tuple (fst, snd)
 import Prelude (bind, Ordering(..), class Eq)
 
 
@@ -55,25 +56,25 @@ tests = do
         assert "turns 8" (abs (50.26 - turns 8.0) < 0.01) -- This should test to enough precision to know if anything's breaking
         assert "turns -133" (abs ((-835.66) - turns (-133.0)) < 0.01) -- This should test to enough precision to know if anything's breaking
 
-        let fp1 = fromPolar {r: 0.0, theta: 0.0}
-        let fp2 = fromPolar {r: 1.0, theta: 0.0}
-        let fp3 = fromPolar {r: 0.0, theta: 1.0}
-        let fp4 = fromPolar {r: 1.0, theta: 1.0}
+        let fp1 = fromPolar (Tuple 0.0 0.0)
+        let fp2 = fromPolar (Tuple 1.0 0.0)
+        let fp3 = fromPolar (Tuple 0.0 1.0)
+        let fp4 = fromPolar (Tuple 1.0 1.0)
 
-        assert "fromPolar (0, 0)" <| fp1.x == 0.0 && fp1.y == 0.0
-        assert "fromPolar (1, 0)" <| fp2.x == 1.0 && fp2.y == 0.0
-        assert "fromPolar (0, 1)" <| fp3.x == 0.0 && fp3.y == 0.0
-        assert "fromPolar (1, 1)" <| 0.54 - fp4.x < 0.01 && 0.84 - fp4.y < 0.01
+        assert "fromPolar (0, 0)" <| (fst fp1) == 0.0 && (snd fp1) == 0.0
+        assert "fromPolar (1, 0)" <| (fst fp2) == 1.0 && (snd fp2) == 0.0
+        assert "fromPolar (0, 1)" <| (fst fp3) == 0.0 && (snd fp3) == 0.0
+        assert "fromPolar (1, 1)" <| 0.54 - (fst fp4) < 0.01 && 0.84 - (snd fp4) < 0.01
 
-        let tp1 = toPolar {x: 0.0, y: 0.0}
-        let tp2 = toPolar {x: 1.0, y: 0.0}
-        let tp3 = toPolar {x: 0.0, y: 1.0}
-        let tp4 = toPolar {x: 1.0, y: 1.0}
+        let tp1 = toPolar (Tuple 0.0 0.0)
+        let tp2 = toPolar (Tuple 1.0 0.0)
+        let tp3 = toPolar (Tuple 0.0 1.0)
+        let tp4 = toPolar (Tuple 1.0 1.0)
 
-        assert "toPolar (0, 0)" <| tp1.r == 0.0 && tp1.theta == 0.0
-        assert "toPolar (1, 0)" <| tp2.r == 1.0 && tp2.theta == 0.0
-        assert "toPolar (0, 1)" <| tp3.r == 1.0 && abs (1.57 - tp3.theta) < 0.01
-        assert "toPolar (1, 1)" <| abs (1.41 - tp4.r) < 0.01 && abs (0.78 - tp4.theta) < 0.01
+        assert "toPolar (0, 0)" <| (fst tp1) == 0.0 && (snd tp1) == 0.0
+        assert "toPolar (1, 0)" <| (fst tp2) == 1.0 && (snd tp2) == 0.0
+        assert "toPolar (0, 1)" <| (fst tp3) == 1.0 && abs (1.57 - (snd tp3)) < 0.01
+        assert "toPolar (1, 1)" <| abs (1.41 - (fst tp4)) < 0.01 && abs (0.78 - (snd tp4)) < 0.01
 
         assertEqual "cos" 1.0 (cos 0.0)
         assertEqual "sin" 0.0 (sin 0.0)

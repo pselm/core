@@ -7,7 +7,7 @@ import Elm.List
 
 import Elm.Basics ((+), compare, (<|), (|>), (==), (%), (<), (>), (<=), (>=), toString, min, identity)
 import Elm.Maybe (Maybe(..))
-import Data.Tuple (Tuple(..))
+import Data.Tuple (Tuple(..), fst, snd)
 import Prelude (bind, class Eq, negate, (*), (/), (++), (-), flip, (&&))
 
 
@@ -105,13 +105,13 @@ testListOfN n =
                 (intersperse (-1) xs |> foldl (\x (Tuple c1 c2) -> (Tuple c2 (c1 + x))) (Tuple 0 0))
 
             let left = partition (\x -> x > 0) xs
-            assert "partition left" <| left.trues == xs && left.falses == (Nil :: List Int)
+            assert "partition left" <| (fst left) == xs && (snd left) == (Nil :: List Int)
 
             let right = partition (\x -> x < 0) xs
-            assert "patition right" <| right.trues == (Nil :: List Int) && right.falses == xs
+            assert "patition right" <| (fst right) == (Nil :: List Int) && (snd right) == xs
 
             let split = partition (\x -> x > mid) xs
-            assert "partition split" <| split.trues == ((mid + 1)..n) && split.falses == (1..mid)
+            assert "partition split" <| (fst split) == ((mid + 1)..n) && (snd split) == (1..mid)
 
             assertEqual "map2 same length" (map ((*) 2) xs) (map2 (+) xs xs)
             assertEqual "map2 long first" (map (\x -> x * 2 - 1) xs) (map2 (+) zs xs)

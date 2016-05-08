@@ -5,6 +5,7 @@ import Test.Unit.Assert (assert)
 
 import Elm.Set as Set
 import Elm.Set (Set)
+import Data.Tuple (fst, snd)
 import Elm.Basics (Bool, (++), (+), (==), (<|), (<=))
 import Prelude (bind, class Eq)
 import Elm.List (List(..), (:), (..))
@@ -50,8 +51,8 @@ tests = do
         assert "Simple filter" <| setPart1 == Set.filter pred set
 
         let partition = Set.partition pred set
-        assert "Simple partition trues" <| partition.trues == setPart1
-        assert "Simple partition falses" <| partition.falses == setPart2
+        assert "Simple partition trues" <| (fst partition) == setPart1
+        assert "Simple partition falses" <| (snd partition) == setPart2
 
         assertEqual "isEmpty true" true (Set.isEmpty Set.empty)
         assertEqual "isEmpty false" false (Set.isEmpty (Set.singleton 27))
