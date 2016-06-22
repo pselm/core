@@ -28,7 +28,7 @@ import Data.Map
 -- Internal
 
 import Prelude (class Ord, flip, (>>>))
-import Prelude as Prelude
+import Prelude (map) as Prelude
 import Data.Map (Map, lookup, alter, delete, member, insert, empty, toList, fromList)
 import Data.Unfoldable (class Unfoldable)
 import Data.Bifunctor (lmap, rmap)

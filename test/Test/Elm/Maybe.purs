@@ -1,6 +1,6 @@
 module Test.Elm.Maybe (tests) where
 
-import Test.Unit (TestSuite, Test, suite, test)
+import Test.Unit (TestSuite, suite, test)
 import Test.Unit.Assert (assert)
 
 import Elm.Maybe

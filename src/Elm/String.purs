@@ -36,18 +36,18 @@ import Prelude (append) as Virtual
 
 -- Internal
 
-import Data.String (null, fromCharArray, toCharArray, singleton, length, take, drop, joinWith)
-import Data.String as String
 import Elm.Result (Result(..))
 import Elm.Basics (Bool, Float)
 import Elm.Char (isDigit)
-import Data.List (List)
-import Data.List as List
-import Prelude ((<>), (<<<), (>>>), (-), (/), ($))
-import Prelude as Prelude
+
+import Data.String (null, fromCharArray, toCharArray, singleton, length, take, drop, joinWith)
+import Data.String as String
 import Data.Foldable (class Foldable, fold)
 import Data.Unfoldable (class Unfoldable)
 import Data.Array as Array
+
+import Prelude ((<>), (<<<), (>>>), (-), (/), ($))
+import Prelude (map) as Prelude
 
 
 -- | Determine if a string is empty.

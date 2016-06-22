@@ -5,7 +5,6 @@ import Test.Unit.Assert (assert)
 
 import Elm.Basics
 import Elm.List (List(..), (:))
-import Data.Tuple (fst, snd)
 import Prelude (bind, Ordering(..), class Eq)
 
 
