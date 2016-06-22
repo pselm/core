@@ -1,6 +1,6 @@
 module Test.Elm.Set (tests) where
 
-import Test.Unit (TestUnit, Assertion, test)
+import Test.Unit (TestSuite, Test, suite, test)
 import Test.Unit.Assert (assert)
 
 import Elm.Set as Set
@@ -11,7 +11,7 @@ import Prelude (bind, class Eq)
 import Elm.List (List(..), (:), (..))
 
 
-assertEqual :: ∀ a e. (Eq a) => String -> a -> a -> Assertion e
+assertEqual :: ∀ a e. (Eq a) => String -> a -> a -> Test e
 assertEqual name expected actual =
     assert name <| expected == actual
 
@@ -32,8 +32,8 @@ pred :: Int -> Bool
 pred x = x <= 50
 
 
-tests :: ∀ e. TestUnit e
-tests = do
+tests :: ∀ e. TestSuite e
+tests = suite "Set" do
     test "build" do
         assertEqual "empty" (Set.fromList (Nil :: List Int)) (Set.empty)
         assertEqual "singleton" (Set.fromList (27 : Nil)) (Set.singleton 27)

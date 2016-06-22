@@ -1,18 +1,19 @@
 module Test.Elm.Array (tests) where
 
-import Test.Unit (TestUnit, Assertion, test)
+import Test.Unit (TestSuite, Test, suite, test)
 import Test.Unit.Assert (assert)
 
 import Elm.Array as Array
 import Elm.List as List
+import Data.Array as DA
 import Prelude (bind, class Eq, (-), (==), (*), (+), negate, const)
-import Data.List (List(..), toList, (..), (:))
+import Data.List (List(..), fromFoldable, (..), (:))
 import Data.Maybe (Maybe(..))
 import Elm.Basics ((<|), identity, sqrt, (%), always)
 import Data.Tuple (Tuple(..))
 
 
-assertEqual :: ∀ a e. (Eq a) => String -> a -> a -> Assertion e
+assertEqual :: ∀ a e. (Eq a) => String -> a -> a -> Test e
 assertEqual name expected actual =
     assert name <| expected == actual
 
@@ -44,8 +45,8 @@ mapArray array =
     ) array
 
 
-tests :: ∀ e. TestUnit e
-tests = do
+tests :: ∀ e. TestSuite e
+tests = suite "Array" do
     test "Creation" do
         assertEqual "empty" Array.empty (Array.fromList (Nil :: List Int))
         assertEqual "initialize" (Array.initialize 4 identity) (Array.fromList [0,1,2,3])
@@ -82,11 +83,11 @@ tests = do
         assertEqual "set -1" (Array.fromList [1,2,3]) (Array.set (-1) 7 (Array.fromList [1,2,3]))
 
     test "Taking Arrays Apart" do
-        assertEqual "toList" (toList [3,5,8]) (Array.toList (Array.fromList [3,5,8]))
-        assertEqual "toList huge" 32768 (Data.List.length (Array.toList (Array.initialize 32768 identity)))
+        assertEqual "toList" (fromFoldable [3,5,8]) (Array.toList (Array.fromList [3,5,8]))
+        assertEqual "toList huge" 32768 (List.length (Array.toList (Array.initialize 32768 identity)))
 
-        assertEqual "toIndexedList" (toList [Tuple 0 "cat", Tuple 1 "dog"]) (Array.toIndexedList (Array.fromList ["cat","dog"]))
-        assertEqual "bigIndexedList" 32768 (Data.List.length (Array.toIndexedList (Array.fromList (Data.Array.range 0 32767))))
+        assertEqual "toIndexedList" (fromFoldable [Tuple 0 "cat", Tuple 1 "dog"]) (Array.toIndexedList (Array.fromList ["cat","dog"]))
+        assertEqual "bigIndexedList" 32768 (List.length (Array.toIndexedList (Array.fromList (DA.range 0 32767))))
 
         assertEqual "slice 1" (Array.fromList [0,1,2]) (Array.slice  0  3 (Array.fromList [0,1,2,3,4]))
         assertEqual "slice 2" (Array.fromList [1,2,3]) (Array.slice  1  4 (Array.fromList [0,1,2,3,4]))
@@ -100,14 +101,14 @@ tests = do
         assertEqual "indexedMap 1" (Array.fromList [0,5,10]) (Array.indexedMap (*) (Array.fromList [5,5,5]))
         assertEqual "indexedMap 2" (0..99) (Array.toList (Array.indexedMap const (Array.repeat 100 0)))
 
-        assertEqual "small indexed map" (Data.Array.range 0 (32 - 1)) (Array.toList <| mapArray <| Array.initialize 32 identity)
-        assertEqual "large indexed map" (Data.Array.range 0 (32768 - 1)) (Array.toList <| mapArray <| Array.initialize 32768 identity)
+        assertEqual "small indexed map" (DA.range 0 (32 - 1)) (Array.toList <| mapArray <| Array.initialize 32 identity)
+        assertEqual "large indexed map" (DA.range 0 (32768 - 1)) (Array.toList <| mapArray <| Array.initialize 32768 identity)
 
-        assertEqual "foldl 1" (toList [3,2,1]) (Array.foldl (:) Nil (Array.fromList [1,2,3]))
+        assertEqual "foldl 1" (fromFoldable [3,2,1]) (Array.foldl (:) Nil (Array.fromList [1,2,3]))
         assertEqual "foldl 2" 33 (Array.foldl (+) 0 (Array.repeat 33 1))
 
         assertEqual "foldr 1" 15 (Array.foldr (+) 0 (Array.repeat 3 5))
-        assertEqual "foldr 2" (toList [1,2,3]) (Array.foldr (:) Nil (Array.fromList [1,2,3]))
+        assertEqual "foldr 2" (fromFoldable [1,2,3]) (Array.foldr (:) Nil (Array.fromList [1,2,3]))
         assertEqual "foldr 3" 53 (Array.foldr (-) 54 (Array.fromList [10,11]))
 
         assertEqual "filter" (Array.fromList [2,4,6]) (Array.filter (\x -> x % 2 == 0) (Array.fromList (1..6)))

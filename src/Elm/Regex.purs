@@ -20,7 +20,7 @@ module Elm.Regex
 
 import Elm.Basics (Bool)
 import Elm.List (List(..))
-import Data.List (reverse, toList)
+import Data.List (reverse, fromFoldable)
 import Elm.Maybe (Maybe(..))
 import Prelude (class Show, ($))
 
@@ -174,7 +174,7 @@ foreign import _replace :: ∀ a. Context a -> Int -> Regex -> (Match -> String)
 -- |     split All (regex ",") "a,b,c,d" == ["a","b","c","d"]
 split :: HowMany -> Regex -> String -> List String
 split howMany reg string =
-    toList $
+    fromFoldable $
         _split (count howMany) reg string
 
 

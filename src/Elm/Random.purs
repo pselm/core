@@ -44,7 +44,7 @@ import Prelude (map) as Virtual
 -- Internal
 
 import Prelude
-    ( (==), (/), (*), (-), (+), (<), ($), (++)
+    ( (==), (/), (*), (-), (+), (<), ($), (<>)
     , negate, zero, one
     , class Ord, class Functor, class Apply, class Bind, class Semigroup
     , class Applicative, pure
@@ -221,7 +221,7 @@ list n (Generator gen) =
                                 gen seed
 
                         in
-                            go (memo ++ (pure result.value)) (n - 1) result.seed
+                            go (memo <> (pure result.value)) (n - 1) result.seed
 
 
 -- | Transform the values produced by a generator. The following examples show
@@ -310,7 +310,7 @@ append (Generator genA) (Generator genB) =
             result2 = genB result1.seed
 
         in
-            { value: result1.value ++ result2.value
+            { value: result1.value <> result2.value
             , seed: result2.seed
             }
 

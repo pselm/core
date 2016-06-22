@@ -2,12 +2,13 @@
 -- | A library for fast immutable arrays. The elements in an array must have the
 -- | same type.
 -- |
--- | This is based on the Purescript `Data.Sequence` package -- an `Array` is a
+-- | * This is based on the Purescript `Data.Sequence` package -- an `Array` is a
 -- | `Data.Sequence.Seq`, so you can use additional functions from that package
--- | as well.
+-- | as well. *
 -- |
--- | Note that the Purescript primitive `Array` type is something different --
--- | it is actually a Javascript array.
+-- | * Note that the Purescript primitive `Array` type is something different --
+-- | it is actually a Javascript array. In order to avoid conflicts with `Prim.Array`,
+-- | many type signatures below actually use `Seq` insted of `Array`. *
 
 module Elm.Array
     ( module Virtual
@@ -31,13 +32,19 @@ import Data.Sequence
     , snoc, index, null, take, drop, length
     )
 
+-- This is supposed to prevent conflict with the locally-defined
+-- array type, but it doesn't work in Purescript 0.9.1 ... you
+-- get a conflict anyway.
+import Prim hiding (Array)
+
 import Elm.Basics (Bool)
+import Data.Array as DA
 import Data.Foldable (class Foldable)
+import Data.Foldable as Foldable
 import Data.Unfoldable (class Unfoldable)
 import Data.Ord (clamp)
 import Elm.Maybe (Maybe)
 import Data.Tuple (Tuple(..), snd)
-import Prim hiding (Array)
 import Data.Monoid (class Monoid, mempty)
 
 import Prelude
@@ -46,7 +53,9 @@ import Prelude
     , ($), (-), const, flip, (>=), (<=), (+), (<<<), (<>)
     )
 
--- | The `Array` type is synonym for `Data.Sequence.Seq`.
+-- | The `Array` type is synonym for `Data.Sequence.Seq`. Note that many type
+-- | signatures in this module use `Seq` instead of `Array` to avoid a conflict
+-- | with `Prim.Array`.
 type Array = Seq
 
 
@@ -56,13 +65,13 @@ type Array = Seq
 -- |     initialize 4 identity    == fromList [0,1,2,3]
 -- |     initialize 4 (\n -> n*n) == fromList [0,1,4,9]
 -- |     initialize 4 (always 0)  == fromList [0,0,0,0]
-initialize :: ∀ a. Int -> (Int -> a) -> Array a
+initialize :: ∀ a. Int -> (Int -> a) -> Seq a
 initialize len func =
     if len <= 0
        then empty
        else
             func <$>
-               fromFoldable (Data.Array.range 0 (len - 1))
+               fromFoldable (DA.range 0 (len - 1))
 
 
 -- | Creates an array with a given length, filled with a default element.
@@ -71,7 +80,7 @@ initialize len func =
 -- |     repeat 3 "cat" == fromList ["cat","cat","cat"]
 -- |
 -- | Notice that `repeat 3 x` is the same as `initialize 3 (always x)`.
-repeat :: ∀ a. Int -> a -> Array a
+repeat :: ∀ a. Int -> a -> Seq a
 repeat n e =
     initialize n (const e)
 
@@ -79,7 +88,7 @@ repeat n e =
 -- | Create an array from a list.
 -- |
 -- | Note that this actually works with any `Foldable`.
-fromList :: ∀ f a. (Foldable f) => f a -> Array a
+fromList :: ∀ f a. (Foldable f) => f a -> Seq a
 fromList = fromFoldable
 
 
@@ -89,7 +98,7 @@ fromList = fromFoldable
 -- |
 -- | Note that this actually works with any type that is both a
 -- | `Functor` and an `Unfoldable`.
-toList :: ∀ f a. (Functor f, Unfoldable f) => Array a -> f a
+toList :: ∀ f a. (Functor f, Unfoldable f) => Seq a -> f a
 toList = toUnfoldable
 
 
@@ -100,9 +109,9 @@ toList = toUnfoldable
 -- |
 -- | The container in the return type is defined polymorphically to accommodate
 -- | `List` and Purescript's `Array`, among others.
-toIndexedList :: ∀ f a. (Applicative f, Monoid (f (Tuple Int a))) => Array a -> f (Tuple Int a)
+toIndexedList :: ∀ f a. (Applicative f, Monoid (f (Tuple Int a))) => Seq a -> f (Tuple Int a)
 toIndexedList arr =
-    snd $ Data.Foldable.foldr step (Tuple ((length arr) - 1) mempty) arr
+    snd $ Foldable.foldr step (Tuple ((length arr) - 1) mempty) arr
         where
             step item (Tuple index list) =
                 Tuple (index - 1) ((pure $ Tuple index item) <> list)
@@ -111,9 +120,9 @@ toIndexedList arr =
 -- | Apply a function on every element with its index as first argument.
 -- |
 -- |     indexedMap (*) (fromList [5,5,5]) == fromList [0,5,10]
-indexedMap :: ∀ a b. (Int -> a -> b) -> Array a -> Array b
+indexedMap :: ∀ a b. (Int -> a -> b) -> Seq a -> Seq b
 indexedMap func =
-    snd <<< Data.Foldable.foldl step (Tuple 0 empty)
+    snd <<< Foldable.foldl step (Tuple 0 empty)
         where
             step (Tuple index seq) item =
                 Tuple (index + 1) (snoc seq (func index item))
@@ -124,7 +133,7 @@ indexedMap func =
 -- |     push 3 (fromList [1,2]) == fromList [1,2,3]
 -- |
 -- | Equivalent to Purescript's `snoc`, but with the arguments flipped.
-push :: ∀ a. a -> Array a -> Array a
+push :: ∀ a. a -> Seq a -> Seq a
 push = flip snoc
 
 
@@ -136,7 +145,7 @@ push = flip snoc
 -- |     get -1 (fromList [0,1,2]) == Nothing
 -- |
 -- | Equivalent to Purescript's `index`.
-get :: ∀ a. Int -> Array a -> Maybe a
+get :: ∀ a. Int -> Seq a -> Maybe a
 get = index
 
 
@@ -146,7 +155,7 @@ get = index
 -- |     set 1 7 (fromList [1,2,3]) == fromList [1,7,3]
 -- |
 -- | Equivalent to Purescript's `replace`, but with the arguments flipped.
-set :: ∀ a. Int -> a -> Array a -> Array a
+set :: ∀ a. Int -> a -> Seq a -> Seq a
 set = flip replace
 
 
@@ -165,7 +174,7 @@ set = flip replace
 -- |     slice -2  5 (fromList [0,1,2,3,4]) == fromList [3,4]
 -- |
 -- | This makes it pretty easy to `pop` the last element off of an array: `slice 0 -1 array`
-slice :: ∀ a. Int -> Int -> Array a -> Array a
+slice :: ∀ a. Int -> Int -> Seq a -> Seq a
 slice start end array =
     let
         len =
@@ -195,5 +204,5 @@ slice start end array =
 -- |     isEmpty empty == true
 -- |
 -- | Equivalent to Purescript's `null`.
-isEmpty :: ∀ a. Array a -> Bool
+isEmpty :: ∀ a. Seq a -> Bool
 isEmpty = null

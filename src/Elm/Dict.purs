@@ -28,11 +28,14 @@ import Data.Map
 -- Internal
 
 import Prelude (class Ord, flip, (>>>))
+import Prelude as Prelude
 import Data.Map (Map, lookup, alter, delete, member, insert, empty, toList, fromList)
 import Data.Unfoldable (class Unfoldable)
 import Data.Bifunctor (lmap, rmap)
-import Elm.Maybe (Maybe)
-import Elm.List (List)
+import Data.Maybe (Maybe)
+import Data.List (List)
+import Data.List as List
+import Elm.List as ElmList
 import Elm.Basics (Bool)
 import Data.Tuple (Tuple(..))
 
@@ -146,7 +149,7 @@ foldl f acc dict =
         folder (Tuple k v) = f k v
 
     in
-        Elm.List.foldl folder acc tuples
+        ElmList.foldl folder acc tuples
 
 
 -- | Fold over the key-value pairs in a dictionary, in order from highest
@@ -163,7 +166,7 @@ foldr f acc dict =
         folder (Tuple k v) = f k v
 
     in
-        Elm.List.foldr folder acc tuples
+        ElmList.foldr folder acc tuples
 
 
 -- | Produce a `Dict` from any `Unfoldable` container of tuples of keys
@@ -174,4 +177,4 @@ foldr f acc dict =
 toUnfoldable :: ∀ f k v. (Ord k, Unfoldable f) => Dict k v -> f (Tuple k v)
 toUnfoldable =
     -- There is probably a more efficient method ...
-    toList >>> Data.List.toUnfoldable
+    toList >>> List.toUnfoldable

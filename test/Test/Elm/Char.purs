@@ -1,6 +1,6 @@
 module Test.Elm.Char (tests) where
 
-import Test.Unit (TestUnit, Assertion, test)
+import Test.Unit (TestSuite, Test, suite, test)
 import Test.Unit.Assert (assert)
 
 import Elm.Char
@@ -10,7 +10,7 @@ import Elm.List as List
 import Data.List (List, (..))
 
 
-assertEqual :: ∀ a e. (Eq a) => String -> a -> a -> Assertion e
+assertEqual :: ∀ a e. (Eq a) => String -> a -> a -> Test e
 assertEqual name expected actual =
     assert name <| expected == actual
 
@@ -56,8 +56,8 @@ oneOf :: ∀ a. (Eq a) => List a -> a -> Boolean
 oneOf = flip List.member
 
 
-tests :: ∀ e. TestUnit e
-tests = do
+tests :: ∀ e. TestSuite e
+tests = suite "Char" do
     test "toCode" do
         assertEqual "a-z" (lowerCodes) (List.map toCode lower)
         assertEqual "A-Z" (upperCodes) (List.map toCode upper)

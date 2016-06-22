@@ -1,25 +1,33 @@
 module Test.Elm.Json (tests) where
 
-import Test.Unit (TestUnit, Assertion, test)
+import Test.Unit (TestSuite, Test, suite, test)
 import Test.Unit.Assert (equal)
 
 import Elm.Json.Encode as JE
 import Elm.Json.Decode as JD
 import Elm.Json.Decode ((:=))
+
+import Elm.Result (Result(..), toMaybe)
+import Elm.Basics (Float)
+import Elm.Dict as Dict
+
 import Data.List (List(..), (:))
+import Data.List as List
 import Data.Foldable (traverse_)
+import Data.Sequence (Seq)
+import Data.Sequence as Sequence
+import Data.Tuple (Tuple(..))
+import Data.Maybe (Maybe(..))
+import Data.Generic (class Generic, gEq, gShow)
+
+import Math (sqrt)
+
 import Control.Alt (class Alt, alt, (<|>))
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Random (RANDOM)
 import Control.Monad.Eff.Exception (EXCEPTION)
 import Control.Monad.Eff.Console (CONSOLE)
-import Elm.Result (Result(..), toMaybe)
-import Elm.Basics (Float)
-import Data.Tuple (Tuple(..))
-import Data.Maybe (Maybe(..))
-import Math (sqrt)
-import Global (infinity, nan)
-import Data.Generic (class Generic, gEq, gShow)
+
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
 import Test.QuickCheck.Laws.Data.Functor (checkFunctor)
 import Test.QuickCheck.Laws.Control.Alt (checkAlt)
@@ -36,13 +44,13 @@ import Prelude
     , class Functor, map
     , class Apply, apply
     , class Applicative, pure
-    , flip, negate, (++), ($), (+), (<<<)
+    , flip, negate, (<>), ($), (+), (<<<)
     )
 
 
 infixl 9 equals as ===
 
-equals :: ∀ a e. (Eq a, Show a) => a -> a -> Assertion e
+equals :: ∀ a e. (Eq a, Show a) => a -> a -> Test e
 equals = flip equal
 
 
@@ -52,7 +60,7 @@ tuple :: ∀ a b. a -> b -> Tuple a b
 tuple = Tuple
 
 
-check :: ∀ e a. (Eq a, Show a) => JD.Decoder a -> Tuple String (Maybe a) -> Assertion e
+check :: ∀ e a. (Eq a, Show a) => JD.Decoder a -> Tuple String (Maybe a) -> Test e
 check decoder (Tuple value expected) =
     toMaybe (JD.decodeString decoder value) === expected
 
@@ -91,8 +99,8 @@ instance eqShape :: Eq Shape where
 -- TODO: The docs for Elm.Json.Encode.float say that infinity and NaN
 -- are encoded as null ... should test that.
 
-tests :: ∀ e. TestUnit (random :: RANDOM, err :: EXCEPTION, console :: CONSOLE | e)
-tests = do
+tests :: ∀ e. TestSuite (random :: RANDOM, err :: EXCEPTION, console :: CONSOLE | e)
+tests = suite "Json" do
     test "encode object with scalar types" do
         let
             person =
@@ -156,10 +164,10 @@ tests = do
             values = [ JE.string "Joe", JE.int 37 ]
 
             listOfValues :: List JE.Value
-            listOfValues = Data.List.fromFoldable values
+            listOfValues = List.fromFoldable values
 
-            elmArray :: Data.Sequence.Seq JE.Value
-            elmArray = Data.Sequence.fromFoldable values
+            elmArray :: Seq JE.Value
+            elmArray = Sequence.fromFoldable values
 
         JE.encode 0 (JE.array values) === """["Joe",37]"""
         JE.encode 0 (JE.array listOfValues) === """["Joe",37]"""
@@ -286,7 +294,7 @@ tests = do
             ]
 
     test "map" $
-        traverse_ (check (JD.map (_ ++ " Banana") JD.string))
+        traverse_ (check (JD.map (_ <> " Banana") JD.string))
             [ "\"Joe\"" ==> Just "Joe Banana"
             , "17" ==> Nothing
             ]
@@ -389,7 +397,7 @@ tests = do
 
         traverse_ (check decoder)
             [ """ {"tom": 89, "sue": 92, "bill": 97} """
-                ==> Just $ Elm.Dict.fromList
+                ==> Just $ Dict.fromList
                         ( Tuple "tom" 89
                         : Tuple "sue" 92
                         : Tuple "bill" 97
@@ -483,7 +491,7 @@ tests = do
                             ( "radius" := JD.float )
 
                     _ ->
-                        JD.fail (tag ++ " is not a recoganized tag for shapes")
+                        JD.fail (tag <> " is not a recoganized tag for shapes")
 
             decoder =
                 ( "tag" := JD.string ) `JD.andThen` shapeInfo
@@ -508,7 +516,7 @@ tests = do
                             ( "radius" := JD.float )
 
                     _ ->
-                        JD.fail (tag ++ " is not a recoganized tag for shapes")
+                        JD.fail (tag <> " is not a recoganized tag for shapes")
 
             decoder = do
                 tag <- "tag" := JD.string
@@ -547,13 +555,14 @@ tests = do
             , "[17.5, 18]" ==> Nothing
             ]
 
-    liftEff do
-        checkFunctor proxyDecoder
-        checkAlt proxyDecoder
-        checkApply proxyDecoder
-        checkApplicative proxyDecoder
-        checkBind proxyDecoder
-        checkMonad proxyDecoder
+    test "laws\n" $
+        liftEff do
+            checkFunctor proxyDecoder
+            checkAlt proxyDecoder
+            checkApply proxyDecoder
+            checkApplicative proxyDecoder
+            checkBind proxyDecoder
+            checkMonad proxyDecoder
 
 
 -- We test the laws via a newtype, in order to avoid making spurious

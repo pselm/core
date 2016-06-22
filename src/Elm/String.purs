@@ -20,13 +20,14 @@ module Elm.String
     , indexes, indices
     , toInt, toFloat
     , toList, fromList
+    , fromChar
     ) where
 
 
 -- For re-export
 
 import Data.String
-    ( fromChar, uncons, length, trim
+    ( uncons, length, trim
     , toUpper, toLower, contains
     ) as Virtual
 
@@ -35,13 +36,18 @@ import Prelude (append) as Virtual
 
 -- Internal
 
-import Data.String (null, fromCharArray, toCharArray, fromChar, length, take, drop)
+import Data.String (null, fromCharArray, toCharArray, singleton, length, take, drop, joinWith)
+import Data.String as String
 import Elm.Result (Result(..))
 import Elm.Basics (Bool, Float)
 import Elm.Char (isDigit)
-import Elm.List (List)
+import Data.List (List)
+import Data.List as List
 import Prelude ((<>), (<<<), (>>>), (-), (/), ($))
-import Data.Foldable (class Foldable, mconcat)
+import Prelude as Prelude
+import Data.Foldable (class Foldable, fold)
+import Data.Unfoldable (class Unfoldable)
+import Data.Array as Array
 
 
 -- | Determine if a string is empty.
@@ -58,19 +64,19 @@ isEmpty = null
 -- |
 -- |     cons 'T' "he truth is out there" == "The truth is out there"
 cons :: Char -> String -> String
-cons c = (<>) (fromChar c)
+cons c = (<>) (singleton c)
 
 
 -- | Concatenate many strings into one.
 -- |
 -- |     concat ["never","the","less"] == "nevertheless"
 -- |
--- | Equivalent to Purescript's `mconcat`
+-- | * Equivalent to Purescript's `fold` *
 -- |
--- | The signature uses `Foldable` to work with `List` or `Array`,
--- | among others.
+-- | * The signature uses `Foldable` to work with `List` or `Array`,
+-- | among others. *
 concat :: ∀ f. (Foldable f) => f String -> String
-concat = mconcat
+concat = fold
 
 
 -- | Transform every character in a string
@@ -88,7 +94,7 @@ map func string =
 filter :: (Char -> Bool) -> String -> String
 filter func string =
     fromCharArray $
-        Data.Array.filter func (toCharArray string)
+        Array.filter func (toCharArray string)
 
 
 -- | Reverse a string.
@@ -98,7 +104,7 @@ reverse :: String -> String
 reverse string =
     -- It feels as though there should be a better way to do this
     fromCharArray $
-        Data.Array.reverse (toCharArray string)
+        Array.reverse (toCharArray string)
 
 
 -- | Reduce a string from the left.
@@ -119,10 +125,13 @@ foreign import foldr :: ∀ b. (Char -> b -> b) -> b -> String -> b
 -- |     split "/" "home/evan/Desktop/" == ["home","evan","Desktop", ""]
 -- |
 -- | Use `Regex.split` if you need something more flexible.
-split :: String -> String -> List String
+-- |
+-- | * Uses a polymorphic container to accommodate `List` and `Array`,
+-- | among others. *
+split :: ∀ f. (Unfoldable f) => String -> String -> f String
 split sep s =
-    Data.List.toList $
-        Data.String.split sep s
+    Array.toUnfoldable $
+        String.split sep s
 
 
 -- | Put many strings together with a given separator.
@@ -130,8 +139,11 @@ split sep s =
 -- |     join "a" ["H","w","ii","n"]        == "Hawaiian"
 -- |     join " " ["cat","dog","cow"]       == "cat dog cow"
 -- |     join "/" ["home","evan","Desktop"] == "home/evan/Desktop"
-join :: String -> List String -> String
-join sep list = Data.String.joinWith sep (Data.List.fromList list)
+-- |
+-- | * Uses a polymorphic container to accommodate `List` and `Array`,
+-- | among others. *
+join :: ∀ f. (Foldable f) => String -> f String -> String
+join sep list = joinWith sep (Array.fromFoldable list)
 
 
 -- | Repeat a string *n* times.
@@ -143,10 +155,10 @@ foreign import repeat :: Int -> String -> String
 -- | Take a substring given a start and end index. Negative indexes
 -- | are taken starting from the *end* of the list.
 -- |
--- |     slice  7  9 "snakes on a plane!" == "on"
--- |     slice  0  6 "snakes on a plane!" == "snakes"
--- |     slice  0 -7 "snakes on a plane!" == "snakes on a"
--- |     slice -6 -1 "snakes on a plane!" == "plane"
+-- |     slice   7    9  "snakes on a plane!" == "on"
+-- |     slice   0    6  "snakes on a plane!" == "snakes"
+-- |     slice   0  (-7) "snakes on a plane!" == "snakes on a"
+-- |     slice (-6) (-1) "snakes on a plane!" == "plane"
 foreign import slice :: Int -> Int -> String -> String
 
 
@@ -189,7 +201,7 @@ pad :: Int -> Char -> String -> String
 pad desiredLength padding string =
     let
         padder =
-            fromChar padding
+            singleton padding
 
         addSpaces =
             desiredLength - (length string)
@@ -215,7 +227,7 @@ padLeft :: Int -> Char -> String -> String
 padLeft desiredLength padding string =
     let
         padder =
-            fromChar padding
+            singleton padding
 
         addSpaces =
             desiredLength - (length string)
@@ -233,7 +245,7 @@ padRight :: Int -> Char -> String -> String
 padRight desiredLength padding string =
     let
         padder =
-            fromChar padding
+            singleton padding
 
         addSpaces =
             desiredLength - (length string)
@@ -257,8 +269,11 @@ foreign import trimRight :: String -> String
 -- | Break a string into words, splitting on chunks of whitespace.
 -- |
 -- |     words "How are \t you? \n Good?" == ["How","are","you?","Good?"]
-words :: String -> List String
-words = Data.List.toList <<< _words
+-- |
+-- | * Uses a polymorphic container to accommodate `List` and `Array`,
+-- | among others. *
+words :: ∀ f. (Unfoldable f) => String -> f String
+words = Array.toUnfoldable <<< _words
 
 
 foreign import _words :: String -> Array String
@@ -267,8 +282,11 @@ foreign import _words :: String -> Array String
 -- | Break a string into lines, splitting on newlines.
 -- |
 -- |     lines "How are you?\nGood?" == ["How are you?", "Good?"]
-lines :: String -> List String
-lines = Data.List.toList <<< _lines
+-- |
+-- | * Uses a polymorphic container to accommodate `List` and `Array`,
+-- | among others. *
+lines :: ∀ f. (Unfoldable f) => String -> f String
+lines = Array.toUnfoldable <<< _lines
 
 
 foreign import _lines :: String -> Array String
@@ -309,9 +327,12 @@ foreign import endsWith :: String -> String -> Bool
 -- |     indexes "i" "Mississippi"   == [1,4,7,10]
 -- |     indexes "ss" "Mississippi"  == [2,5]
 -- |     indexes "needle" "haystack" == []
-indexes :: String -> String -> List Int
+-- |
+-- | * Uses a polymorphic container to accommodate `List` and `Array`,
+-- | among others. *
+indexes :: ∀ f. (Unfoldable f) => String -> String -> f Int
 indexes little big =
-    Data.List.toList $
+    Array.toUnfoldable $
         _indexes little big
 
 
@@ -319,7 +340,7 @@ foreign import _indexes :: String -> String -> Array Int
 
 
 -- | Alias for `indexes`.
-indices :: String -> String -> List Int
+indices :: ∀ f. (Unfoldable f) => String -> String -> f Int
 indices = indexes
 
 
@@ -375,8 +396,11 @@ toFloat = _toFloat conversionHelper
 -- | Convert a string to a list of characters.
 -- |
 -- |     toList "abc" == ['a','b','c']
-toList :: String -> List Char
-toList = Data.List.toList <<< toCharArray
+-- |
+-- | * Uses a polymorphic container to accommodate `List` and `Array`,
+-- | among others. *
+toList :: ∀ f. (Unfoldable f) => String -> f Char
+toList = Array.toUnfoldable <<< toCharArray
 
 
 -- | Convert a list of characters into a String. Can be useful if you
@@ -384,6 +408,17 @@ toList = Data.List.toList <<< toCharArray
 -- | something.
 -- |
 -- |     fromList ['a','b','c'] == "abc"
-fromList :: List Char -> String
-fromList = Data.List.fromList >>> fromCharArray
+-- |
+-- | * Uses a polymorphic container to accommodate `List` and `Array`,
+-- | among others. *
+fromList :: ∀ f. (Foldable f) => f Char -> String
+fromList = Array.fromFoldable >>> fromCharArray
 
+
+-- | Create a string from a given character.
+-- |
+-- |     fromChar 'a' == "a"
+-- |
+-- | * Equivalent to Purescript's `singleton` *
+fromChar :: Char -> String
+fromChar = singleton

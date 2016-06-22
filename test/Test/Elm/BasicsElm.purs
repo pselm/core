@@ -1,6 +1,6 @@
 module Test.Elm.BasicsElm (tests) where
 
-import Test.Unit (TestUnit, Assertion, test)
+import Test.Unit (TestSuite, Test, suite, test)
 import Test.Unit.Assert (assert)
 
 import Elm.Basics
@@ -9,13 +9,13 @@ import Data.Tuple (fst, snd)
 import Prelude (bind, Ordering(..), class Eq)
 
 
-assertEqual :: ∀ a e. (Eq a) => String -> a -> a -> Assertion e
+assertEqual :: ∀ a e. (Eq a) => String -> a -> a -> Test e
 assertEqual name expected actual =
     assert name <| expected == actual
 
 
-tests :: ∀ e. TestUnit e
-tests = do
+tests :: ∀ e. TestSuite e
+tests = suite "BasicsElm" do
     test "Comparison" do
         assertEqual "max" 42 (max 32 42)
         assertEqual "min" 42 (min 91 42)

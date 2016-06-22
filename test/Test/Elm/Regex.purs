@@ -1,10 +1,10 @@
 module Test.Elm.Regex (tests) where
 
-import Test.Unit (TestUnit, Assertion, test)
+import Test.Unit (TestSuite, Test, suite, test)
 import Test.Unit.Assert (assert)
 
 import Elm.Regex
-import Prelude (bind, class Eq, (&&), not, show, map, (++))
+import Prelude (bind, class Eq, (&&), not, show, map, (<>))
 import Elm.Basics ((<|), (==))
 import Data.List (List(..), (:), zipWith)
 import Data.Foldable (and)
@@ -13,7 +13,7 @@ import Data.Maybe (Maybe(..))
 import Elm.Maybe (withDefault)
 
 
-assertEqual :: ∀ a e. (Eq a) => String -> a -> a -> Assertion e
+assertEqual :: ∀ a e. (Eq a) => String -> a -> a -> Test e
 assertEqual name expected actual =
     assert name <| expected == actual
 
@@ -35,8 +35,8 @@ match =
     }
 
 
-tests :: ∀ e. TestUnit e
-tests = do
+tests :: ∀ e. TestSuite e
+tests = suite "Regex" do
     test "contains" do
         let containsExp = regex("a")
         let containsTarget = "abcd"
@@ -152,7 +152,7 @@ tests = do
 
         assertEqual "replace match"
             "Thee quuiick broown foox"
-            (replace All vowels (\m -> m.match ++ m.match) phrase)
+            (replace All vowels (\m -> m.match <> m.match) phrase)
 
         assertEqual "replace submatches"
             "The quick missing brown fox"

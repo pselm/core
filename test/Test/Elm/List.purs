@@ -1,6 +1,6 @@
 module Test.Elm.List (tests) where
 
-import Test.Unit (TestUnit, test)
+import Test.Unit (TestSuite, Test, suite, test)
 import Test.Unit.Assert (assert)
 
 import Elm.List
@@ -8,12 +8,14 @@ import Elm.List
 import Elm.Basics (sqrt, (+), compare, (<|), (==), not, (<), (&&))
 import Elm.Maybe (Maybe(..))
 import Data.Int (even)
+import Data.Int as Int
 import Data.Tuple (Tuple(..), fst, snd)
+import Data.String as String
 import Prelude (bind, Ordering(..))
 
 
-tests :: ∀ e. TestUnit e
-tests = do
+tests :: ∀ e. TestSuite e
+tests = suite "List" do
     test "(:)" do
         assert "with rest" <| (1 : 2 : 3 : Nil) == (Cons 1 (Cons 2 (Cons 3 Nil)))
         assert "by itself" <| (1 : Nil) == (Cons 1 Nil)
@@ -96,7 +98,7 @@ tests = do
         assert "indexedMap" <| indexedMap Tuple ("Tom" : "Sue" : "Bob" : Nil) == (Tuple 0 "Tom" : Tuple 1 "Sue" : Tuple 2 "Bob" : Nil)
 
     test "filterMap" do
-        assert "filterMap" <| filterMap Data.Int.fromString ("3" : "4.1" : "5" : "hats" : Nil) == (3 : 5 : Nil)
+        assert "filterMap" <| filterMap Int.fromString ("3" : "4.1" : "5" : "hats" : Nil) == (3 : 5 : Nil)
 
     test "map2" do
         assert "2nd longer" <| map2 (+) (1 .. 3) (1 .. 4) == (2 : 4 : 6 : Nil)
@@ -141,7 +143,7 @@ tests = do
 
         assert "sortByName" <| map _.name (sortBy _.name (chuck : alice : bob : Nil)) == (alice.name : bob.name : chuck.name : Nil)
         assert "sortByHeight" <| map _.height (sortBy _.height (chuck : alice : bob : Nil)) == (alice.height : chuck.height : bob.height : Nil)
-        assert "sortByLength" <| sortBy Data.String.length ("mouse" : "cat" : Nil) == ("cat" : "mouse" : Nil)
+        assert "sortByLength" <| sortBy String.length ("mouse" : "cat" : Nil) == ("cat" : "mouse" : Nil)
 
     test "sortWith" do
         assert "sortWith" <| sortWith flippedComparison (1 .. 5) == (5 : 4 : 3 : 2 : 1 : Nil)

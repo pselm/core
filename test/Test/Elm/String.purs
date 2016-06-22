@@ -1,6 +1,6 @@
 module Test.Elm.String (tests) where
 
-import Test.Unit (TestUnit, Assertion, test)
+import Test.Unit (TestSuite, Test, suite, test)
 import Test.Unit.Assert (assert)
 import Test.Unit.QuickCheck (quickCheck)
 import Test.QuickCheck ((===))
@@ -12,21 +12,21 @@ import Prelude (bind, class Eq, not, (&&), ($), (*), (>), (+))
 import Elm.Basics ((<|), (==), (/=), negate)
 import Elm.Maybe (Maybe(..))
 import Elm.Result (Result(..))
-import Data.List (toList) as List
+import Data.List (fromFoldable) as List
 
 
-assertEqual :: ∀ a e. (Eq a) => String -> a -> a -> Assertion e
+assertEqual :: ∀ a e. (Eq a) => String -> a -> a -> Test e
 assertEqual name expected actual =
     assert name <| expected == actual
 
 
-assertResult :: ∀ a e. (Eq a) => String -> Result String a -> Result String a -> Assertion e
+assertResult :: ∀ a e. (Eq a) => String -> Result String a -> Result String a -> Test e
 assertResult name expected actual =
     assert name <| expected == actual
 
 
-tests :: ∀ e. TestUnit (random :: RANDOM | e)
-tests = do
+tests :: ∀ e. TestSuite (random :: RANDOM | e)
+tests = suite "String" do
     test "Simple Stuff" do
         assert "is empty" (isEmpty "")
         assert "is not empty" (not (isEmpty ("the world")))
@@ -56,14 +56,14 @@ tests = do
         assertEqual "append 2" "butter" (append "butter" "")
         assertEqual "append 3" "butter" (append "" "butter")
 
-        assertEqual "concat" "nevertheless" (concat <| List.toList ["never","the","less"])
+        assertEqual "concat" "nevertheless" (concat <| List.fromFoldable ["never","the","less"])
         assertEqual "concat (array)" "nevertheless" (concat <| ["never","the","less"])
 
-        assertEqual "split commas" (List.toList ["cat","dog","cow"]) (split "," "cat,dog,cow")
-        assertEqual "split slashes" (List.toList ["home","steve","Desktop", ""]) (split "/" "home/steve/Desktop/")
+        assertEqual "split commas" (List.fromFoldable ["cat","dog","cow"]) (split "," "cat,dog,cow")
+        assertEqual "split slashes" (List.fromFoldable ["home","steve","Desktop", ""]) (split "/" "home/steve/Desktop/")
 
-        assertEqual "join spaces"  "cat dog cow" (join " " <| List.toList ["cat","dog","cow"])
-        assertEqual "join slashes" "home/steve/Desktop" (join "/" <| List.toList ["home","steve","Desktop"])
+        assertEqual "join spaces"  "cat dog cow" (join " " <| List.fromFoldable ["cat","dog","cow"])
+        assertEqual "join slashes" "home/steve/Desktop" (join "/" <| List.fromFoldable ["home","steve","Desktop"])
 
         assertEqual "slice 1" "c" (slice 2 3 "abcd")
         assertEqual "slice 2" "abc" (slice 0 3 "abcd")
@@ -98,8 +98,8 @@ tests = do
         assert "trimLeft" <| trimLeft "  hats  \n" == "hats  \n"
         assert "trimRight" <| trimRight "  hats  \n" == "  hats"
 
-        assert "words" <| words "How are \t you? \n Good?" == List.toList ["How","are","you?","Good?"]
-        assert "lines" <| lines "How are you?\nGood?" == List.toList ["How are you?", "Good?"]
+        assert "words" <| words "How are \t you? \n Good?" == List.fromFoldable ["How","are","you?","Good?"]
+        assert "lines" <| lines "How are you?\nGood?" == List.fromFoldable ["How are you?", "Good?"]
 
     test "case" do
         assertEqual "toUpper" "UPPER" <| toUpper "Upper"
@@ -122,13 +122,13 @@ tests = do
         assert "endsWith false" <| not <| endsWith "the" "theory"
         assert "endsWith true" <| endsWith "ory" "theory"
 
-        assert "indexes 1" <| indexes "i" "Mississippi"   == List.toList [1,4,7,10]
-        assert "indexes 2" <| indexes "ss" "Mississippi"  == List.toList [2,5]
-        assert "indexes 3" <| indexes "needle" "haystack" == List.toList []
+        assert "indexes 1" <| indexes "i" "Mississippi"   == List.fromFoldable [1,4,7,10]
+        assert "indexes 2" <| indexes "ss" "Mississippi"  == List.fromFoldable [2,5]
+        assert "indexes 3" <| indexes "needle" "haystack" == List.fromFoldable []
 
-        assert "indices 1" <| indices "i" "Mississippi"   == List.toList [1,4,7,10]
-        assert "indices 2" <| indices "ss" "Mississippi"  == List.toList [2,5]
-        assert "indices 3" <| indices "needle" "haystack" == List.toList []
+        assert "indices 1" <| indices "i" "Mississippi"   == List.fromFoldable [1,4,7,10]
+        assert "indices 2" <| indices "ss" "Mississippi"  == List.fromFoldable [2,5]
+        assert "indices 3" <| indices "needle" "haystack" == List.fromFoldable []
 
     test "conversions" do
         assertResult "toInt 1" (toInt "123") (Ok 123)
@@ -141,8 +141,8 @@ tests = do
         assertResult "toFloat 3" (toFloat "3.1") (Ok 3.1)
         assertResult "toFloat 4" (toFloat "31a") (Err "could not convert string '31a' to a Float")
 
-        assert "toList" <| toList "abc" == List.toList ['a','b','c']
-        assert "fromList" <| fromList (List.toList ['a','b','c']) == "abc"
+        assert "toList" <| toList "abc" == List.fromFoldable ['a','b','c']
+        assert "fromList" <| fromList (List.fromFoldable ['a','b','c']) == "abc"
 
     quick
 
@@ -165,7 +165,7 @@ checkConsLength a b =
     length (cons a b) === (length b) + 1
 
 
-quick :: ∀ e. TestUnit (random :: RANDOM | e)
-quick = do
+quick :: ∀ e. TestSuite (random :: RANDOM | e)
+quick = suite "quick checks" do
     test "repeatLength" $ quickCheck repeatLength
     test "isEmpty" $ quickCheck isEmptyLength

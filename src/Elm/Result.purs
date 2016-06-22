@@ -35,7 +35,7 @@ import Prelude
     , class Apply, pure
     , class Applicative, (<*>)
     , class Bind, class Monad
-    , class Semiring, (++), one, zero, add
+    , class Semiring, (<>), one, zero, add
     , class Semigroup, append, mul
     , class Bounded, top, bottom
     , class Show, show
@@ -111,7 +111,7 @@ toMaybe (Err _) = Nothing
 -- |
 -- |     resultParseInt :: String -> Result String Int
 -- |     resultParseInt string =
--- |         fromMaybe ("error parsing string: " ++ toString string) (parseInt string)
+-- |         fromMaybe ("error parsing string: " <> toString string) (parseInt string)
 fromMaybe :: ∀ x a. x -> Maybe a -> Result x a
 fromMaybe _ (Just v) = Ok v
 fromMaybe err Nothing = Err err
@@ -152,8 +152,8 @@ instance extendResult :: Extend (Result e) where
     extend f x        = Ok (f x)
 
 instance showResult :: (Show a, Show b) => Show (Result a b) where
-    show (Err x) = "Err (" ++ show x ++ ")"
-    show (Ok y)  = "Ok (" ++ show y ++ ")"
+    show (Err x) = "Err (" <> show x <> ")"
+    show (Ok y)  = "Ok (" <> show y <> ")"
 
 instance eqResult :: (Eq a, Eq b) => Eq (Result a b) where
     eq (Err a1) (Err a2)  = a1 == a2

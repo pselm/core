@@ -1,16 +1,22 @@
 module Test.Elm.Basics (tests) where
 
-import Test.Unit (TestUnit, test)
-import Test.Unit.Assert (assert)
+import Test.Unit (TestSuite, Test, suite, test)
+import Test.Unit.Assert (assert, equal)
 
 import Elm.Basics
 import Elm.List (List(..), (..), (:))
 import Data.Int (even)
-import Prelude (bind, Ordering(..))
+import Prelude (class Eq, class Show, bind, Ordering(..))
 
 
-tests :: ∀ e. TestUnit e
-tests = do
+infixl 9 equals as ==>
+
+equals :: ∀ a e. (Eq a, Show a) => a -> a -> Test e
+equals = flip equal
+
+
+tests :: ∀ e. TestSuite e
+tests = suite "Basics" do
     test "(==)" do
         assert "true" <| 5 == 5
         assert "false" <| not <| 4 == 5
@@ -183,9 +189,9 @@ tests = do
         assert "toPolar" <| (fst result) - 8.9 < 0.2 && (snd result) - 44.5 < 1.0
 
     test "toString" do
-        assert "integer" <| toString 42 == "42"
-        assert "list" <| toString (1 .. 2) == "Cons (1) (Cons (2) (Nil))"
-        assert "string" <| toString "he said, \"hi\"" == "\"he said, \\\"hi\\\"\""
+        toString 42 ==> "42"
+        toString (1 .. 2) ==> "(Cons 1 (Cons 2 Nil))"
+        toString "he said, \"hi\"" ==> "\"he said, \\\"hi\\\"\""
 
     test "isNaN" do
         assert "div 0" <| isNaN (0.0 / 0.0)

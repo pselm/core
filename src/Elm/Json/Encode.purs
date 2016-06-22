@@ -16,12 +16,14 @@ module Elm.Json.Encode
 
 
 import Data.Foreign (Foreign, toForeign)
-import Elm.List (List)
+import Data.List (List)
+import Data.List as List
 import Data.Tuple (Tuple)
 import Elm.Basics (Float, Bool)
 import Data.Foldable (class Foldable, foldl)
 import Prelude ((<<<), flip)
 import Data.Array (cons, reverse)
+import Data.StrMap as StrMap
 
 
 -- | Represents a JavaScript value.
@@ -80,7 +82,7 @@ foreign import encodeNull :: Value
 -- | The signature uses `Foldable` in order to work with `List` or
 -- | `Array`, amongst others.
 object :: ∀ f. (Foldable f) => f (Tuple String Value) -> Value
-object = toForeign <<< Data.StrMap.fromFoldable
+object = toForeign <<< StrMap.fromFoldable
 
 
 -- | Encode Purescript's primitive `Array` type (distinct from Elm's `Array`).
@@ -96,4 +98,4 @@ array = psArray <<< reverse <<< foldl (flip cons) []
 
 -- | Encode a `List`.
 list :: List Value -> Value
-list = psArray <<< Data.List.toUnfoldable
+list = psArray <<< List.toUnfoldable

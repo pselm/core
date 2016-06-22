@@ -9,6 +9,7 @@ module Elm.Set
     ( module Virtual
     , remove, intersect, diff
     , filter, partition, map
+    , toList, fromList
     ) where
 
 
@@ -17,7 +18,6 @@ module Elm.Set
 import Data.Set
     ( Set, empty, singleton, insert
     , isEmpty, member, size
-    , toList, fromList
     , union
     ) as Virtual
 
@@ -28,12 +28,19 @@ import Elm.Foldable (foldl) as Virtual
 -- Internal
 
 import Prelude (class Ord, (<<<))
-import Data.Set (Set, delete, difference, intersection, fromList, toList, insert, empty)
+import Data.List as List
 import Data.Tuple (Tuple(..))
 import Data.Bifunctor (lmap, rmap)
-import Data.Foldable (foldr)
+import Data.Foldable (class Foldable, foldr)
+import Data.Unfoldable (class Unfoldable)
 import Elm.Foldable (foldl)
 import Elm.Basics (Bool)
+
+import Data.Set
+    ( Set, empty, insert, delete
+    , difference, intersection
+    , fromFoldable, toUnfoldable
+    )
 
 
 -- | Remove a value from a set. If the value is not found, no changes are made.
@@ -67,7 +74,7 @@ map func set =
 -- | Create a new set consisting only of elements which satisfy a predicate.
 filter :: ∀ a. (Ord a) => (a -> Bool) -> Set a -> Set a
 filter func =
-    fromList <<< Data.List.filter func <<< toList
+    fromList <<< List.filter func <<< toList
 
 
 -- | Create two new sets; the first consisting of elements which satisfy a
@@ -79,3 +86,19 @@ partition pred =
     where
         step x =
             (if pred x then lmap else rmap) (insert x)
+
+
+-- | Convert a set into a list, sorted from lowest to highest.
+-- |
+-- | * Uses a polymorphic container type to accommodate `List` and
+-- | `Array`, among others. *
+toList :: ∀ a f. (Unfoldable f, Ord a) => Set a -> f a
+toList = toUnfoldable
+
+
+-- | Convert a list into a set, removing any duplicates.
+-- |
+-- | * Uses a polymorphic container type to accommodate `List` and
+-- | `Array, among others. *
+fromList :: ∀ a f. (Foldable f, Ord a) => f a -> Set a
+fromList = fromFoldable

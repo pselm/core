@@ -61,12 +61,15 @@ import Prelude (map, append) as Virtual
 
 import Data.List
     ( List(..), elemIndex, length
-    , toList, fromList, zipWith, mapMaybe, replicate
+    , toUnfoldable, fromFoldable, zipWith, mapMaybe
     )
 
+import Data.List as List
 import Data.List.ZipList (ZipList(..), runZipList)
+import Data.Traversable as Traversable
 import Elm.Maybe (Maybe(..))
 import Data.Foldable (foldr)
+import Data.Unfoldable (replicate)
 import Data.Tuple (Tuple(..))
 import Data.Function (on)
 import Data.Bifunctor (lmap, rmap)
@@ -82,7 +85,7 @@ infixr 5 cons as :
 -- |     cons 1 (2 : 3 : Nil] == (1 : 2 : 3 : Nil)
 -- |     cons 1 Nil == (1 : Nil)
 cons :: ∀ a. a -> List a -> List a
-cons = Data.List.Cons
+cons = List.Cons
 
 
 -- | Determine if a list is empty.
@@ -91,7 +94,7 @@ cons = Data.List.Cons
 -- |
 -- | Equivalent to Purescript's `null`.
 isEmpty :: ∀ a. List a -> Bool
-isEmpty = Data.List.null
+isEmpty = List.null
 
 
 -- | Figure out whether a list contains a value.
@@ -125,7 +128,7 @@ indexedMap func list =
 -- | parameter is flipped, and the second parameter is included in the resulting list.
 scanl :: ∀ a b. (a -> b -> b) -> b -> List a -> List b
 scanl func memo list =
-    memo : Data.Traversable.scanl (flip func) memo list
+    memo : Traversable.scanl (flip func) memo list
 
 
 -- | Apply a function that may succeed to all values in the list, but only keep
@@ -177,17 +180,17 @@ map2 = zipWith
 
 map3 :: ∀ a b c result. (a -> b -> c -> result) -> List a -> List b -> List c -> List result
 map3 func list1 list2 list3 =
-    toList $ runZipList $ lift3 func (ZipList $ fromList list1) (ZipList $ fromList list2) (ZipList $ fromList list3)
+    fromFoldable $ runZipList $ lift3 func (ZipList $ toUnfoldable list1) (ZipList $ toUnfoldable list2) (ZipList $ toUnfoldable list3)
 
 
 map4 :: ∀ a b c d result. (a -> b -> c -> d -> result) -> List a -> List b -> List c -> List d -> List result
 map4 func list1 list2 list3 list4 =
-    toList $ runZipList $ lift4 func (ZipList $ fromList list1) (ZipList $ fromList list2) (ZipList $ fromList list3) (ZipList $ fromList list4)
+    fromFoldable $ runZipList $ lift4 func (ZipList $ toUnfoldable list1) (ZipList $ toUnfoldable list2) (ZipList $ toUnfoldable list3) (ZipList $ toUnfoldable list4)
 
 
 map5 :: ∀ a b c d e result. (a -> b -> c -> d -> e -> result) -> List a -> List b -> List c -> List d -> List e -> List result
 map5 func list1 list2 list3 list4 list5 =
-    toList $ runZipList $ lift5 func (ZipList $ fromList list1) (ZipList $ fromList list2) (ZipList $ fromList list3) (ZipList $ fromList list4) (ZipList $ fromList list5)
+    fromFoldable $ runZipList $ lift5 func (ZipList $ toUnfoldable list1) (ZipList $ toUnfoldable list2) (ZipList $ toUnfoldable list3) (ZipList $ toUnfoldable list4) (ZipList $ toUnfoldable list5)
 
 
 -- | Decompose a list of tuples into a tuple of lists.
@@ -247,7 +250,7 @@ repeat = replicate
 -- | like Elm's `sortWith`.
 sortBy :: ∀ a comparable. (Ord comparable) => (a -> comparable) -> List a -> List a
 sortBy func =
-    Data.List.sortBy (compare `on` func)
+    List.sortBy (compare `on` func)
 
 
 -- | Sort values with a custom comparison function.
@@ -265,7 +268,7 @@ sortBy func =
 -- |
 -- | Equivalent to Purescript's `sortBy`.
 sortWith :: ∀ a. (a -> a -> Order) -> List a -> List a
-sortWith = Data.List.sortBy
+sortWith = List.sortBy
 
 
 infixl 4 range as ..
@@ -278,4 +281,4 @@ range :: Int -> Int -> List Int
 range low high =
     if low > high
         then Nil
-        else Data.List.range low high
+        else List.range low high

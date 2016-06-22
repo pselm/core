@@ -53,6 +53,7 @@ module Elm.Basics
     , applyFnFlipped, (|>)
     , compose, (<<)
     , composeFlipped, (>>)
+    , (++)
     , Bool
     ) where
 
@@ -63,7 +64,6 @@ import Prelude
     , compare
     , (==), (/=), (<), (>), (<=), (>=)
     , (&&), (||), not
-    , (++)
     , flip
     ) as Virtual
 
@@ -80,15 +80,20 @@ import Prelude
     , (*), (/), (+)
     , (>), (>=), (==)
     , (||), (&&)
+    , append
     , class Ring, negate, not, zero
     , class Show, show
-    , class ModuloSemiring
+    , class EuclideanRing
     , class Ord, Ordering
     , class BooleanAlgebra
     )
 
+import Prelude as Prelude
+import Global as Global
 import Math (cos, sqrt, log, pi, sin, atan2)
+import Math as Math
 import Data.Int (round, toNumber)
+import Data.Int as Int
 import Data.Tuple (Tuple(..))
 import Elm.Debug (crash)
 
@@ -147,13 +152,15 @@ toPolar (Tuple x y) =
         (atan2 y x)
 
 
+infixl 5 append as ++
+
 infixl 7 intDiv as //
 
 -- | Integer division. The remainder is discarded.
 -- |
 -- | In Purescript, you can simply use `/`.
-intDiv :: ∀ a. (ModuloSemiring a) => a -> a -> a
-intDiv = Prelude.(/)
+intDiv :: ∀ a. (EuclideanRing a) => a -> a -> a
+intDiv = Prelude.div
 
 
 -- I'd like to do the following, but it looks like it doesn't work.
@@ -166,7 +173,7 @@ intDiv = Prelude.(/)
 -- |     -1 `rem` 4 == -1
 -- |
 -- | Equivalent to Purescript's `Prelude.mod`.
-rem :: ∀ a. (ModuloSemiring a) => a -> a -> a
+rem :: ∀ a. (EuclideanRing a) => a -> a -> a
 rem = Prelude.mod
 
 
@@ -179,7 +186,7 @@ infixl 7 mod as %
 -- |
 -- | Note that this is not the same as Purescript's `Prelude.mod` --
 -- | for that, see `Basics.rem`.
-mod :: ∀ a. (Ord a, ModuloSemiring a, Ring a) => a -> a -> a
+mod :: ∀ a. (Ord a, EuclideanRing a) => a -> a -> a
 mod a b =
     let
         r :: a
@@ -259,14 +266,14 @@ foreign import truncate :: Float -> Int
 -- |
 -- | Equivalent to Purescript's `ceil`.
 ceiling :: Float -> Int
-ceiling = Data.Int.ceil
+ceiling = Int.ceil
 
 
 -- | Convert an integer into a float.
 -- |
 -- | Equivalent to Purescript's `toNumber`.
 toFloat :: Int -> Float
-toFloat = Data.Int.toNumber
+toFloat = Int.toNumber
 
 
 -- | Determine whether a float is positive or negative infinity.

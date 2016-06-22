@@ -1,7 +1,26 @@
 module Test.Main where
 
-import Test.Unit (TIMER, test, runTest)
+import Test.Unit (TIMER)
+import Test.Unit.Main (runTest)
 import Test.Unit.Console (TESTOUTPUT)
+
+import Test.Elm.Array as Array
+import Test.Elm.Basics as Basics
+import Test.Elm.BasicsElm as BasicsElm
+import Test.Elm.Bitwise as Bitwise
+import Test.Elm.Char as Char
+import Test.Elm.Date as Date
+import Test.Elm.Dict as Dict
+import Test.Elm.Json as Json
+import Test.Elm.List as List
+import Test.Elm.ListElm as ListElm
+import Test.Elm.Maybe as Maybe
+import Test.Elm.Random as Random
+import Test.Elm.Regex as Regex
+import Test.Elm.Result as Result
+import Test.Elm.Set as Set
+import Test.Elm.String as String
+import Test.Elm.Trampoline as Trampoline
 
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Random (RANDOM)
@@ -11,29 +30,31 @@ import Control.Monad.Aff.AVar (AVAR)
 
 import Prelude (Unit, ($), bind)
 
-main :: ∀ e. Eff
+main :: Eff
     ( timer :: TIMER
     , avar :: AVAR
     , testOutput :: TESTOUTPUT
     , random :: RANDOM
     , err :: EXCEPTION
     , console :: CONSOLE
-    | e) Unit
-main = runTest do
-    test "Elm.Array\n" $ Test.Elm.Array.tests
-    test "Elm.Basics\n" $ Test.Elm.Basics.tests
-    test "Elm.BasicsElm\n" $ Test.Elm.BasicsElm.tests
-    test "Elm.Bitwise\n" $ Test.Elm.Bitwise.tests
-    test "Elm.Char\n" $ Test.Elm.Char.tests
-    test "Elm.Date\n" $ Test.Elm.Date.tests
-    test "Elm.Dict\n" $ Test.Elm.Dict.tests
-    test "Elm.Json\n" $ Test.Elm.Json.tests
-    test "Elm.List\n" $ Test.Elm.List.tests
-    test "Elm.ListElm\n" $ Test.Elm.ListElm.tests
-    test "Elm.Maybe\n" $ Test.Elm.Maybe.tests
-    test "Elm.Randon\n" $ Test.Elm.Random.tests
-    test "Elm.Regex\n" $ Test.Elm.Regex.tests
-    test "Elm.Result\n" $ Test.Elm.Result.tests
-    test "Elm.Set\n" $ Test.Elm.Set.tests
-    test "Elm.String\n" $ Test.Elm.String.tests
-    test "Elm.Trampoline\n" $ Test.Elm.Trampoline.tests
+    ) Unit
+
+main =
+    runTest do
+        Array.tests
+        Basics.tests
+        BasicsElm.tests
+        Bitwise.tests
+        Char.tests
+        Date.tests
+        Dict.tests
+        Json.tests
+        List.tests
+        ListElm.tests
+        Maybe.tests
+        Random.tests
+        Regex.tests
+        Result.tests
+        Set.tests
+        String.tests
+        Trampoline.tests

@@ -1,6 +1,6 @@
 module Test.Elm.ListElm (tests) where
 
-import Test.Unit (TestUnit, Assertion, test)
+import Test.Unit (TestSuite, Test, suite, test)
 import Test.Unit.Assert (assert)
 
 import Elm.List
@@ -8,23 +8,23 @@ import Elm.List
 import Elm.Basics ((+), compare, (<|), (|>), (==), (%), (<), (>), (<=), (>=), toString, min, identity)
 import Elm.Maybe (Maybe(..))
 import Data.Tuple (Tuple(..), fst, snd)
-import Prelude (bind, class Eq, negate, (*), (/), (++), (-), flip, (&&))
+import Prelude (bind, class Eq, negate, (*), (/), (<>), (-), flip, (&&))
 
 
-assertEqual :: ∀ a e. (Eq a) => String -> a -> a -> Assertion e
+assertEqual :: ∀ a e. (Eq a) => String -> a -> a -> Test e
 assertEqual name expected actual =
     assert name <| expected == actual
 
 
-tests :: ∀ e. TestUnit e
-tests = do
+tests :: ∀ e. TestSuite e
+tests = suite "ListElm" do
     testListOfN 0
     testListOfN 1
     testListOfN 2
     testListOfN 1000
 
 
-testListOfN :: ∀ e. Int -> TestUnit e
+testListOfN :: ∀ e. Int -> TestSuite e
 testListOfN n =
     let
         xs =
@@ -55,7 +55,7 @@ testListOfN n =
                 else Nothing
 
      in
-        test (toString n ++ " elements") do
+        test (toString n <> " elements") do
             assertEqual "foldl order" (n) (foldl (\x acc -> x) 0 xs)
             assertEqual "foldl total" (xsSum) (foldl (+) 0 xs)
 

@@ -1,13 +1,13 @@
 module Test.Elm.Random (tests) where
 
-import Test.Unit (TestUnit, test)
+import Test.Unit (TestSuite, Test, suite, test)
 import Test.Unit.Assert (assert)
 
 import Elm.Random
 import Prelude (bind, (<), (-), (+), negate, map)
 import Elm.Basics ((<|), (==), abs)
 import Data.Int53 (Int53, fromInt)
-import Data.List (toList)
+import Data.List (fromFoldable)
 import Data.Tuple (Tuple(..))
 
 
@@ -48,8 +48,8 @@ doer = do
     int 0 y
 
 
-tests :: ∀ e. TestUnit e
-tests = do
+tests :: ∀ e. TestSuite e
+tests = suite "Random" do
     test "bool" do
         assert "seed1" <| false == (generate bool seed1).value
         assert "seed2" <| false == (generate bool seed2).value
@@ -76,9 +76,9 @@ tests = do
         assert "seed3" <| Tuple true false == (generate (pair bool bool) seed3).value
 
     test "list" do
-        assert "seed1" <| (toList [12,46,21,91,94,27,68,99,78,6]) == (generate (list 10 genInt) seed1).value
-        assert "seed2" <| (toList [31,54,62,55,16,15,34,59,88,41]) == (generate (list 10 genInt) seed2).value
-        assert "seed3" <| (toList [40,52,34,2,95,2,70,49,53,67]) == (generate (list 10 genInt) seed3).value
+        assert "seed1" <| (fromFoldable [12,46,21,91,94,27,68,99,78,6]) == (generate (list 10 genInt) seed1).value
+        assert "seed2" <| (fromFoldable [31,54,62,55,16,15,34,59,88,41]) == (generate (list 10 genInt) seed2).value
+        assert "seed3" <| (fromFoldable [40,52,34,2,95,2,70,49,53,67]) == (generate (list 10 genInt) seed3).value
 
     test "array" do
         assert "seed1" <| [12,46,21,91,94,27,68,99,78,6] == (generate (list 10 genInt) seed1).value

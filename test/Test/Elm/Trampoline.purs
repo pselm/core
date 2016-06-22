@@ -1,6 +1,6 @@
 module Test.Elm.Trampoline (tests) where
 
-import Test.Unit (TestUnit, Assertion, test)
+import Test.Unit (TestSuite, Test, suite, test)
 import Test.Unit.Assert (equal)
 
 import Elm.Trampoline
@@ -12,7 +12,7 @@ import Data.Int53 (Int53, truncate, fromInt)
 
 infixl 9 equals as ===
 
-equals :: ∀ a e. (Eq a, Show a) => a -> a -> Assertion e
+equals :: ∀ a e. (Eq a, Show a) => a -> a -> Test e
 equals = flip equal
 
 
@@ -40,13 +40,13 @@ goodSum n =
         trampoline $ sumT n zero
 
 
-mkLoopCheck :: ∀ e. Int -> Assertion e
+mkLoopCheck :: ∀ e. Int -> Test e
 mkLoopCheck n =
     (badSum $ fromInt n) === (goodSum $ fromInt n)
 
 
-tests :: ∀ e. TestUnit e
-tests = do
+tests :: ∀ e. TestSuite e
+tests = suite "Trampoline" do
     test "noStackOverflow" do
         (goodSum $ truncate 1000000.0) === truncate 500000500000.0
 

@@ -16,25 +16,26 @@
     "output"
   ],
   "dependencies": {
-    "purescript-prelude": "~0.1.5",
-    "purescript-maybe": "~0.3.5",
-    "purescript-integers": "~0.2.1",
-    "purescript-strings": "~0.7.1",
-    "purescript-debug": "~0.1.3",
-    "purescript-foldable-traversable": "~0.4.2",
-    "purescript-partial": "~1.1.0",
-    "purescript-datetime": "~0.9.1",
-    "purescript-orders": "~0.1.1",
-    "purescript-lists": "~0.7.10",
-    "purescript-int-53": "~1.0.0",
-    "purescript-sets": "~0.5.7",
-    "purescript-foreign": "~0.7.2",
-    "purescript-sequences": "~0.6.0"
+    "purescript-prelude": "^1.0.0",
+    "purescript-maybe": "^1.0.0",
+    "purescript-integers": "^1.0.0",
+    "purescript-strings": "^1.0.0",
+    "purescript-debug": "^1.0.0",
+    "purescript-foldable-traversable": "^1.0.0",
+    "purescript-partial": "^1.1.0",
+    "purescript-datetime": "^1.0.0",
+    "purescript-orders": "^1.0.0",
+    "purescript-lists": "^1.0.0",
+    "purescript-int-53": "^2.0.0",
+    "purescript-sets": "^1.0.0",
+    "purescript-foreign": "^1.0.0",
+    "purescript-sequences": "git://github.com/rgrempel/purescript-sequences.git#beaabb9c5750359e826dc591e2031c8bfbce3f6e",
+    "purescript-js-date": "^1.0.0"
   },
   "devDependencies": {
-    "purescript-test-unit": "~4.1.0",
-    "purescript-generics": "~0.7.2",
-    "purescript-quickcheck-laws": "~0.1.1"
+    "purescript-test-unit": "^7.0.0",
+    "purescript-generics": "^1.0.0",
+    "purescript-quickcheck-laws": "^1.0.0"
   },
   "repository": {
     "type": "git",

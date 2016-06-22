@@ -45,10 +45,13 @@ import Data.Either (Either(..))
 import Elm.Result (Result(..), fromMaybe)
 import Elm.Basics (Bool, Float)
 import Elm.List (List, foldr)
+import Data.List as List
 import Elm.Dict (Dict)
+import Elm.Dict as Dict
 import Data.Tuple (Tuple(..))
 import Elm.Maybe (Maybe(..))
 import Data.Array (uncons)
+import Data.Array as Array
 
 import Prelude
     ( class Functor, map
@@ -56,7 +59,7 @@ import Prelude
     , class Applicative, pure
     , class Bind, bind
     , class Monad, (>>=)
-    , show, ($), (<<<), (<$>), (<*>), const, (==), (++)
+    , show, ($), (<<<), (<$>), (<*>), const, (==), (<>)
     )
 
 
@@ -95,7 +98,7 @@ instance altDecoder :: Alt Decoder where
                             Ok result
 
                         Err rightErr ->
-                            Err $ leftErr ++ " <|> " ++ rightErr
+                            Err $ leftErr <> " <|> " <> rightErr
 
 
 instance applyDecoder :: Apply Decoder where
@@ -283,7 +286,7 @@ foreign import unsafeKeys :: Foreign -> Array String
 -- |         dict float
 dict :: ∀ a. Decoder a -> Decoder (Dict String a)
 dict decoder =
-    map Elm.Dict.fromList (keyValuePairs decoder)
+    map Dict.fromList (keyValuePairs decoder)
 
 
 -- | Try out multiple different decoders. This is helpful when you are dealing
@@ -372,7 +375,7 @@ list :: ∀ a. Decoder a -> Decoder (List a)
 list (Decoder decoder) =
     Decoder $ \val -> do
         arr <- toResult $ readArray val
-        Data.List.fromFoldable <$> traverse decoder arr
+        List.fromFoldable <$> traverse decoder arr
 
 
 -- | Extract an Array from a JS array.
@@ -540,8 +543,8 @@ succeed = pure
 -- |     authorship :: Decoder String
 -- |     authorship =
 -- |         oneOf
--- |           [ tuple1 (\author -> "Author: " ++ author) string
--- |           , list string |> map (\authors -> "Co-authors: " ++ String.join ", " authors)
+-- |           [ tuple1 (\author -> "Author: " <> author) string
+-- |           , list string |> map (\authors -> "Co-authors: " <> String.join ", " authors)
 -- |           ]
 tuple1 :: ∀ a value. (a -> value) -> Decoder a -> Decoder value
 tuple1 func decoder0 =
@@ -554,17 +557,17 @@ tuple1 func decoder0 =
 tryArray :: Value -> Int -> Result String (Array Value)
 tryArray val expected = do
     arr <- toResult $ readArray val
-    let len = Data.Array.length arr
+    let len = Array.length arr
     if len == expected
         then Ok arr
-        else Err $ "Expected array with exact length: " ++ (show expected) ++ ", but got length: " ++ (show len)
+        else Err $ "Expected array with exact length: " <> (show expected) <> ", but got length: " <> (show len)
 
 
 tryIndex :: ∀ a. Array Value -> Decoder a -> Int -> Result String a
 tryIndex arr (Decoder decoder) index = do
     val <- fromMaybe
         "Internal error getting index"
-        (Data.Array.index arr index)
+        (Array.index arr index)
 
     decoder val
 
