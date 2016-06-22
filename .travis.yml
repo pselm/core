@@ -5,8 +5,7 @@ node_js: 5
 env:
   - PATH=./node_modules/.bin:$PATH
 install:
-  - npm install purescript pulp bower purescript-psa
-  - bower install
+  - npm install
 script:
   - pulp build --censor-lib
   - pulp test

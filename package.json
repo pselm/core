@@ -1,0 +1,16 @@
+{
+  "private": true,
+  "scripts": {
+    "postinstall": "bower install",
+    "build": "pulp build",
+    "clean": "rimraf output && rimraf .pulp-cache",
+    "test": "pulp test"
+  },
+  "devDependencies": {
+    "bower": "^1.7.9",
+    "pulp": "^9.0.1",
+    "purescript": "^0.9.1",
+    "purescript-psa": "^0.3.9",
+    "rimraf": "^2.5.2"
+  }
+}

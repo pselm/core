@@ -63,8 +63,8 @@ Try `bower install purescript-elm-compat`
 Try something like:
 
     git clone https://github.com/rgrempel/purescript-elm-compat
-    bower install
-    pulp test
+    npm install
+    npm test
 
 ## API
 
