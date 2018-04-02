@@ -19,6 +19,8 @@ import Test.Elm.Regex as Regex
 import Test.Elm.Result as Result
 import Test.Elm.Set as Set
 import Test.Elm.String as String
+import Test.Elm.Task as Task
+import Test.Elm.Time as Time
 import Test.Elm.Trampoline as Trampoline
 
 import Control.Monad.Eff (Eff)
@@ -55,4 +57,6 @@ main =
         Result.tests
         Set.tests
         String.tests
+        Time.tests
+        Task.tests
         Trampoline.tests
