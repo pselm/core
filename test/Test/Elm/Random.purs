@@ -1,19 +1,22 @@
 module Test.Elm.Random (tests) where
 
-import Test.Unit (TestSuite, suite, test)
-import Test.Unit.Assert (assert)
+import Test.Unit (TestSuite, Test, suite, test, success, failure)
+import Test.Unit.Assert (assert, equal)
 
 import Elm.Random
-import Prelude (bind, discard, (<), (-), (+), negate, map)
+import Prelude (bind, discard, (<), (-), (+), ($), (<>), show, negate, map)
 import Elm.Basics ((<|), (==), abs)
 import Data.Int53 (Int53, fromInt)
 import Data.List (fromFoldable)
 import Data.Tuple (Tuple(..))
 
 
-close :: Number -> Number -> Boolean
-close a b =
-    abs (a - b) < 0.00000001
+close :: ∀ e. Number -> Number -> Test e
+close expected actual =
+    if abs (expected - actual) < 0.00000001
+        then success
+        else failure $ "expected " <> show expected <> ", got " <> show actual
+
 
 infixl 9 close as ~=
 
@@ -65,10 +68,10 @@ tests = suite "Random" do
         assert "seed2" <| 31 == (generate genInt seed2).value
         assert "seed3" <| 40 == (generate genInt seed3).value
 
-    test "float" do
-        assert "seed1" <| 17.00685023 ~= (generate genFloat seed1).value
-        assert "seed2" <| 63.96765709 ~= (generate genFloat seed2).value
-        assert "seed3" <| 44.89097595 ~= (generate genFloat seed3).value
+    suite "float" do
+        test "seed1" <| 17.00685023 ~= (generate genFloat seed1).value
+        test "seed2" <| 63.96765709 ~= (generate genFloat seed2).value
+        test "seed3" <| 44.89097595 ~= (generate genFloat seed3).value
 
     test "pair" do
         assert "seed1" <| Tuple false true == (generate (pair bool bool) seed1).value
@@ -102,3 +105,9 @@ tests = suite "Random" do
         assert "seed1" <| 12 == (generate doer seed1).value
         assert "seed2" <| 12 == (generate doer seed2).value
         assert "seed3" <| 40 == (generate doer seed3).value
+
+    test "minInt" $
+        equal "(Int53 -2147483648.0)" (show minInt)
+
+    test "maxInt" $
+        equal "(Int53 2147483647.0)" (show maxInt)
