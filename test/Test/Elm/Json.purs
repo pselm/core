@@ -474,8 +474,7 @@ tests = suite "Json" do
 
     test "decodeValue" do
         (JD.decodeValue JD.int (JE.int 27)) === Ok 27
-        (JD.decodeValue JD.int (JE.string "bob")) === Err "Type mismatch: expected Int, found String"
-
+        (JD.decodeValue JD.int (JE.string "bob")) === Err "(NonEmptyList (NonEmpty (TypeMismatch \"Int\" \"String\") Nil))"
 
     test "andThen" do
         let
