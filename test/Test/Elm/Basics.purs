@@ -6,12 +6,12 @@ import Test.Unit.Assert (assert, equal)
 import Elm.Basics
 import Elm.List (List(..), (..), (:))
 import Data.Int (even)
-import Prelude (class Eq, class Show, bind, Ordering(..))
+import Prelude (class Eq, class Show, discard, Ordering(..))
 
 
 infixl 9 equals as ==>
 
-equals :: ∀ a e. (Eq a, Show a) => a -> a -> Test e
+equals :: ∀ a e. Eq a => Show a => a -> a -> Test e
 equals = flip equal
 
 
@@ -190,7 +190,7 @@ tests = suite "Basics" do
 
     test "toString" do
         toString 42 ==> "42"
-        toString (1 .. 2) ==> "(Cons 1 (Cons 2 Nil))"
+        toString (1 .. 2) ==> "(1 : 2 : Nil)"
         toString "he said, \"hi\"" ==> "\"he said, \\\"hi\\\"\""
 
     test "isNaN" do

@@ -4,7 +4,7 @@ import Test.Unit (TestSuite, Test, suite, test)
 import Test.Unit.Assert (assert, equal)
 
 import Elm.Date
-import Prelude (class Eq, class Show, bind, flip, (<$>))
+import Prelude (class Eq, class Show, discard, flip, (<$>))
 import Elm.Basics ((<|), (==))
 import Data.Date.Component (Weekday(..))
 import Data.JSDate (getTime)
@@ -14,7 +14,7 @@ import Data.Maybe (isNothing)
 
 infixl 9 equals as ==>
 
-equals :: ∀ a e. (Eq a, Show a) => a -> a -> Test e
+equals :: ∀ a e. Eq a => Show a => a -> a -> Test e
 equals = flip equal
 
 

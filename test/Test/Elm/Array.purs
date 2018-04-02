@@ -6,7 +6,7 @@ import Test.Unit.Assert (assert)
 import Elm.Array as Array
 import Elm.List as List
 import Data.Array as DA
-import Prelude (bind, class Eq, (-), (==), (*), (+), negate, const)
+import Prelude (discard, class Eq, (-), (==), (*), (+), negate, const)
 import Data.List (List(..), fromFoldable, (..), (:))
 import Data.Maybe (Maybe(..))
 import Elm.Basics ((<|), identity, sqrt, (%), always)

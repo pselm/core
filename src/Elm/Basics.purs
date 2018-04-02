@@ -186,7 +186,7 @@ infixl 7 mod as %
 -- |
 -- | Note that this is not the same as Purescript's `Prelude.mod` --
 -- | for that, see `Basics.rem`.
-mod :: ∀ a. (Ord a, EuclideanRing a) => a -> a -> a
+mod :: ∀ a. Ord a => EuclideanRing a => a -> a -> a
 mod a b =
     let
         r :: a
@@ -229,7 +229,7 @@ infixr 8 pow as ^
 
 
 -- | Take the absolute value of a number.
-abs :: ∀ a. (Ring a, Ord a) => a -> a
+abs :: ∀ a. Ring a => Ord a => a -> a
 abs a =
     if a >= zero
         then a

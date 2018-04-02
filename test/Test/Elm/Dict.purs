@@ -6,7 +6,7 @@ import Test.Unit.Assert (assert)
 import Elm.Dict as Dict
 import Elm.Dict (Dict)
 import Elm.Basics (Tuple(..), (++), (<|), (==))
-import Prelude (bind, class Eq, (<$>))
+import Prelude (discard, class Eq, (<$>))
 import Elm.List (List(..), (:))
 import Elm.Maybe (Maybe(..))
 import Data.Tuple(fst, snd)

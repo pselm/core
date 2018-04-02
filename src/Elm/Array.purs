@@ -98,7 +98,7 @@ fromList = fromFoldable
 -- |
 -- | Note that this actually works with any type that is both a
 -- | `Functor` and an `Unfoldable`.
-toList :: ∀ f a. (Functor f, Unfoldable f) => Seq a -> f a
+toList :: ∀ f a. Functor f => Unfoldable f => Seq a -> f a
 toList = toUnfoldable
 
 
@@ -109,7 +109,7 @@ toList = toUnfoldable
 -- |
 -- | The container in the return type is defined polymorphically to accommodate
 -- | `List` and Purescript's `Array`, among others.
-toIndexedList :: ∀ f a. (Applicative f, Monoid (f (Tuple Int a))) => Seq a -> f (Tuple Int a)
+toIndexedList :: ∀ f a. Applicative f => Monoid (f (Tuple Int a)) => Seq a -> f (Tuple Int a)
 toIndexedList arr =
     snd $ Foldable.foldr step (Tuple ((length arr) - 1) mempty) arr
         where

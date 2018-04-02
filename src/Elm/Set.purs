@@ -66,7 +66,7 @@ diff = difference
 
 
 -- | Map a function onto a set, creating a new set with no duplicates.
-map :: ∀ a b. (Ord a, Ord b) => (a -> b) -> Set a -> Set b
+map :: ∀ a b. Ord a => Ord b => (a -> b) -> Set a -> Set b
 map func set =
     foldl (\a memo -> insert (func a) memo) empty set
 
@@ -92,7 +92,7 @@ partition pred =
 -- |
 -- | * Uses a polymorphic container type to accommodate `List` and
 -- | `Array`, among others. *
-toList :: ∀ a f. (Unfoldable f, Ord a) => Set a -> f a
+toList :: ∀ a f. Unfoldable f => Ord a => Set a -> f a
 toList = toUnfoldable
 
 
@@ -100,5 +100,5 @@ toList = toUnfoldable
 -- |
 -- | * Uses a polymorphic container type to accommodate `List` and
 -- | `Array, among others. *
-fromList :: ∀ a f. (Foldable f, Ord a) => f a -> Set a
+fromList :: ∀ a f. Foldable f => Ord a => f a -> Set a
 fromList = fromFoldable

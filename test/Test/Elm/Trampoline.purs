@@ -4,7 +4,7 @@ import Test.Unit (TestSuite, Test, suite, test)
 import Test.Unit.Assert (equal)
 
 import Elm.Trampoline
-import Prelude (class Show, class Eq, map, ($), bind, (+), (-), flip, zero, one, (==))
+import Prelude (class Show, class Eq, map, ($), discard, (+), (-), flip, zero, one, (==))
 import Data.Foldable (sequence_)
 import Elm.List ((..))
 import Data.Int53 (Int53, truncate, fromInt)
@@ -12,7 +12,7 @@ import Data.Int53 (Int53, truncate, fromInt)
 
 infixl 9 equals as ===
 
-equals :: ∀ a e. (Eq a, Show a) => a -> a -> Test e
+equals :: ∀ a e. Eq a => Show a => a -> a -> Test e
 equals = flip equal
 
 

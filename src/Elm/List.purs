@@ -61,14 +61,15 @@ import Prelude (map, append) as Virtual
 
 import Data.List
     ( List(..), elemIndex, length
-    , toUnfoldable, fromFoldable, zipWith, mapMaybe
+    , zipWith, mapMaybe, toUnfoldable, fromFoldable
     )
 
 import Data.List as List
-import Data.List.ZipList (ZipList(..), runZipList)
+import Data.List.ZipList (ZipList(..))
 import Data.Traversable as Traversable
 import Elm.Maybe (Maybe(..))
 import Data.Foldable (foldr)
+import Data.Newtype (unwrap)
 import Data.Unfoldable (replicate)
 import Data.Tuple (Tuple(..))
 import Data.Function (on)
@@ -180,17 +181,38 @@ map2 = zipWith
 
 map3 :: ∀ a b c result. (a -> b -> c -> result) -> List a -> List b -> List c -> List result
 map3 func list1 list2 list3 =
-    fromFoldable $ runZipList $ lift3 func (ZipList $ toUnfoldable list1) (ZipList $ toUnfoldable list2) (ZipList $ toUnfoldable list3)
+    -- There is probably a better way to do these, without constructing an
+    -- intermediate ZipList, which uses a `Data.List.Lazy` list. I guess could
+    -- just make my own ZipList that uses a plain old list.
+    fromFoldable $
+    unwrap $
+    lift3 func
+        (ZipList $ toUnfoldable list1)
+        (ZipList $ toUnfoldable list2)
+        (ZipList $ toUnfoldable list3)
 
 
 map4 :: ∀ a b c d result. (a -> b -> c -> d -> result) -> List a -> List b -> List c -> List d -> List result
 map4 func list1 list2 list3 list4 =
-    fromFoldable $ runZipList $ lift4 func (ZipList $ toUnfoldable list1) (ZipList $ toUnfoldable list2) (ZipList $ toUnfoldable list3) (ZipList $ toUnfoldable list4)
+    fromFoldable $
+    unwrap $
+    lift4 func
+        (ZipList $ toUnfoldable list1)
+        (ZipList $ toUnfoldable list2)
+        (ZipList $ toUnfoldable list3)
+        (ZipList $ toUnfoldable list4)
 
 
 map5 :: ∀ a b c d e result. (a -> b -> c -> d -> e -> result) -> List a -> List b -> List c -> List d -> List e -> List result
 map5 func list1 list2 list3 list4 list5 =
-    fromFoldable $ runZipList $ lift5 func (ZipList $ toUnfoldable list1) (ZipList $ toUnfoldable list2) (ZipList $ toUnfoldable list3) (ZipList $ toUnfoldable list4) (ZipList $ toUnfoldable list5)
+    fromFoldable $
+    unwrap $
+    lift5 func
+        (ZipList $ toUnfoldable list1)
+        (ZipList $ toUnfoldable list2)
+        (ZipList $ toUnfoldable list3)
+        (ZipList $ toUnfoldable list4)
+        (ZipList $ toUnfoldable list5)
 
 
 -- | Decompose a list of tuples into a tuple of lists.

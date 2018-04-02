@@ -6,7 +6,7 @@ import Test.Unit.Assert (assert)
 import Elm.Maybe
 import Elm.Basics ((+), (<|), (==), sqrt)
 import Elm.List (List(..), (:))
-import Prelude (bind)
+import Prelude (discard)
 
 
 tests :: ∀ e. TestSuite e

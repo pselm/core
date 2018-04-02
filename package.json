@@ -7,10 +7,10 @@
     "test": "pulp test"
   },
   "devDependencies": {
-    "bower": "^1.7.9",
-    "pulp": "^9.0.1",
-    "purescript": "^0.9.1",
-    "purescript-psa": "^0.3.9",
-    "rimraf": "^2.5.2"
+    "bower": "^1.8.4",
+    "pulp": "^12.0.0",
+    "purescript": "^0.11.7",
+    "purescript-psa": "^0.6.0",
+    "rimraf": "^2.6.2"
   }
 }

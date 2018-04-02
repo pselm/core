@@ -5,7 +5,7 @@ import Test.Unit.Assert (assert)
 
 import Elm.Basics
 import Elm.List (List(..), (:))
-import Prelude (bind, Ordering(..), class Eq)
+import Prelude (discard, Ordering(..), class Eq)
 
 
 assertEqual :: ∀ a e. (Eq a) => String -> a -> a -> Test e

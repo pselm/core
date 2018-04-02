@@ -8,7 +8,7 @@ import Test.QuickCheck as QC
 
 import Elm.String
 import Control.Monad.Eff.Random (RANDOM())
-import Prelude (bind, class Eq, not, (&&), ($), (*), (>), (+))
+import Prelude (discard, class Eq, not, (&&), ($), (*), (>), (+))
 import Elm.Basics ((<|), (==), (/=), negate)
 import Elm.Maybe (Maybe(..))
 import Elm.Result (Result(..))

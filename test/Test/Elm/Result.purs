@@ -36,7 +36,7 @@ import Prelude
     ( class Eq, eq
     , class Bounded, top, bottom
     , class Ord, compare
-    , class Bind, bind, pure
+    , class Bind, bind, pure, discard
     , class Functor, map
     , class Apply, apply
     , class Applicative
@@ -78,7 +78,7 @@ add5 a b c d e =
     a + b + c + d + e
 
 
-tests :: ∀ e. TestSuite (random :: RANDOM, err :: EXCEPTION, console :: CONSOLE | e)
+tests :: ∀ e. TestSuite (random :: RANDOM, exception :: EXCEPTION, console :: CONSOLE | e)
 tests = suite "Result" do
     test "map" do
         assertEqual "map Ok"  (Ok 3)        (Result.map ((+) 1) (Ok 2))

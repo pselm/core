@@ -8,7 +8,7 @@
 module Elm.String
     ( module Virtual
     , isEmpty, cons
-    , startsWith, endsWith
+    , startsWith, endsWith, contains
     , reverse, repeat, concat
     , split, join, slice
     , map, filter, foldl, foldr
@@ -28,7 +28,7 @@ module Elm.String
 
 import Data.String
     ( uncons, length, trim
-    , toUpper, toLower, contains
+    , toUpper, toLower
     ) as Virtual
 
 import Prelude (append) as Virtual
@@ -40,7 +40,7 @@ import Elm.Result (Result(..))
 import Elm.Basics (Bool, Float)
 import Elm.Char (isDigit)
 
-import Data.String (null, fromCharArray, toCharArray, singleton, length, take, drop, joinWith)
+import Data.String (Pattern(..), null, fromCharArray, toCharArray, singleton, length, take, drop, joinWith)
 import Data.String as String
 import Data.Foldable (class Foldable, fold)
 import Data.Unfoldable (class Unfoldable)
@@ -131,7 +131,7 @@ foreign import foldr :: ∀ b. (Char -> b -> b) -> b -> String -> b
 split :: ∀ f. (Unfoldable f) => String -> String -> f String
 split sep s =
     Array.toUnfoldable $
-        String.split sep s
+        String.split (Pattern sep) s
 
 
 -- | Put many strings together with a given separator.
@@ -320,6 +320,11 @@ foreign import startsWith :: String -> String -> Bool
 -- |     endsWith "the" "theory" == False
 -- |     endsWith "ory" "theory" == True
 foreign import endsWith :: String -> String -> Bool
+
+
+contains :: String -> String -> Bool
+contains =
+    String.contains <<< Pattern
 
 
 -- | Get all of the indexes for a substring in another string.

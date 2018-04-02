@@ -29,7 +29,7 @@ import Prelude (class Show, ($))
 -- |
 -- | Note that this is (unfortunatley) not interchangeable with Purescript's `Data.String.Regex`,
 -- | because the Elm code requires that the `Regex` be created with the `g` flag.
-foreign import data Regex :: *
+foreign import data Regex :: Type
 
 
 foreign import _showRegex :: Regex -> String

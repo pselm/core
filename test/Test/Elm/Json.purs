@@ -44,13 +44,13 @@ import Prelude
     , class Functor, map
     , class Apply, apply
     , class Applicative, pure
-    , flip, negate, (<>), ($), (+), (<<<)
+    , flip, negate, discard, (<>), ($), (+), (<<<)
     )
 
 
 infixl 9 equals as ===
 
-equals :: ∀ a e. (Eq a, Show a) => a -> a -> Test e
+equals :: ∀ a e. Eq a => Show a => a -> a -> Test e
 equals = flip equal
 
 
@@ -60,7 +60,7 @@ tuple :: ∀ a b. a -> b -> Tuple a b
 tuple = Tuple
 
 
-check :: ∀ e a. (Eq a, Show a) => JD.Decoder a -> Tuple String (Maybe a) -> Test e
+check :: ∀ e a. Eq a => Show a => JD.Decoder a -> Tuple String (Maybe a) -> Test e
 check decoder (Tuple value expected) =
     toMaybe (JD.decodeString decoder value) === expected
 
@@ -99,7 +99,7 @@ instance eqShape :: Eq Shape where
 -- TODO: The docs for Elm.Json.Encode.float say that infinity and NaN
 -- are encoded as null ... should test that.
 
-tests :: ∀ e. TestSuite (random :: RANDOM, err :: EXCEPTION, console :: CONSOLE | e)
+tests :: ∀ e. TestSuite (random :: RANDOM, exception :: EXCEPTION, console :: CONSOLE | e)
 tests = suite "Json" do
     test "encode object with scalar types" do
         let

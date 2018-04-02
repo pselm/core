@@ -7,7 +7,7 @@ import Elm.Set as Set
 import Elm.Set (Set)
 import Data.Tuple (fst, snd)
 import Elm.Basics (Bool, (++), (+), (==), (<|), (<=))
-import Prelude (bind, class Eq)
+import Prelude (discard, class Eq)
 import Elm.List (List(..), (:), (..))
 
 

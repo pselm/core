@@ -9,7 +9,7 @@ module Elm.Dict
     , Dict, get, remove, update
     , intersect, diff, filter, partition
     , map, foldl, foldr
-    , toUnfoldable
+    , toUnfoldable, toList, fromList
     ) where
 
 
@@ -19,7 +19,7 @@ import Data.Map
     ( empty, isEmpty, size
     , member
     , singleton, insert
-    , toList, fromList, fromFoldable
+    , fromFoldable
     , keys, values
     , union
     ) as Virtual
@@ -27,14 +27,14 @@ import Data.Map
 
 -- Internal
 
-import Prelude (class Ord, flip, (>>>))
+import Prelude (class Ord, flip)
 import Prelude (map) as Prelude
-import Data.Map (Map, lookup, alter, delete, member, insert, empty, toList, fromList)
+import Data.Map (Map, lookup, alter, delete, member, insert, empty, toAscUnfoldable, fromFoldable)
+import Data.Foldable (class Foldable)
 import Data.Unfoldable (class Unfoldable)
 import Data.Bifunctor (lmap, rmap)
 import Data.Maybe (Maybe)
 import Data.List (List)
-import Data.List as List
 import Elm.List as ElmList
 import Elm.Basics (Bool)
 import Data.Tuple (Tuple(..))
@@ -169,12 +169,19 @@ foldr f acc dict =
         ElmList.foldr folder acc tuples
 
 
--- | Produce a `Dict` from any `Unfoldable` container of tuples of keys
--- | and values. Defined polymorphically to accommodate Purescript `Array`,
+-- | Produces tuples of keys and values in any container that has an
+-- | `Unfoldable` instance. This is defined polymorphically to accommodate Purescript `Array`,
 -- | among others.
 -- |
 -- | Note that this is not in the Elm API.
-toUnfoldable :: ∀ f k v. (Ord k, Unfoldable f) => Dict k v -> f (Tuple k v)
+toUnfoldable :: ∀ f k v. Unfoldable f => Dict k v -> f (Tuple k v)
 toUnfoldable =
-    -- There is probably a more efficient method ...
-    toList >>> List.toUnfoldable
+    toAscUnfoldable
+
+
+toList :: ∀ f k v. Unfoldable f => Dict k v -> f (Tuple k v)
+toList = toAscUnfoldable
+
+
+fromList :: ∀ f k v. Ord k => Foldable f => f (Tuple k v) -> Dict k v
+fromList = fromFoldable

@@ -8,7 +8,7 @@ import Elm.List
 import Elm.Basics ((+), compare, (<|), (|>), (==), (%), (<), (>), (<=), (>=), toString, min, identity)
 import Elm.Maybe (Maybe(..))
 import Data.Tuple (Tuple(..), fst, snd)
-import Prelude (bind, class Eq, negate, (*), (/), (<>), (-), flip, (&&))
+import Prelude (discard, class Eq, negate, (*), (/), (<>), (-), flip, (&&))
 
 
 assertEqual :: ∀ a e. (Eq a) => String -> a -> a -> Test e

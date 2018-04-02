@@ -11,7 +11,7 @@ import Data.Int (even)
 import Data.Int as Int
 import Data.Tuple (Tuple(..), fst, snd)
 import Data.String as String
-import Prelude (bind, Ordering(..))
+import Prelude (discard, Ordering(..))
 
 
 tests :: ∀ e. TestSuite e

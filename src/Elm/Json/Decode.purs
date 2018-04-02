@@ -13,7 +13,7 @@ module Elm.Json.Decode
     , module Elm.Apply
     , Decoder
     , decodeString, decodeValue
-    , extractForeign
+    , fromForeign
     , string, int, float, bool, null
     , list, array, unfoldable
     , tuple1, tuple2, tuple3, tuple4, tuple5, tuple6, tuple7, tuple8
@@ -30,9 +30,10 @@ import Elm.Json.Encode (Value) as Virtual
 import Elm.Bind (andThen)
 import Elm.Apply (andMap, map2, map3, map4, map5)
 
-import Data.Foreign (Foreign, ForeignError(..), F, readArray, isNull, isUndefined, typeOf, parseJSON)
-import Data.Foreign.Class (class IsForeign, read)
-import Data.Foreign.Index (prop)
+import Data.Foreign (Foreign, ForeignError(..), F, readArray, readString, readBoolean, readNumber, readInt, isNull, isUndefined, typeOf)
+import Data.Foreign as DF
+import Data.Foreign.Index (readProp)
+import Data.Foreign.JSON (parseJSON)
 import Data.Traversable (traverse)
 import Data.Monoid (class Monoid)
 import Data.Foldable (class Foldable, foldl, foldMap)
@@ -41,6 +42,7 @@ import Elm.Json.Encode (Value)
 import Control.Apply (lift2, lift3, lift4, lift5)
 import Control.Alt (class Alt, alt)
 import Control.Bind ((>=>))
+import Control.Monad.Except (runExcept)
 import Data.Either (Either(..))
 import Elm.Result (Result(..), fromMaybe)
 import Elm.Basics (Bool, Float)
@@ -70,14 +72,14 @@ import Prelude
 newtype Decoder a = Decoder (Value -> Result String a)
 
 
-{- The Foreign module uses `Either ForeignError a` to pass errors around,
-whereas we need `Result String a` Actually, at first I thought we could work
-with `Either ForeignError a` internally (converting at the last minute), but
-the problem is the signature for `customDecoder`.
+{- The Foreign module uses `Except` to pass errors around,
+whereas we need `Result String a`.
 -}
 toResult :: ∀ a. F a -> Result String a
-toResult (Right a) = Ok a
-toResult (Left err) = Err (show err)
+toResult f =
+    case runExcept f of
+        Right a -> Ok a
+        Left err -> Err (show err)
 
 
 instance functorDecoder :: Functor Decoder where
@@ -172,7 +174,7 @@ at fields decoder =
 field :: ∀ a. String -> Decoder a -> Decoder a
 field f (Decoder decoder) =
     Decoder $ \val ->
-        toResult (prop f val) >>= decoder
+        toResult (readProp f val) >>= decoder
 
 infixl 4 field as :=
 
@@ -251,12 +253,12 @@ object8 func a b c d e f g h =
 -- |         keyValuePairs int
 -- |
 -- | The container for the return type is polymorphic in order to accommodate `List` or `Array`, among others.
-keyValuePairs :: ∀ f a. (Monoid (f (Tuple String a)), Applicative f) => Decoder a -> Decoder (f (Tuple String a))
+keyValuePairs :: ∀ f a. Monoid (f (Tuple String a)) => Applicative f => Decoder a -> Decoder (f (Tuple String a))
 keyValuePairs (Decoder decoder) =
     Decoder $ \val -> do
         ks <- keys val
         arr <- traverse (\key -> do
-            p <- toResult $ prop key val
+            p <- toResult $ readProp key val
             d <- decoder p
             pure $ Tuple key d
         ) ks
@@ -268,10 +270,10 @@ keyValuePairs (Decoder decoder) =
 -- | This is from Data.Foreign.Keys, except that it used hasOwnProperty, whereas
 -- | the Elm version also includes inherited properties.
 keys :: Foreign -> Result String (Array String)
-keys val | isNull val = toResult $ Left $ TypeMismatch "object" "null"
-keys val | isUndefined val = toResult $ Left $ TypeMismatch "object" "undefined"
+keys val | isNull val = toResult $ DF.fail $ TypeMismatch "object" "null"
+keys val | isUndefined val = toResult $ DF.fail $ TypeMismatch "object" "undefined"
 keys val | typeOf val == "object" = Ok $ unsafeKeys val
-keys val = toResult $ Left $ TypeMismatch "object" (typeOf val)
+keys val = toResult $ DF.fail $ TypeMismatch "object" (typeOf val)
 
 -- | From Data.Foreign, except includes inherited properties (as the Elm equivalent does)
 foreign import unsafeKeys :: Foreign -> Array String
@@ -286,7 +288,12 @@ foreign import unsafeKeys :: Foreign -> Array String
 -- |         dict float
 dict :: ∀ a. Decoder a -> Decoder (Dict String a)
 dict decoder =
-    map Dict.fromList (keyValuePairs decoder)
+    let
+        decodePairs :: Decoder (List (Tuple String a))
+        decodePairs =
+            keyValuePairs decoder
+    in
+    map Dict.fromList decodePairs
 
 
 -- | Try out multiple different decoders. This is helpful when you are dealing
@@ -313,11 +320,11 @@ oneOf decoders =
     foldl alt (fail "Expected one of: ") decoders
 
 
--- | Extract any value with an `IsForeign` instance.
+-- | Given a function which reads a `Foreign`, make a decoder.
 -- |
 -- | Note that this is not in the Elm API.
-extractForeign :: ∀ a. (IsForeign a) => Decoder a
-extractForeign = Decoder $ toResult <<< read
+fromForeign :: ∀ a. (Foreign -> F a) ->  Decoder a
+fromForeign func = Decoder $ toResult <<< func
 
 
 -- | Extract a string.
@@ -328,7 +335,7 @@ extractForeign = Decoder $ toResult <<< read
 -- |     name =
 -- |         tuple2 Tuple string string
 string :: Decoder String
-string = extractForeign
+string = fromForeign readString
 
 
 -- | Extract a float.
@@ -339,7 +346,7 @@ string = extractForeign
 -- |     numbers =
 -- |         list float
 float :: Decoder Float
-float = extractForeign
+float = fromForeign readNumber
 
 
 -- | Extract an integer.
@@ -350,7 +357,7 @@ float = extractForeign
 -- |     age =
 -- |         "age" := int
 int :: Decoder Int
-int = extractForeign
+int = fromForeign readInt
 
 
 -- | Extract a boolean.
@@ -361,7 +368,7 @@ int = extractForeign
 -- |     checked =
 -- |         "checked" := bool
 bool :: Decoder Bool
-bool = extractForeign
+bool = fromForeign readBoolean
 
 
 -- | Extract a List from a JS array.
@@ -433,7 +440,7 @@ null default =
         \val ->
             if isNull val
                 then Ok default
-                else toResult $ Left $ TypeMismatch "null" (typeOf val)
+                else toResult $ DF.fail $ TypeMismatch "null" (typeOf val)
 
 
 

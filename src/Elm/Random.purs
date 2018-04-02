@@ -79,7 +79,7 @@ bool =
 -- |     int minInt maxInt  -- an integer in the widest range feasible
 -- |
 -- | You can supply either `Int` or `Int53` for the parameters.
-int :: ∀ a. (Ord a, Int53Value a) => a -> a -> Generator a
+int :: ∀ a. Ord a => Int53Value a => a -> a -> Generator a
 int a b =
     Generator $ \seed ->
         let
@@ -203,7 +203,7 @@ pair genA genB =
 -- |         list 10 <| pair (int 0 100) (int 0 100)
 -- |
 -- | The return type is polymorphic in order to accommodate `List` or `Array`, among others.
-list :: ∀ t a. (Monoid (t a), Applicative t) => Int -> Generator a -> Generator (t a)
+list :: ∀ t a. Monoid (t a) => Applicative t => Int -> Generator a -> Generator (t a)
 list n (Generator gen) =
     Generator $ \seed ->
         go mempty n seed

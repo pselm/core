@@ -35,7 +35,7 @@ import Partial (crashWith)
 import Partial.Unsafe (unsafePartial)
 import Control.Monad.Eff.Unsafe (unsafePerformEff)
 
-import Prelude ((<<<), (>>>), (<>), show, ($), (#), (+))
+import Prelude ((<<<), (<>), show, ($), (+))
 
 
 -- | Elm's `Date` type is implemented here in terms of Purescript's `JSDate`,

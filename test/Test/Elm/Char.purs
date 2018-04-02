@@ -4,7 +4,7 @@ import Test.Unit (TestSuite, Test, suite, test)
 import Test.Unit.Assert (assert)
 
 import Elm.Char
-import Prelude (bind, class Eq)
+import Prelude (discard, class Eq)
 import Elm.Basics ((<|), (==), (|>), (+), (-), flip)
 import Elm.List as List
 import Data.List (List, (..))

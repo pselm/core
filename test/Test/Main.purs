@@ -1,6 +1,5 @@
 module Test.Main where
 
-import Test.Unit (TIMER)
 import Test.Unit.Main (runTest)
 import Test.Unit.Console (TESTOUTPUT)
 
@@ -28,15 +27,14 @@ import Control.Monad.Eff.Console (CONSOLE)
 import Control.Monad.Eff.Exception (EXCEPTION)
 import Control.Monad.Aff.AVar (AVAR)
 
-import Prelude (Unit, ($), bind)
+import Prelude (Unit, discard)
 
 main :: Eff
-    ( timer :: TIMER
-    , avar :: AVAR
+    ( console :: CONSOLE
     , testOutput :: TESTOUTPUT
+    , avar :: AVAR
+    , exception :: EXCEPTION
     , random :: RANDOM
-    , err :: EXCEPTION
-    , console :: CONSOLE
     ) Unit
 
 main =

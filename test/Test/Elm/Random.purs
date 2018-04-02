@@ -4,7 +4,7 @@ import Test.Unit (TestSuite, suite, test)
 import Test.Unit.Assert (assert)
 
 import Elm.Random
-import Prelude (bind, (<), (-), (+), negate, map)
+import Prelude (bind, discard, (<), (-), (+), negate, map)
 import Elm.Basics ((<|), (==), abs)
 import Data.Int53 (Int53, fromInt)
 import Data.List (fromFoldable)

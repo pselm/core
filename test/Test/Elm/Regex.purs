@@ -4,7 +4,7 @@ import Test.Unit (TestSuite, Test, suite, test)
 import Test.Unit.Assert (assert)
 
 import Elm.Regex
-import Prelude (bind, class Eq, (&&), not, show, map, (<>))
+import Prelude (discard, class Eq, (&&), not, show, map, (<>))
 import Elm.Basics ((<|), (==))
 import Data.List (List(..), (:), zipWith)
 import Data.Foldable (and)
