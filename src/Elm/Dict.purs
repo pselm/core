@@ -7,7 +7,7 @@
 module Elm.Dict
     ( module Virtual
     , Dict, get, remove, update
-    , intersect, diff, filter, partition
+    , intersect, diff, filter, partition, merge
     , map, foldl, foldr
     , toUnfoldable, toList, fromList
     ) where
@@ -27,14 +27,14 @@ import Data.Map
 
 -- Internal
 
-import Prelude (class Ord, flip)
+import Prelude (class Ord, flip, (<), (>))
 import Prelude (map) as Prelude
 import Data.Map (Map, lookup, alter, delete, member, insert, empty, toAscUnfoldable, fromFoldable)
 import Data.Foldable (class Foldable)
 import Data.Unfoldable (class Unfoldable)
 import Data.Bifunctor (lmap, rmap)
 import Data.Maybe (Maybe)
-import Data.List (List)
+import Data.List (List(..), (:))
 import Elm.List as ElmList
 import Elm.Basics (Bool)
 import Data.Tuple (Tuple(..))
@@ -185,3 +185,42 @@ toList = toAscUnfoldable
 
 fromList :: ∀ f k v. Ord k => Foldable f => f (Tuple k v) -> Dict k v
 fromList = fromFoldable
+
+
+-- | The most general way of combining two dictionaries. You provide three
+-- | accumulators for when a given key appears:
+-- | 
+-- |   1. Only in the left dictionary.
+-- |   2. In both dictionaries.
+-- |   3. Only in the right dictionary.
+-- | 
+-- | You then traverse all the keys from lowest to highest, building up whatever
+-- | you want.
+merge
+    :: ∀ k a b result. Ord k
+    => (k -> a -> result -> result)
+    -> (k -> a -> b -> result -> result)
+    -> (k -> b -> result -> result)
+    -> Dict k a
+    -> Dict k b
+    -> result
+    -> result
+merge leftStep bothStep rightStep leftDict rightDict initialResult =
+    let
+        stepState rKey rValue (Tuple list result) =
+            case list of
+                Nil ->
+                    Tuple list (rightStep rKey rValue result)
+
+                Tuple lKey lValue : rest ->
+                    if lKey < rKey then
+                        stepState rKey rValue (Tuple rest (leftStep lKey lValue result))
+                    else if lKey > rKey then
+                        Tuple list (rightStep rKey rValue result)
+                    else
+                        Tuple rest (bothStep lKey lValue rValue result)
+
+        (Tuple leftovers intermediateResult) =
+            foldl stepState (Tuple (toList leftDict) initialResult) rightDict
+    in
+        ElmList.foldl (\(Tuple k v) result -> leftStep k v result) intermediateResult leftovers
