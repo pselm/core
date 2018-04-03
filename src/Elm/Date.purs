@@ -9,7 +9,7 @@ module Elm.Date
     , Time, toTime, fromTime
     , Day(..), year, month, day, dayOfWeek
     , hour, minute, second, millisecond
---  , now
+    , now
     ) where
 
 
@@ -30,12 +30,15 @@ import Data.Maybe (fromJust)
 import Data.Enum (toEnum)
 import Data.Int (round)
 import Elm.Result (Result(..))
+import Elm.Task (TaskE)
+import Elm.Time as Time
 
 import Partial (crashWith)
 import Partial.Unsafe (unsafePartial)
+import Control.Monad.Eff.Now (NOW)
 import Control.Monad.Eff.Unsafe (unsafePerformEff)
 
-import Prelude ((<<<), (<>), show, ($), (+))
+import Prelude ((<<<), (<>), show, ($), (<$>), (+))
 
 
 -- | Elm's `Date` type is implemented here in terms of Purescript's `JSDate`,
@@ -174,10 +177,9 @@ millisecond :: Date -> Int
 millisecond = round <<< unsafePerformEff <<< getMilliseconds
 
 
--- TODO: Once I move tasks here.
---
 -- | Get the `Date` at the moment when this task is run.
 -- |
 -- | * Added in version 4.0.0 of elm-lang/core *
--- now :: Task x Date
--- now =
+now :: ∀ e x. TaskE (now :: NOW | e) x Date
+now =
+    fromTime <$> Time.now 
