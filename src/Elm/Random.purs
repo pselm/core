@@ -88,10 +88,10 @@ int a b =
                    then {lo: toInt53 a, hi: toInt53 b}
                    else {lo: toInt53 b, hi: toInt53 a}
 
-            -- k needs to be a float, because it represents a positive number
+            -- k needs to be am Int53, because it represents a positive number
             -- expressing the whole range between lo and hi. But that could
-            -- overflow maxInt, and Purescript enforces maxInt, given what
-            -- the compiler does for ints
+            -- overflow 32 bits, and Purescript enforces 32 bit ints
+            k :: Int53
             k =
                 ordered.hi - ordered.lo + one
 
@@ -102,6 +102,8 @@ int a b =
             n =
                 iLogBase base k
 
+            -- The acc * base calculation can overflow even the Int53 bounds.
+            -- So, our acc needs to be a float, sadly.
             f ns acc state =
                 case ns of
                     0 ->
@@ -114,14 +116,20 @@ int a b =
                             tuple = next state
 
                         in
-                            f (ns - one) (x + acc * base) state'
+                            f (ns - one) (toNumber x + acc * toNumber base) state'
+
+            (Tuple v state') =
+                f n 1.0 seed
 
         in
-            case f n one seed of
-                Tuple v state' ->
-                    { value: fromInt53 (ordered.lo + (v % k))
-                    , seed: state'
-                    }
+            { value: fromInt53 $ ordered.lo + round (floatMod v (toNumber k))
+            , seed: state'
+            }
+
+
+-- | Implements Elm's version of `mod` with a `Number` type ... not a sensible
+-- | general-purpose thing, but it is relied on by the Elm code here.
+foreign import floatMod :: Number -> Number -> Number
 
 
 iLogBase :: Int53 -> Int53 -> Int
