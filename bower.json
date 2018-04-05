@@ -16,7 +16,9 @@
     "output"
   ],
   "dependencies": {
-    "purescript-aff": "~4.0.2",
+    "purescript-aff": "^4.0.0",
+    "purescript-canvas": "^3.3.0",
+    "purescript-colors": "^4.3.0",
     "purescript-datetime": "^3.0.0",
     "purescript-debug": "^3.0.0",
     "purescript-foldable-traversable": "^3.0.0",
