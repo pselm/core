@@ -1,6 +1,6 @@
 module Test.Elm.Task (tests) where
 
-import Test.Unit (TestSuite, Test, suite, test, success, failure)
+import Test.Unit (Test, TestSuite, failure, suite, test)
 import Test.Unit.Assert (equal)
 
 import Elm.Task
@@ -10,9 +10,8 @@ import Data.Maybe (Maybe(..))
 import Elm.Result (Result(..))
 import Data.List (List(..), (:))
 import Control.Monad.Aff (nonCanceler)
-import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Exception (message)
-import Control.Monad.Error.Class (catchError, try)
+import Control.Monad.Error.Class (try)
 import Math (sqrt)
 
 

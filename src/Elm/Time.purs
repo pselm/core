@@ -22,19 +22,17 @@ import Data.Time.Duration
     , class Duration, toDuration, fromDuration
     )
 
-import Elm.Basics (Float, Bool)
-import Elm.Types (Task, TaskE)
+import Elm.Basics (Float)
+import Elm.Types (TaskE)
 
 import Control.Monad.Except.Trans (ExceptT(..))
 import Control.Monad.Aff (liftEff')
 import Control.Monad.Eff.Now (NOW)
 import Control.Monad.Eff.Now as Now
 import Data.Either (Either(..))
-import Data.Int (round)
 import Data.DateTime.Instant (unInstant)
-import Data.Maybe (Maybe(..))
 
-import Prelude ((/), flip, id, ($), (<$>), (<<<), bind, pure, (-), unit, (>>=), void, const, negate, (+), (/=))
+import Prelude (flip, id, ($), (/), (<$>), (<<<))
 
 
 -- | Type alias to make it clearer when you are working with time values.
