@@ -412,5 +412,7 @@ always = const
 -- | since there is no value with type `Never` they could not fill in the question
 -- | marks!
 -- |
+-- | This type was introduced in Elm 0.17.
+-- |
 -- | The Purescript equivalent is `Void`.
 type Never = Void

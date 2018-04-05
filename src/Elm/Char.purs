@@ -65,17 +65,17 @@ foreign import toLocaleUpper :: Char -> Char
 foreign import toLocaleLower :: Char -> Char
 
 
--- | In this library, we use integers to represent the key codes coming from the
--- | keyboard. You can use `toCode` and `fromCode`
--- | to convert between key codes and characters.
+-- | Keyboard keys can be represented as integers. These are called *key codes*.
+-- | You can use [`toCode`](#toCode) and [`fromCode`](#fromCode) to convert between
+-- | key codes and characters.
 type KeyCode = Int
 
 
--- | Convert to unicode.
+-- | Convert to key code.
 toCode :: Char -> KeyCode
 toCode = toCharCode
 
 
--- | Convert from unicode.
+-- | Convert from key code.
 fromCode :: KeyCode -> Char
 fromCode = fromCharCode
