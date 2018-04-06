@@ -41,6 +41,7 @@ The full API is available below.
 | Elm.Bind        | Like Purescript's `Bind`, but uses `andThen` for `bind` |
 | Elm.Bitwise     | Implemented via `Data.Int.Bits` |
 | Elm.Char        | Implemented via `Data.Char` |
+| Elm.Color       | Implemented via `Color` |
 | Elm.Date        | Implemented via `Data.Date` |
 | Elm.Debug       | Implemented via `Debug.Trace` and `Partial.Unsafe` |
 | Elm.Dict        | Implemented via `Data.Map` |
@@ -54,7 +55,10 @@ The full API is available below.
 | Elm.Result      | Like Purescript's `Data.Either`, but re-implemented to preserve the Elm constructor names (`Ok` and `Err` rather than `Right` and `Left`). |
 | Elm.Set         | Implemented via `Data.Set` |
 | Elm.String      | Implemented via `Data.String` |
+| Elm.Task        | Implemented via `Aff` |
+| Elm.Time        | Implemented via `Data.Time.Duration` |
 | Elm.Trampoline  | A translation from Elm's implementation. |
+| Elm.Transform2D | Implemented via `Transform` from purescript-canvas |
 
 ## Installation
 
