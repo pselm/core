@@ -54,57 +54,57 @@ doer = do
 tests :: ∀ e. TestSuite e
 tests = suite "Random" do
     test "bool" do
-        assert "seed1" <| false == (generate bool seed1).value
-        assert "seed2" <| false == (generate bool seed2).value
-        assert "seed3" <| true == (generate bool seed3).value
+        assert "seed1" <| false == (step bool seed1).value
+        assert "seed2" <| false == (step bool seed2).value
+        assert "seed3" <| true == (step bool seed3).value
 
     test "int53" do
-        assert "seed1" <| fromInt 12 == (generate genInt53 seed1).value
-        assert "seed2" <| fromInt 31 == (generate genInt53 seed2).value
-        assert "seed3" <| fromInt 40 == (generate genInt53 seed3).value
+        assert "seed1" <| fromInt 12 == (step genInt53 seed1).value
+        assert "seed2" <| fromInt 31 == (step genInt53 seed2).value
+        assert "seed3" <| fromInt 40 == (step genInt53 seed3).value
 
     test "int" do
-        assert "seed1" <| 12 == (generate genInt seed1).value
-        assert "seed2" <| 31 == (generate genInt seed2).value
-        assert "seed3" <| 40 == (generate genInt seed3).value
+        assert "seed1" <| 12 == (step genInt seed1).value
+        assert "seed2" <| 31 == (step genInt seed2).value
+        assert "seed3" <| 40 == (step genInt seed3).value
 
     suite "float" do
-        test "seed1" <| 17.00685023 ~= (generate genFloat seed1).value
-        test "seed2" <| 63.96765709 ~= (generate genFloat seed2).value
-        test "seed3" <| 44.89097595 ~= (generate genFloat seed3).value
+        test "seed1" <| 17.00685023 ~= (step genFloat seed1).value
+        test "seed2" <| 63.96765709 ~= (step genFloat seed2).value
+        test "seed3" <| 44.89097595 ~= (step genFloat seed3).value
 
     test "pair" do
-        assert "seed1" <| Tuple false true == (generate (pair bool bool) seed1).value
-        assert "seed2" <| Tuple false false == (generate (pair bool bool) seed2).value
-        assert "seed3" <| Tuple true false == (generate (pair bool bool) seed3).value
+        assert "seed1" <| Tuple false true == (step (pair bool bool) seed1).value
+        assert "seed2" <| Tuple false false == (step (pair bool bool) seed2).value
+        assert "seed3" <| Tuple true false == (step (pair bool bool) seed3).value
 
     test "list" do
-        assert "seed1" <| (fromFoldable [12,46,21,91,94,27,68,99,78,6]) == (generate (list 10 genInt) seed1).value
-        assert "seed2" <| (fromFoldable [31,54,62,55,16,15,34,59,88,41]) == (generate (list 10 genInt) seed2).value
-        assert "seed3" <| (fromFoldable [40,52,34,2,95,2,70,49,53,67]) == (generate (list 10 genInt) seed3).value
+        assert "seed1" <| (fromFoldable [12,46,21,91,94,27,68,99,78,6]) == (step (list 10 genInt) seed1).value
+        assert "seed2" <| (fromFoldable [31,54,62,55,16,15,34,59,88,41]) == (step (list 10 genInt) seed2).value
+        assert "seed3" <| (fromFoldable [40,52,34,2,95,2,70,49,53,67]) == (step (list 10 genInt) seed3).value
 
     test "array" do
-        assert "seed1" <| [12,46,21,91,94,27,68,99,78,6] == (generate (list 10 genInt) seed1).value
-        assert "seed2" <| [31,54,62,55,16,15,34,59,88,41] == (generate (list 10 genInt) seed2).value
-        assert "seed3" <| [40,52,34,2,95,2,70,49,53,67] == (generate (list 10 genInt) seed3).value
+        assert "seed1" <| [12,46,21,91,94,27,68,99,78,6] == (step (list 10 genInt) seed1).value
+        assert "seed2" <| [31,54,62,55,16,15,34,59,88,41] == (step (list 10 genInt) seed2).value
+        assert "seed3" <| [40,52,34,2,95,2,70,49,53,67] == (step (list 10 genInt) seed3).value
 
     test "Ramdom.map" do
-        assert "map"  <| 13 == (generate (map ((+) 1) genInt) seed1).value
-        assert "map2" <| (-34) == (generate (map2 (-) genInt genInt) seed1).value
-        assert "map3" <| 37 == (generate (map3 (\a b c -> a + b - c  ) genInt genInt genInt) seed1).value
-        assert "map4" <| 78 == (generate (map4 (\a b c d -> a - b + c + d) genInt genInt genInt genInt) seed1).value
-        assert "map5" <| 222 == (generate (map5 (\a b c d e -> a + b - c + d + e) genInt genInt genInt genInt genInt) seed1).value
+        assert "map"  <| 13 == (step (map ((+) 1) genInt) seed1).value
+        assert "map2" <| (-34) == (step (map2 (-) genInt genInt) seed1).value
+        assert "map3" <| 37 == (step (map3 (\a b c -> a + b - c  ) genInt genInt genInt) seed1).value
+        assert "map4" <| 78 == (step (map4 (\a b c d -> a - b + c + d) genInt genInt genInt genInt) seed1).value
+        assert "map5" <| 222 == (step (map5 (\a b c d e -> a + b - c + d + e) genInt genInt genInt genInt genInt) seed1).value
 
     test "andThen" do
         let genAndThen = genInt `andThen` int 0
-        assert "seed1" <| 12 == (generate genAndThen seed1).value
-        assert "seed2" <| 12 == (generate genAndThen seed2).value
-        assert "seed3" <| 40 == (generate genAndThen seed3).value
+        assert "seed1" <| 12 == (step genAndThen seed1).value
+        assert "seed2" <| 12 == (step genAndThen seed2).value
+        assert "seed3" <| 40 == (step genAndThen seed3).value
 
     test "do notation" do
-        assert "seed1" <| 12 == (generate doer seed1).value
-        assert "seed2" <| 12 == (generate doer seed2).value
-        assert "seed3" <| 40 == (generate doer seed3).value
+        assert "seed1" <| 12 == (step doer seed1).value
+        assert "seed2" <| 12 == (step doer seed2).value
+        assert "seed3" <| 40 == (step doer seed3).value
 
     test "minInt" $
         equal "(Int53 -2147483648.0)" (show minInt)
