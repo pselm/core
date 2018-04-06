@@ -3,7 +3,11 @@ module Test.Elm.Basics (tests) where
 import Test.Unit (TestSuite, Test, suite, test)
 import Test.Unit.Assert (assert, equal)
 
+import Elm.Array as Array
 import Elm.Basics
+import Elm.Set as Set
+import Elm.Dict as Dict
+import Elm.Date as Date
 import Elm.List (List(..), (..), (:))
 import Data.Int (even)
 import Prelude (class Eq, class Show, discard, Ordering(..))
@@ -24,6 +28,25 @@ tests = suite "Basics" do
     test "(/=)" do
         assert "true" <| 4 /= 5
         assert "false" <| not <| 5 /= 5
+
+    test "equality" do
+        assert "array equality" <|
+            Array.fromList [1,1,1,1] == Array.repeat 4 1
+
+        assert "set equality" <|
+            Set.fromList [1,2] == Set.fromList [2,1]
+
+        assert "dict equality" <|
+            Dict.fromList [Tuple 1 1, Tuple 2 2] == Dict.fromList [Tuple 2 2, Tuple 1 1]
+
+        assert "char equality" <|
+            '0' /= '饑'
+
+        assert "date equality" <|
+            Date.fromString "2/7/1992" == Date.fromString "2/7/1992"
+
+        assert "date inequality" <|
+            Date.fromString "11/16/1995" /= Date.fromString "2/7/1992"
 
     test "(<)" do
         assert "less" <| 4 < 5
