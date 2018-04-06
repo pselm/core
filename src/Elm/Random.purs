@@ -425,7 +425,7 @@ magicNum6 :: Int53
 magicNum6 = fromInt 2147483563
 
 magicNum7 :: Int53
-magicNum7 = fromInt 2137383399
+magicNum7 = fromInt 2147483399
 
 magicNum8 :: Int53
 magicNum8 = fromInt 2147483562

@@ -79,21 +79,21 @@ tests = suite "Random" do
         assert "seed3" <| Tuple true false == (step (pair bool bool) seed3).value
 
     test "list" do
-        assert "seed1" <| (fromFoldable [12,46,21,91,94,27,68,99,78,6]) == (step (list 10 genInt) seed1).value
-        assert "seed2" <| (fromFoldable [31,54,62,55,16,15,34,59,88,41]) == (step (list 10 genInt) seed2).value
-        assert "seed3" <| (fromFoldable [40,52,34,2,95,2,70,49,53,67]) == (step (list 10 genInt) seed3).value
+        assert "seed1" <| (fromFoldable [12,46,21,81,68,39,0,78,73,69]) == (step (list 10 genInt) seed1).value
+        assert "seed2" <| (fromFoldable [31,54,62,45,91,27,15,38,83,3]) == (step (list 10 genInt) seed2).value
+        assert "seed3" <| (fromFoldable [40,52,34,44,69,14,2,28,48,29]) == (step (list 10 genInt) seed3).value
 
     test "array" do
-        assert "seed1" <| [12,46,21,91,94,27,68,99,78,6] == (step (list 10 genInt) seed1).value
-        assert "seed2" <| [31,54,62,55,16,15,34,59,88,41] == (step (list 10 genInt) seed2).value
-        assert "seed3" <| [40,52,34,2,95,2,70,49,53,67] == (step (list 10 genInt) seed3).value
+        assert "seed1" <| [12,46,21,81,68,39,0,78,73,69] == (step (list 10 genInt) seed1).value
+        assert "seed2" <| [31,54,62,45,91,27,15,38,83,3] == (step (list 10 genInt) seed2).value
+        assert "seed3" <| [40,52,34,44,69,14,2,28,48,29] == (step (list 10 genInt) seed3).value
 
     test "Ramdom.map" do
         assert "map"  <| 13 == (step (map ((+) 1) genInt) seed1).value
         assert "map2" <| (-34) == (step (map2 (-) genInt genInt) seed1).value
         assert "map3" <| 37 == (step (map3 (\a b c -> a + b - c  ) genInt genInt genInt) seed1).value
-        assert "map4" <| 78 == (step (map4 (\a b c d -> a - b + c + d) genInt genInt genInt genInt) seed1).value
-        assert "map5" <| 222 == (step (map5 (\a b c d e -> a + b - c + d + e) genInt genInt genInt genInt genInt) seed1).value
+        assert "map4" <| 68 == (step (map4 (\a b c d -> a - b + c + d) genInt genInt genInt genInt) seed1).value
+        assert "map5" <| 186 == (step (map5 (\a b c d e -> a + b - c + d + e) genInt genInt genInt genInt genInt) seed1).value
 
     test "andThen" do
         let genAndThen = genInt `andThen` int 0
