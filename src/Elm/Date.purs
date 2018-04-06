@@ -179,7 +179,7 @@ millisecond = round <<< unsafePerformEff <<< getMilliseconds
 
 -- | Get the `Date` at the moment when this task is run.
 -- |
--- | * Added in version 4.0.0 of elm-lang/core *
+-- | * Added in Elm 0.17 / version 4.0.0 of elm-lang/core *
 now :: ∀ e x. TaskE (now :: NOW | e) x Date
 now =
     fromTime <$> Time.now 

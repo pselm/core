@@ -179,6 +179,7 @@ toUnfoldable =
     toAscUnfoldable
 
 
+-- | Convert a dictionary into an association list of key-value pairs, sorted by keys.
 toList :: ∀ f k v. Unfoldable f => Dict k v -> f (Tuple k v)
 toList = toAscUnfoldable
 
@@ -196,6 +197,8 @@ fromList = fromFoldable
 -- | 
 -- | You then traverse all the keys from lowest to highest, building up whatever
 -- | you want.
+-- |
+-- | * Introduced in Elm 0.17 *
 merge
     :: ∀ k a b result. Ord k
     => (k -> a -> result -> result)
