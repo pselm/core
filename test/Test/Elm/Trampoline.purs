@@ -33,11 +33,11 @@ goodSum n =
     let
         sumT x acc =
             if x == zero
-                then Done acc
-                else Continue (\_ -> sumT (x - one) (acc + x))
+                then done acc
+                else jump (\_ -> sumT (x - one) (acc + x))
 
     in
-        trampoline $ sumT n zero
+        evaluate $ sumT n zero
 
 
 mkLoopCheck :: ∀ e. Int -> Test e

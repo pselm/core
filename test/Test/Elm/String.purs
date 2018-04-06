@@ -34,6 +34,8 @@ tests = suite "String" do
         assert "endsWith" (endsWith "ship" "spaceship")
         assertEqual "reverse" "desserts" (reverse "stressed")
         assertEqual "repeat" "hahaha" (repeat 3 "ha")
+        assertEqual "indexes" [ 0, 2 ] (indexes "a" "aha")
+        assertEqual "empty indexes" [] (indexes "" "aha")
         assertEqual "fromChar" "c" (fromChar 'c')
         assertEqual "trim" "hats" (trim "   hats  \n")
 

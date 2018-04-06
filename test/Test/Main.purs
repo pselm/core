@@ -8,6 +8,7 @@ import Test.Elm.Basics as Basics
 import Test.Elm.BasicsElm as BasicsElm
 import Test.Elm.Bitwise as Bitwise
 import Test.Elm.Char as Char
+import Test.Elm.Color as Color
 import Test.Elm.Date as Date
 import Test.Elm.Dict as Dict
 import Test.Elm.Json as Json
@@ -19,6 +20,8 @@ import Test.Elm.Regex as Regex
 import Test.Elm.Result as Result
 import Test.Elm.Set as Set
 import Test.Elm.String as String
+import Test.Elm.Task as Task
+import Test.Elm.Time as Time
 import Test.Elm.Trampoline as Trampoline
 
 import Control.Monad.Eff (Eff)
@@ -44,6 +47,7 @@ main =
         BasicsElm.tests
         Bitwise.tests
         Char.tests
+        Color.tests
         Date.tests
         Dict.tests
         Json.tests
@@ -55,4 +59,6 @@ main =
         Result.tests
         Set.tests
         String.tests
+        Time.tests
+        Task.tests
         Trampoline.tests

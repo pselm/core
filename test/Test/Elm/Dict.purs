@@ -5,11 +5,11 @@ import Test.Unit.Assert (assert)
 
 import Elm.Dict as Dict
 import Elm.Dict (Dict)
-import Elm.Basics (Tuple(..), (++), (<|), (==))
-import Prelude (discard, class Eq, (<$>))
-import Elm.List (List(..), (:))
+import Elm.Basics (Tuple(..), (++), (<|), (|>), (==))
+import Prelude (discard, class Eq, (<$>), map)
+import Elm.List (List(..), (:), range)
 import Elm.Maybe (Maybe(..))
-import Data.Tuple(fst, snd)
+import Data.Tuple (fst, snd)
 
 
 infixl 9 tuple as :=
@@ -90,3 +90,32 @@ tests = suite "Dict" do
 
         assertEqual "foldr" ("Jerry: mouse" : "Tom: cat" : Nil) <|
             Dict.foldr (\k v b -> (k ++ ": " ++ v) : b) Nil animals
+
+    test "merge" do
+        assertEqual "merge empties" (Dict.empty) <|
+            (Dict.merge Dict.insert insertBoth Dict.insert Dict.empty Dict.empty Dict.empty)
+
+        assertEqual "merge singletons in order" [Tuple "u1" [1], Tuple "u2" [2]] <|
+            ((Dict.merge Dict.insert insertBoth Dict.insert s1 s2 Dict.empty) |> Dict.toList)
+
+        assertEqual "merge singletons out of order" [Tuple "u1" [1], Tuple "u2" [2]] <|
+            ((Dict.merge Dict.insert insertBoth Dict.insert s2 s1 Dict.empty) |> Dict.toList)
+
+        assertEqual "merge with duplicate key" [Tuple "u2" [2, 3]] <|
+            ((Dict.merge Dict.insert insertBoth Dict.insert s2 s23 Dict.empty) |> Dict.toList)
+
+        assertEqual "partially overlapping" bExpected <|
+            ((Dict.merge Dict.insert insertBoth2 Dict.insert b1 b2 Dict.empty) |> Dict.toList)
+
+        where
+            insertBoth key leftVal rightVal dict = Dict.insert key (leftVal ++ rightVal) dict
+            insertBoth2 key leftVal rightVal dict = Dict.insert key (leftVal ++ rightVal) dict
+
+            s1 = Dict.empty |> Dict.insert "u1" [ 1 ]
+            s2 = Dict.empty |> Dict.insert "u2" [ 2 ]
+            s23 = Dict.empty |> Dict.insert "u2" [ 3 ]
+
+            b1 = map (\i -> Tuple i [i]) (range 1 10) |> Dict.fromList
+            b2 = map (\i -> Tuple i [i]) (range 5 15) |> Dict.fromList
+
+            bExpected = [Tuple 1 [1], Tuple 2 [2], Tuple 3 [3], Tuple 4 [4], Tuple 5 [5,5], Tuple 6 [6,6], Tuple 7 [7,7], Tuple 8 [8,8], Tuple 9 [9,9], Tuple 10 [10,10], Tuple 11 [11], Tuple 12 [12], Tuple 13 [13], Tuple 14 [14], Tuple 15 [15]]

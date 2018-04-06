@@ -30,7 +30,7 @@ module Elm.Random
     , bool, int, float
     , list, pair
     , minInt, maxInt
-    , generate, initialSeed
+    , step, initialSeed
     ) where
 
 
@@ -88,10 +88,10 @@ int a b =
                    then {lo: toInt53 a, hi: toInt53 b}
                    else {lo: toInt53 b, hi: toInt53 a}
 
-            -- k needs to be a float, because it represents a positive number
+            -- k needs to be am Int53, because it represents a positive number
             -- expressing the whole range between lo and hi. But that could
-            -- overflow maxInt, and Purescript enforces maxInt, given what
-            -- the compiler does for ints
+            -- overflow 32 bits, and Purescript enforces 32 bit ints
+            k :: Int53
             k =
                 ordered.hi - ordered.lo + one
 
@@ -102,6 +102,8 @@ int a b =
             n =
                 iLogBase base k
 
+            -- The acc * base calculation can overflow even the Int53 bounds.
+            -- So, our acc needs to be a float, sadly.
             f ns acc state =
                 case ns of
                     0 ->
@@ -114,14 +116,20 @@ int a b =
                             tuple = next state
 
                         in
-                            f (ns - one) (x + acc * base) state'
+                            f (ns - one) (toNumber x + acc * toNumber base) state'
+
+            (Tuple v state') =
+                f n 1.0 seed
 
         in
-            case f n one seed of
-                Tuple v state' ->
-                    { value: fromInt53 (ordered.lo + (v % k))
-                    , seed: state'
-                    }
+            { value: fromInt53 $ ordered.lo + round (floatMod v (toNumber k))
+            , seed: state'
+            }
+
+
+-- | Implements Elm's version of `mod` with a `Number` type ... not a sensible
+-- | general-purpose thing, but it is relied on by the Elm code here.
+foreign import floatMod :: Number -> Number -> Number
 
 
 iLogBase :: Int53 -> Int53 -> Int
@@ -160,7 +168,7 @@ float a b =
                    else {lo: b, hi: a}
 
             generated =
-                generate (int minInt maxInt) seed
+                step (int minInt maxInt) seed
 
             negativeOneToOne =
                 (toNumber generated.value) / toNumber (maxInt - minInt)
@@ -338,27 +346,29 @@ data Seed = Seed Int53 Int53
 -- | Generate a random value as specified by a given `Generator`.
 -- |
 -- | In the following example, we are trying to generate a number between 0 and 100
--- | with the `int 0 100` generator. Each time we call `generate` we need to provide
--- | a seed. This will produce a random number and a *new* seed to use if we want to
+-- | with the `int 0 100` generator. Each time we call `step` we need to provide a
+-- | seed. This will produce a random number and a *new* seed to use if we want to
 -- | run other generators later.
 -- |
--- | So here it is done right, where we get a new seed from each `generate` call and
+-- | So here it is done right, where we get a new seed from each `step` call and
 -- | thread that through.
 -- |
 -- |     seed0 = initialSeed 31415
 -- |
--- |     -- generate (int 0 100) seed0 ==> {value: 42, seed: seed1}
--- |     -- generate (int 0 100) seed1 ==> {value: 31, seed: seed2}
--- |     -- generate (int 0 100) seed2 ==> (value: 99, seed: seed3}
+-- |     -- step (int 0 100) seed0 ==> {value: 42, seed: seed1}
+-- |     -- step (int 0 100) seed1 ==> {value: 31, seed: seed2}
+-- |     -- step (int 0 100) seed2 ==> (value: 99, seed: seed3}
 -- |
 -- | Notice that we use different seeds on each line. This is important! If you use
 -- | the same seed, you get the same results.
 -- |
--- |     -- generate (int 0 100) seed0 ==> {value: 42, seed: seed1}
--- |     -- generate (int 0 100) seed0 ==> {value: 42, seed: seed1}
--- |     -- generate (int 0 100) seed0 ==> {value: 42, seed: seed1}
-generate :: ∀ a. Generator a -> Seed -> Generated a
-generate (Generator generator) seed =
+-- |     -- step (int 0 100) seed0 ==> {value: 42, seed: seed1}
+-- |     -- step (int 0 100) seed0 ==> {value: 42, seed: seed1}
+-- |     -- step (int 0 100) seed0 ==> {value: 42, seed: seed1}
+-- |
+-- | * Prior to Elm 0.17, this function was called `generate`. *
+step :: ∀ a. Generator a -> Seed -> Generated a
+step (Generator generator) seed =
     generator seed
 
 
@@ -415,7 +425,7 @@ magicNum6 :: Int53
 magicNum6 = fromInt 2147483563
 
 magicNum7 :: Int53
-magicNum7 = fromInt 2137383399
+magicNum7 = fromInt 2147483399
 
 magicNum8 :: Int53
 magicNum8 = fromInt 2147483562

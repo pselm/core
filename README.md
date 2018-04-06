@@ -20,39 +20,45 @@ be of interest to people who do not know Elm -- there is already a
 more direct way to do everything this package does.
 
 The [larger project](https://github.com/rgrempel/purescript-elm), still
-in progress, will also deal with things such as tasks, signals, graphics, HTML,
-etc. However, I thought that this package might already be of some help
+in progress, will deal with the Elm architecture (e.g. commands, subscriptions, etc.).
+However, I thought that this package might already be of some help
 to someone.
 
 ## Compatibility
 
-The modules are based on Elm 0.16, or version 3.0 of the Elm core libraries.
+The modules are based on Elm 0.17, or version 4.0.5 of the Elm core libraries.
 
 ## The Modules
 
 Here is a quick list of the modules in this package, and their Purescript analogues.
 The full API is available below.
 
-* `Elm.Apply` -- Like Purescript's `Apply`, but with different function names
-* `Elm.Array` -- Implemented via `Data.Sequence`
-* `Elm.Basics` -- Like Purescript's `Prelude`
-* `Elm.Bind` -- Like Purescript's `Bind`, but uses `andThen` for `bind`
-* `Elm.Bitwise` -- Implemented via `Data.Int.Bits`
-* `Elm.Char` -- Implemented via `Data.Char`
-* `Elm.Date` -- Implemented via `Data.Date`
-* `Elm.Debug` -- Implemented via `Debug.Trace` and `Partial.Unsafe`
-* `Elm.Dict` -- Implemented via `Data.Map`
-* `Elm.Foldable` -- Like Purescript's `Foldable`, but with a different signature for `foldl`
-* `Elm.Json.Decode` -- Implemented using `Data.Foreign`, with a fair bit of sugar applied.
-* `Elm.Json.Encode` -- Implemented using `Data.Foreign`
-* `Elm.List` -- Implemented via `Data.List`
-* `Elm.Maybe` -- Implemented via `Data.Maybe`
-* `Elm.Random` -- A translation from Elm's implementation
-* `Elm.Regex` -- Similar to `Data.String.Regex`, but re-implemented due to irreconcilable API differences.
-* `Elm.Result` -- Like Purescript's `Data.Either`, but re-implemented to preserve the Elm constructor names (`Ok` and `Err` rather than `Right` and `Left`).
-* `Elm.Set` -- Implemented via `Data.Set`
-* `Elm.String` -- Implemented via `Data.String`
-* `Elm.Trampoline` -- A translation from Elm's implementation.
+| Module | Description |
+| ------ | ----------- |
+| Elm.Apply       | Like Purescript's `Apply`, but with different function names. |
+| Elm.Array       | Implemented via `Data.Sequence`|
+| Elm.Basics      | Like Purescript's `Prelude`|
+| Elm.Bind        | Like Purescript's `Bind`, but uses `andThen` for `bind` |
+| Elm.Bitwise     | Implemented via `Data.Int.Bits` |
+| Elm.Char        | Implemented via `Data.Char` |
+| Elm.Color       | Implemented via `Color` |
+| Elm.Date        | Implemented via `Data.Date` |
+| Elm.Debug       | Implemented via `Debug.Trace` and `Partial.Unsafe` |
+| Elm.Dict        | Implemented via `Data.Map` |
+| Elm.Foldable    | Like Purescript's `Foldable`, but with a different signature for `foldl` |
+| Elm.Json.Decode | Implemented using `Data.Foreign`, with a fair bit of sugar applied. |
+| Elm.Json.Encode | Implemented using `Data.Foreign` |
+| Elm.List        | Implemented via `Data.List` |
+| Elm.Maybe       | Implemented via `Data.Maybe` |
+| Elm.Random      | A translation from Elm's implementation |
+| Elm.Regex       | Similar to `Data.String.Regex`, but re-implemented due to irreconcilable API differences. |
+| Elm.Result      | Like Purescript's `Data.Either`, but re-implemented to preserve the Elm constructor names (`Ok` and `Err` rather than `Right` and `Left`). |
+| Elm.Set         | Implemented via `Data.Set` |
+| Elm.String      | Implemented via `Data.String` |
+| Elm.Task        | Implemented via `Aff` |
+| Elm.Time        | Implemented via `Data.Time.Duration` |
+| Elm.Trampoline  | A translation from Elm's implementation. This was moved from core to its own package in Elm 0.17. |
+| Elm.Transform2D | Implemented via `Transform` from purescript-canvas. Removed from elm-lang/core in Elm 0.17. |
 
 ## Installation
 

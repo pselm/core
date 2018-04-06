@@ -16,22 +16,26 @@
     "output"
   ],
   "dependencies": {
+    "purescript-aff": "^4.0.0",
+    "purescript-canvas": "^3.3.0",
+    "purescript-colors": "^4.3.0",
     "purescript-datetime": "^3.0.0",
     "purescript-debug": "^3.0.0",
     "purescript-foldable-traversable": "^3.0.0",
     "purescript-foreign": "^4.0.0",
+    "purescript-foreign-generic": "^5.0.0",
     "purescript-int-53": "^3.0.0",
     "purescript-integers": "^3.0.0",
     "purescript-js-date": "^5.0.0",
     "purescript-lists": "^4.0.0",
     "purescript-maybe": "^3.0.0",
+    "purescript-now": "^3.0.0",
     "purescript-orders": "^3.0.0",
     "purescript-partial": "^1.0.0",
     "purescript-prelude": "^3.0.0",
     "purescript-sequences": "^1.0.0",
     "purescript-sets": "^3.0.0",
-    "purescript-strings": "^3.0.0",
-    "purescript-foreign-generic": "^5.0.0"
+    "purescript-strings": "^3.0.0"
   },
   "devDependencies": {
     "purescript-test-unit": "^13.0.0",

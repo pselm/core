@@ -12,53 +12,50 @@
 -- | Note that in Purescript, there is tail-call elimination, so you may not need this if you
 -- | arrange your code to use tail-calls. If you do need a trampoline module, you could
 -- | also consider [Control.Monad.Trampoline](https://pursuit.purescript.org/packages/purescript-free/0.9.1/docs/Control.Monad.Trampoline).
+-- |
+-- | * In Elm 0.17, this module was moved from core to its own package. *
 
 module Elm.Trampoline
-    ( trampoline
-    , Trampoline(..)
+    ( Trampoline
+    , done, jump
+    , evaluate
     ) where
 
+-- I tried implementing this in terms of Control.Monad.Trampoline, which worked ...
+-- the tricky bit was:
+--
+--     jump = delay >>> join
+--
+-- But performance was much worse (probably due to the join), so I reverted to this.
 
 import Prelude (Unit, unit)
 
 
--- | A way to build computations that may be deeply recursive. We will take an
--- | example of a tail-recursive function and rewrite it in a way that lets us use
--- | a trampoline:
--- |
--- |     length :: List a -> Int
--- |     length list = length' 0 list
--- |
--- |     length' :: Int -> List a -> Int
--- |     length' accum list =
--- |         case list of
--- |           Nil        -> accum
--- |           Cons hd tl -> length' (accum + 1) tl
--- |
--- | This finds the length of a list, but if the list is too long, it may cause a
--- | stack overflow. We can rewrite it as follows:
--- |
--- |     length :: List a -> Int
--- |     length list = trampoline (length' 0 list)
--- |
--- |     length' :: Int -> List a -> Trampoline Int
--- |     length' accum list =
--- |         case list of
--- |           Nil        -> Done accum
--- |           Cons hd tl -> Continue (\() -> length' (accum + 1) tl)
--- |
--- | Now it uses a trampoline and can recurse without growing the stack!
+-- | A computation that has been broken up into a bunch of smaller chunks. The
+-- | programmer explicitly adds "pause points" so each chunk of computation can be
+-- | run without making the stack any deeper.
 data Trampoline a
     = Done a
-    | Continue (Unit -> Trampoline a)
+    | Jump (Unit -> Trampoline a)
+
+
+-- | When you do not want a computation to go through the trampoline.
+done :: ∀ a. a -> Trampoline a
+done = Done
+
+
+-- | When you want a computation to be delayed so that it is handled by the
+-- | trampoline.
+jump :: ∀ a. (Unit -> Trampoline a) -> Trampoline a
+jump = Jump
 
 
 -- | Evaluate a trampolined value in constant space.
-trampoline :: ∀ a. Trampoline a -> a
-trampoline tramp =
-    case tramp of
+evaluate :: ∀ a. Trampoline a -> a
+evaluate trampoline =
+    case trampoline of
         Done value ->
             value
 
-        Continue f ->
-            trampoline (f unit)
+        Jump f ->
+            evaluate (f unit)

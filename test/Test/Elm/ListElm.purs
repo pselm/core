@@ -21,7 +21,7 @@ tests = suite "ListElm" do
     testListOfN 0
     testListOfN 1
     testListOfN 2
-    testListOfN 1000
+    testListOfN 5000
 
 
 testListOfN :: ∀ e. Int -> TestSuite e

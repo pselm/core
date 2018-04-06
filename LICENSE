@@ -1,7 +1,7 @@
 The original Elm modules upon which this work is based are subject to
 the following license.
 
-Copyright (c) 2014, Evan Czaplicki
+Copyright (c) 2014-present, Evan Czaplicki
 
 All rights reserved.
 
@@ -61,7 +61,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 The original work involved in converting the modules to Purescript is
 subject to the following license.
 
-Copyright (c) 2016 Ryan Rempel
+Copyright (c) 2016-2018 Ryan Rempel
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in

@@ -121,6 +121,11 @@ exports.endsWith = function (sub) {
 exports._indexes = function (sub) {
     return function (str) {
         var subLen = sub.length;
+
+        if (subLen < 1) {
+            return [];
+        }
+
         var i = 0;
         var is = [];
 
