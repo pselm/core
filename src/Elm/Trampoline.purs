@@ -12,6 +12,8 @@
 -- | Note that in Purescript, there is tail-call elimination, so you may not need this if you
 -- | arrange your code to use tail-calls. If you do need a trampoline module, you could
 -- | also consider [Control.Monad.Trampoline](https://pursuit.purescript.org/packages/purescript-free/0.9.1/docs/Control.Monad.Trampoline).
+-- |
+-- | * In Elm 0.17, this module was moved from core to its own package. *
 
 module Elm.Trampoline
     ( trampoline

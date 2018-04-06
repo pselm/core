@@ -9,6 +9,8 @@
 -- | the diagrams below.
 -- |
 -- | This is implemented as a wrapper around the purescript-canvas module, and its `Transform` type.
+-- |
+-- | Note that this was removed from elm-lange/core in Elm 0.17.
 
 module Elm.Transform2D
     ( Transform2D

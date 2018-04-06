@@ -57,8 +57,8 @@ The full API is available below.
 | Elm.String      | Implemented via `Data.String` |
 | Elm.Task        | Implemented via `Aff` |
 | Elm.Time        | Implemented via `Data.Time.Duration` |
-| Elm.Trampoline  | A translation from Elm's implementation. |
-| Elm.Transform2D | Implemented via `Transform` from purescript-canvas |
+| Elm.Trampoline  | A translation from Elm's implementation. This was moved from core to its own package in Elm 0.17. |
+| Elm.Transform2D | Implemented via `Transform` from purescript-canvas. Removed from elm-lang/core in Elm 0.17. |
 
 ## Installation
 
