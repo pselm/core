@@ -205,8 +205,8 @@ tests = suite "Elm.Task" do
     test "Task.onError" do
         let error = fail 42 :: Task Int String
         
-        let recover = error `onError` (\int -> succeed (show int))
-        let failDifferent = error `onError` (\int -> fail (show int))
+        let recover = error |> onError (\int -> succeed (show int))
+        let failDifferent = error |> onError (\int -> fail (show int))
 
         recoverResult <- toAff recover
         recoverResult === Right "42" :: Either Number String
