@@ -13,7 +13,7 @@ module Elm.Result
     ( module Virtual
     , Result(Ok, Err)
     , withDefault
-    , toMaybe, fromMaybe, formatError
+    , toMaybe, fromMaybe, formatError, mapError
     ) where
 
 
@@ -87,8 +87,23 @@ withDefault d (Err _) = d
 -- |     formatError .message (parseInt "abc") == Err "char 'a' is not a number"
 -- |
 -- | Equivalent to Purescript's `lmap`.
+-- |
+-- | Renamed `mapError` in Elm 0.18.
 formatError :: ∀ error error' a. (error -> error') -> Result error a -> Result error' a
 formatError = lmap
+
+
+-- | Transform an `Err` value. For example, say the errors we get have too much
+-- | information:
+-- |
+-- |     mapError .message (parseInt "123") == Ok 123
+-- |     mapError .message (parseInt "abc") == Err "char 'a' is not a number"
+-- |
+-- | Equivalent to Purescript's `lmap`.
+-- |
+-- | Was called `formatError` prior to Elm 0.18.
+mapError :: ∀ x y a. (x -> y) -> Result x a -> Result y a
+mapError = lmap
 
 
 -- | Convert to a simpler `Maybe` if the actual error message is not needed or

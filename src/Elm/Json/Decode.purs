@@ -1,6 +1,8 @@
 
--- | A way to turn Json values into Elm values. A `Decoder a` represents a
--- | decoding operation that will either produce a value of type `a`, or fail.
+-- | Turn JSON values into Elm values. Definitely check out this [intro to
+-- | JSON decoders][guide] to get a feel for how this library works!
+-- |
+-- | [guide]: https://guide.elm-lang.org/interop/json.html
 -- |
 -- | Elm's `Json.Decode` doesn't seem to be quite like any existing Purescript
 -- | package, so I've re-implemented it, using parts of purescript-foreign as
@@ -17,22 +19,22 @@ module Elm.Json.Decode
     , string, int, float, bool, null
     , list, array, unfoldable
     , tuple1, tuple2, tuple3, tuple4, tuple5, tuple6, tuple7, tuple8
-    , field, (:=), at
+    , field, (:=), at, index
     , object1, object2, object3, object4, object5, object6, object7, object8
     , keyValuePairs, dict
-    , oneOf, maybe, fail, succeed
-    , value, customDecoder
+    , oneOf, nullable, maybe, fail, succeed
+    , value, customDecoder, lazy
     ) where
 
 
 import Prelude (map) as Virtual
 import Elm.Json.Encode (Value) as Virtual
 import Elm.Bind (andThen)
-import Elm.Apply (andMap, map2, map3, map4, map5)
+import Elm.Apply (andMap, map2, map3, map4, map5, map6, map7, map8)
 
 import Data.Foreign (Foreign, ForeignError(..), F, readArray, readString, readBoolean, readNumber, readInt, isNull, isUndefined, typeOf)
 import Data.Foreign as DF
-import Data.Foreign.Index (readProp)
+import Data.Foreign.Index (readIndex, readProp)
 import Data.Foreign.JSON (parseJSON)
 import Data.Traversable (traverse)
 import Data.Monoid (class Monoid)
@@ -61,20 +63,16 @@ import Prelude
     , class Applicative, pure
     , class Bind, bind
     , class Monad, (>>=)
-    , show, ($), (<<<), (<$>), (<*>), const, (==), (<>)
+    , Unit, unit, show, ($), (<<<), (<$>), const, (==), (<>)
     )
 
 
--- | Represents a way of decoding JSON values. If you have a `(Decoder (List String))`
--- | it will attempt to take some JSON value and turn it into a list of strings.
--- | These decoders are easy to put together so you can create more and more complex
--- | decoders.
+-- | A value that knows how to decode JSON values.
 newtype Decoder a = Decoder (Value -> Result String a)
 
 
-{- The Foreign module uses `Except` to pass errors around,
-whereas we need `Result String a`.
--}
+-- The Foreign module uses `Except` to pass errors around,
+-- whereas we need `Result String a`.
 toResult :: ∀ a. F a -> Result String a
 toResult f =
     case runExcept f of
@@ -127,11 +125,12 @@ instance bindDecoder :: Bind Decoder where
 instance monadDecoder :: Monad Decoder
 
 
--- | Using a certain decoder, attempt to parse a JSON string. If the decoder
--- | fails, you will get a string message telling you why.
+-- | Parse the given string into a JSON value and then run the `Decoder` on it.
+-- | This will fail if the string is not well-formed JSON or if the `Decoder`
+-- | fails for some reason.
 -- |
--- |     decodeString (tuple2 (,) Tuple float float) "[3,4]"                  -- Ok (Tuple 3 4)
--- |     decodeString (tuple2 (,) Tuple float float) "{ \"x\": 3, \"y\": 4 }" -- Err ""
+-- |     decodeString int "4"     == Ok 4
+-- |     decodeString int "1 + 2" == Err ...
 decodeString :: ∀ a. Decoder a -> String -> Result String a
 decodeString (Decoder decoder) str =
     toResult (parseJSON str) >>= decoder
@@ -139,38 +138,53 @@ decodeString (Decoder decoder) str =
 
 -- OBJECTS
 
--- | Access a nested field, making it easy to dive into big structures. This is
--- | really a helper function so you do not need to write `(:=)` so many times.
+-- | Decode a nested JSON object, requiring certain fields.
 -- |
--- |     -- object.target.value = 'hello'
--- |     value :: Decoder String
--- |     value =
--- |         at ["target", "value"] string
+-- |     json = """{ "person": { "name": "tom", "age": 42 } }"""
 -- |
--- | It is defined as
+-- |     decodeString (at ["person", "name"] string) json  == Ok "tom"
+-- |     decodeString (at ["person", "age" ] int   ) json  == Ok "42
 -- |
--- |     at fields decoder =
--- |         List.foldr (:=) decoder fields
+-- | This is really just a shorthand for saying things like:
+-- |
+-- |     field "person" (field "name" string) == at ["person","name"] string
 -- |
 -- | Note that the signature is defined in terms of `Foldable` so that it will
 -- | work with `Array` or `List` (among others).
 at :: ∀ f a. (Foldable f) => f String -> Decoder a -> Decoder a
 at fields decoder =
-    foldr (:=) decoder fields
+    foldr field decoder fields
 
 
--- | Applies the decoder to the field with the given name.
--- | Fails if the JSON object has no such field.
+-- | Decode a JSON array, requiring a particular index.
 -- |
--- |     nameAndAge :: Decoder (Tuple String Int)
--- |     nameAndAge =
--- |         object2 Tuple
--- |           ("name" := string)
--- |           ("age" := int)
+-- |     json = """[ "alice", "bob", "chuck" ]"""
 -- |
--- |     optionalProfession :: Decoder (Maybe String)
--- |     optionalProfession =
--- |         maybe ("profession" := string)
+-- |     decodeString (index 0 string) json  == Ok "alice"
+-- |     decodeString (index 1 string) json  == Ok "bob"
+-- |     decodeString (index 2 string) json  == Ok "chuck"
+-- |     decodeString (index 3 string) json  == Err ...
+-- |
+-- | This function was added in Elm 0.18.
+index :: ∀ a. Int -> Decoder a -> Decoder a
+index i (Decoder decoder) =
+    Decoder $ \val ->
+        toResult (readIndex i val) >>= decoder
+
+
+-- | Decode a JSON object, requiring a particular field.
+-- |
+-- |     decodeString (field "x" int) "{ \"x\": 3 }"            == Ok 3
+-- |     decodeString (field "x" int) "{ \"x\": 3, \"y\": 4 }"  == Ok 3
+-- |     decodeString (field "x" int) "{ \"x\": true }"         == Err ...
+-- |     decodeString (field "x" int) "{ \"y\": 4 }"            == Err ...
+-- |
+-- |     decodeString (field "name" string) "{ \"name\": \"tom\" }" == Ok "tom"
+-- |
+-- | The object *can* have other fields. Lots of them! The only thing this decoder
+-- | cares about is if `x` is present and that the value there is an `Int`.
+-- |
+-- | Check out [`map2`](#map2) to see how to decode multiple fields!
 field :: ∀ a. String -> Decoder a -> Decoder a
 field f (Decoder decoder) =
     Decoder $ \val ->
@@ -184,6 +198,8 @@ infixl 4 field as :=
 -- |     object1 sqrt ("x" := float)
 -- |
 -- | Equivalent to Purescript's `map`.
+-- |
+-- | Removed in Elm 0.18, in favour of `map`.
 object1 :: ∀ a value. (a -> value) -> Decoder a -> Decoder value
 object1 = map
 
@@ -198,6 +214,8 @@ object1 = map
 -- |           ("y" := float)
 -- |
 -- | Equivalent to Purescript's `lift2`.
+-- |
+-- | Removed in Elm 0.18, in favour of `map2`.
 object2 :: ∀ a b value. (a -> b -> value) -> Decoder a -> Decoder b -> Decoder value
 object2 = lift2
 
@@ -215,42 +233,45 @@ object2 = lift2
 -- |           ("completed" := bool)
 -- |
 -- | Equivalent to Purescript's `lift3`.
+-- |
+-- | Removed in Elm 0.18, in favour of `map3`.
 object3 :: ∀ a b c value. (a -> b -> c -> value) -> Decoder a -> Decoder b -> Decoder c -> Decoder value
 object3 = lift3
 
 
 -- | Equivalent to Purescript's `lift4`.
+-- |
+-- | Removed in Elm 0.18, in favour of `map4`.
 object4 :: ∀ a b c d value. (a -> b -> c -> d -> value) -> Decoder a -> Decoder b -> Decoder c -> Decoder d -> Decoder value
 object4 = lift4
 
 
 -- | Equivalent to Purescript's `lift5`.
+-- |
+-- | Removed in Elm 0.18, in favour of `map5`.
 object5 :: ∀ a b c d e value. (a -> b -> c -> d -> e -> value) -> Decoder a -> Decoder b -> Decoder c -> Decoder d -> Decoder e -> Decoder value
 object5 = lift5
 
 
+-- | Removed in Elm 0.18, in favour of `map6`.
 object6 :: ∀ a b c d e f value. (a -> b -> c -> d -> e -> f -> value) -> Decoder a -> Decoder b -> Decoder c -> Decoder d -> Decoder e -> Decoder f -> Decoder value
-object6 func a b c d e f =
-    func <$> a <*> b <*> c <*> d <*> e <*> f
+object6 = map6
 
 
+-- | Removed in Elm 0.18, in favour of `map7`.
 object7 :: ∀ a b c d e f g value. (a -> b -> c -> d -> e -> f -> g -> value) -> Decoder a -> Decoder b -> Decoder c -> Decoder d -> Decoder e -> Decoder f -> Decoder g -> Decoder value
-object7 func a b c d e f g =
-    func <$> a <*> b <*> c <*> d <*> e <*> f <*> g
+object7 = map7
 
 
+-- | Removed in Elm 0.18, in favour of `map8`.
 object8 :: ∀ a b c d e f g h value. (a -> b -> c -> d -> e -> f -> g -> h -> value) -> Decoder a -> Decoder b -> Decoder c -> Decoder d -> Decoder e -> Decoder f -> Decoder g -> Decoder h -> Decoder value
-object8 func a b c d e f g h =
-    func <$> a <*> b <*> c <*> d <*> e <*> f <*> g <*> h
+object8 = map8
 
 
--- | Turn any object into a list of key-value pairs, including inherited enumerable properties. Fails if _any_ value can't be
--- | decoded with the given decoder.
+-- | Decode a JSON object into an Elm `List` of pairs.
 -- |
--- |     -- { "tom": 89, "sue": 92, "bill": 97, ... }
--- |     grades :: Decoder (List (Tuple String Int))
--- |     grades =
--- |         keyValuePairs int
+-- |     decodeString (keyValuePairs int) "{ \"alice\": 42, \"bob\": 99 }"
+-- |       == [("alice", 42), ("bob", 99)]
 -- |
 -- | The container for the return type is polymorphic in order to accommodate `List` or `Array`, among others.
 keyValuePairs :: ∀ f a. Monoid (f (Tuple String a)) => Applicative f => Decoder a -> Decoder (f (Tuple String a))
@@ -279,13 +300,10 @@ keys val = toResult $ DF.fail $ TypeMismatch "object" (typeOf val)
 foreign import unsafeKeys :: Foreign -> Array String
 
 
--- | Turn any object into a dictionary of key-value pairs, including inherited enumerable properties. Fails if _any_ value can't be
--- | decoded with the given decoder.
+-- | Decode a JSON object into an Elm `Dict`.
 -- |
--- |     -- { "mercury": 0.33, "venus": 4.87, "earth": 5.97, ... }
--- |     planetMasses :: Decoder (Dict String Float)
--- |     planetMasses =
--- |         dict float
+-- |     decodeString (dict int) "{ \"alice\": 42, \"bob\": 99 }"
+-- |       == Dict.fromList [("alice", 42), ("bob", 99)]
 dict :: ∀ a. Decoder a -> Decoder (Dict String a)
 dict decoder =
     let
@@ -296,22 +314,25 @@ dict decoder =
     map Dict.fromList decodePairs
 
 
--- | Try out multiple different decoders. This is helpful when you are dealing
--- | with something with a very strange shape and when `andThen` does not help
--- | narrow things down so you can be more targeted.
+-- | Try a bunch of different decoders. This can be useful if the JSON may come
+-- | in a couple different formats. For example, say you want to read an array of
+-- | numbers, but some of them are `null`.
 -- |
--- |     -- [ [3,4], { "x":0, "y":0 }, [5,12] ]
+-- |     import String
 -- |
--- |     points :: Decoder (List (Tuple Float Float))
--- |     points =
--- |         list point
+-- |     badInt : Decoder Int
+-- |     badInt =
+-- |       oneOf [ int, null 0 ]
 -- |
--- |     point :: Decoder (Tuple Float Float)
--- |     point =
--- |         oneOf
--- |         [ tuple2 Tuple float float
--- |         , object2 Tuple ("x" := float) ("y" := float)
--- |         ]
+-- |     -- decodeString (list badInt) "[1,2,null,4]" == Ok [1,2,0,4]
+-- |
+-- | Why would someone generate JSON like this? Questions like this are not good
+-- | for your health. The point is that you can use `oneOf` to handle situations
+-- | like this!
+-- |
+-- | You could also use `oneOf` to help version your data. Try the latest format,
+-- | then a few older ones that you still support. You could use `andThen` to be
+-- | even more particular if you wanted.
 -- |
 -- | The container has a polymorphic type to accommodate `List` or `Array`,
 -- | among others.
@@ -327,57 +348,54 @@ fromForeign :: ∀ a. (Foreign -> F a) ->  Decoder a
 fromForeign func = Decoder $ toResult <<< func
 
 
--- | Extract a string.
+-- | Decode a JSON string into an Elm `String`.
 -- |
--- |     -- ["John","Doe"]
--- |
--- |     name :: Decoder (Tuple String String)
--- |     name =
--- |         tuple2 Tuple string string
+-- |     decodeString string "true"              == Err ...
+-- |     decodeString string "42"                == Err ...
+-- |     decodeString string "3.14"              == Err ...
+-- |     decodeString string "\"hello\""         == Ok "hello"
+-- |     decodeString string "{ \"hello\": 42 }" == Err ...
 string :: Decoder String
 string = fromForeign readString
 
 
--- | Extract a float.
+-- | Decode a JSON number into an Elm `Float`.
 -- |
--- |     -- [ 6.022, 3.1415, 1.618 ]
--- |
--- |     numbers :: Decoder (List Float)
--- |     numbers =
--- |         list float
+-- |     decodeString float "true"              == Err ..
+-- |     decodeString float "42"                == Ok 42
+-- |     decodeString float "3.14"              == Ok 3.14
+-- |     decodeString float "\"hello\""         == Err ...
+-- |     decodeString float "{ \"hello\": 42 }" == Err ...
 float :: Decoder Float
 float = fromForeign readNumber
 
 
--- | Extract an integer.
+-- | Decode a JSON number into an Elm `Int`.
 -- |
--- |     -- { ... "age": 42 ... }
--- |
--- |     age :: Decoder Int
--- |     age =
--- |         "age" := int
+-- |     decodeString int "true"              == Err ...
+-- |     decodeString int "42"                == Ok 42
+-- |     decodeString int "3.14"              == Err ...
+-- |     decodeString int "\"hello\""         == Err ...
+-- |     decodeString int "{ \"hello\": 42 }" == Err ...
 int :: Decoder Int
 int = fromForeign readInt
 
 
--- | Extract a boolean.
+-- | Decode a JSON boolean into an Elm `Bool`.
 -- |
--- |     -- { ... "checked": true ... }
--- |
--- |     checked :: Decoder Bool
--- |     checked =
--- |         "checked" := bool
+-- |     decodeString bool "true"              == Ok True
+-- |     decodeString bool "42"                == Err ...
+-- |     decodeString bool "3.14"              == Err ...
+-- |     decodeString bool "\"hello\""         == Err ...
+-- |     decodeString bool "{ \"hello\": 42 }" == Err ...
 bool :: Decoder Bool
 bool = fromForeign readBoolean
 
 
--- | Extract a List from a JS array.
+-- | Decode a JSON array into an Elm `List`.
 -- |
--- |     -- [1,2,3,4]
--- |
--- |     numbers :: Decoder (List Int)
--- |     numbers =
--- |         list int
+-- |     decodeString (list int) "[1,2,3]"       == Ok [1,2,3]
+-- |     decodeString (list bool) "[true,false]" == Ok [True,False]
 list :: ∀ a. Decoder a -> Decoder (List a)
 list (Decoder decoder) =
     Decoder $ \val -> do
@@ -385,13 +403,10 @@ list (Decoder decoder) =
         List.fromFoldable <$> traverse decoder arr
 
 
--- | Extract an Array from a JS array.
+-- | Decode a JSON array into an Elm `Array`.
 -- |
--- |     -- [1,2,3,4]
--- |
--- |     numbers :: Decoder (Array Int)
--- |     numbers =
--- |         array int
+-- |     decodeString (array int) "[1,2,3]"       == Ok (Array.fromList [1,2,3])
+-- |     decodeString (array bool) "[true,false]" == Ok (Array.fromList [True,False])
 -- |
 -- | The return type is polymorphic to accommodate `Array` and `Elm.Array`,
 -- | among others.
@@ -418,22 +433,14 @@ unfoldable (Decoder decoder) =
             decoded
 
 
--- | Decode null as the value given, and fail otherwise. Primarily useful for
--- | creating *other* decoders.
+-- | Decode a `null` value into some Elm value.
 -- |
--- |     numbers :: Decoder (Array Int)
--- |     numbers =
--- |         list (oneOf [ int, null 0 ])
+-- |     decodeString (null False) "null" == Ok False
+-- |     decodeString (null 42) "null"    == Ok 42
+-- |     decodeString (null 42) "42"      == Err ..
+-- |     decodeString (null 42) "false"   == Err ..
 -- |
--- | This decoder treats `null` as `Nothing`, and otherwise tries to produce a
--- | `Just`.
--- |
--- |     nullOr :: Decoder a -> Decoder (Maybe a)
--- |     nullOr decoder =
--- |         oneOf
--- |         [ null Nothing
--- |         , map Just decoder
--- |         ]
+-- | So if you ever see a `null`, this will return whatever value you specified.
 null :: ∀ a. a -> Decoder a
 null default =
     Decoder $
@@ -443,33 +450,40 @@ null default =
                 else toResult $ DF.fail $ TypeMismatch "null" (typeOf val)
 
 
+-- | Decode a nullable JSON value into an Elm value.
+-- |
+-- |     decodeString (nullable int) "13"    == Ok (Just 13)
+-- |     decodeString (nullable int) "42"    == Ok (Just 42)
+-- |     decodeString (nullable int) "null"  == Ok Nothing
+-- |     decodeString (nullable int) "true"  == Err ..
+-- |
+-- | This function was added in Elm 0.18.
+nullable :: ∀ a. Decoder a -> Decoder (Maybe a)
+nullable decoder =
+    oneOf
+        [ null Nothing
+        , map Just decoder
+        ]
 
--- | Extract a Maybe value, wrapping successes with `Just` and turning any
--- | failure in `Nothing`. If you are expecting that a field can sometimes be `null`,
--- | it's better to check for it explicitly, as this function will swallow
--- | errors from ill-formed JSON.
+
+-- | Helpful for dealing with optional fields. Here are a few slightly different
+-- | examples:
 -- |
--- | The following code decodes JSON objects that may not have a profession field.
+-- |     json = """{ "name": "tom", "age": 42 }"""
 -- |
--- |     -- profession: Just "plumber"
--- |     -- { name: "Tom", age: 31, profession: "plumber" }
--- |     -- profession: Nothing
--- |     -- { name: "Sue", age: 42 }
--- |     -- { name: "Amy", age: 27, profession: null }
--- |     -- { name: "Joe", age: 36, profession: ["something", "unexpected"] }
+-- |     decodeString (maybe (field "age"    int  )) json == Ok (Just 42)
+-- |     decodeString (maybe (field "name"   int  )) json == Ok Nothing
+-- |     decodeString (maybe (field "height" float)) json == Ok Nothing
 -- |
--- |     type Person =
--- |         { name :: String
--- |         , age :: Int
--- |         , profession :: Maybe String
--- |         }
+-- |     decodeString (field "age"    (maybe int  )) json == Ok (Just 42)
+-- |     decodeString (field "name"   (maybe int  )) json == Ok Nothing
+-- |     decodeString (field "height" (maybe float)) json == Err ...
 -- |
--- |     person :: Decoder Person
--- |     person =
--- |         object3 Person
--- |           ("name" := string)
--- |           ("age" := int)
--- |           (maybe ("profession" := string))
+-- | Notice the last example! It is saying we *must* have a field named `height` and
+-- | the content *may* be a float. There is no `height` field, so the decoder fails.
+-- |
+-- | Point is, `maybe` will make exactly what it contains conditional. For optional
+-- | fields, this means you probably want it *outside* a use of `field` or `at`.
 maybe :: ∀ a. Decoder a -> Decoder (Maybe a)
 maybe (Decoder decoder) =
     Decoder $ \val ->
@@ -481,30 +495,16 @@ maybe (Decoder decoder) =
                 Ok Nothing
 
 
--- | Bring in an arbitrary JSON value. Useful if you need to work with crazily
--- | formatted data. For example, this lets you create a parser for "variadic" lists
--- | where the first few types are different, followed by 0 or more of the same
--- | type.
--- |
--- |     variadic2 :: (a -> b -> List c -> value) -> Decoder a -> Decoder b -> Decoder c -> Decoder value
--- |     variadic2 f a b c =
--- |         let
--- |             combineResults = List.foldr (Result.map2 (::)) (Ok [])
--- |         in
--- |             customDecoder (list value) (\jsonList ->
--- |                 case jsonList of
--- |                   one :: two :: rest ->
--- |                       Result.map3 f
--- |                         (decodeValue a one)
--- |                         (decodeValue b two)
--- |                         (combineResults (List.map (decodeValue c) rest))
--- |
--- |                   _ -> Result.Err "expecting at least two elements in the array")
+-- | Do not do anything with a JSON value, just bring it into Elm as a `Value`.
+-- | This can be useful if you have particularly crazy data that you would like to
+-- | deal with later. Or if you are going to send it out a port and do not care
+-- | about its structure.
 value :: Decoder Value
 value = Decoder $ Ok
 
 
--- | Using a certain decoder, attempt to parse a raw `Json.Value`.
+-- | Run a `Decoder` on some JSON `Value`. You can send these JSON values
+-- | through ports, so that is probably the main time you would use this function.
 decodeValue :: ∀ a. Decoder a -> Value -> Result String a
 decodeValue (Decoder decoder) val = decoder val
 
@@ -515,26 +515,53 @@ customDecoder (Decoder decoder) func =
     Decoder $ decoder >=> func
 
 
--- | A decoder that always fails. Useful when paired with `andThen` or `oneOf`
--- | to improve error messages when things go wrong. For example, the following
--- | decoder is able to provide a much more specific error message when `fail` is
--- | the last option.
+
+-- | Sometimes you have JSON with recursive structure, like nested comments.
+-- | You can use `lazy` to make sure your decoder unrolls lazily.
 -- |
--- |     point :: Decoder (Tuple Float Float)
--- |     point =
--- |         oneOf
--- |         [ tuple2 Tuple float float
--- |         , object2 Tuple ("x" := float) ("y" := float)
--- |         , fail "expecting some kind of point"
--- |         ]
+-- |     type alias Comment =
+-- |       { message : String
+-- |       , responses : Responses
+-- |       }
+-- |
+-- |     type Responses = Responses (List Comment)
+-- |
+-- |     comment : Decoder Comment
+-- |     comment =
+-- |       map2 Comment
+-- |         (field "message" string)
+-- |         (field "responses" (map Responses (list (lazy (\_ -> comment)))))
+-- |
+-- | If we had said `list comment` instead, we would start expanding the value
+-- | infinitely. What is a `comment`? It is a decoder for objects where the
+-- | `responses` field contains comments. What is a `comment` though? Etc.
+-- |
+-- | By using `list (lazy (\_ -> comment))` we make sure the decoder only expands
+-- | to be as deep as the JSON we are given. You can read more about recursive data
+-- | structures [here][].
+-- |
+-- | [here]: https://github.com/elm-lang/elm-compiler/blob/master/hints/recursive-alias.md
+-- |
+-- | This function was added in Elm 0.18.
+lazy :: ∀ a. (Unit -> Decoder a) -> Decoder a
+lazy thunk =
+    pure unit >>= thunk
+
+
+-- | Ignore the JSON and make the decoder fail. This is handy when used with
+-- | `oneOf` or `andThen` where you want to give a custom error message in some
+-- | case.
 fail :: ∀ a. String -> Decoder a
 fail = Decoder <<< const <<< Err
 
 
--- | A decoder that always succeeds. Useful when paired with `andThen` or
--- | `oneOf` but everything is supposed to work out at the end. For example,
--- | maybe you have an optional field that can have a default value when it is
--- | missing.
+-- | Ignore the JSON and produce a certain Elm value.
+-- |
+-- |     decodeString (succeed 42) "true"    == Ok 42
+-- |     decodeString (succeed 42) "[1,2,3]" == Ok 42
+-- |     decodeString (succeed 42) "hello"   == Err ... -- this is not a valid JSON string
+-- |
+-- | This is handy when used with `oneOf` or `andThen`.
 succeed :: ∀ a. a -> Decoder a
 succeed = pure
 
@@ -553,6 +580,8 @@ succeed = pure
 -- |           [ tuple1 (\author -> "Author: " <> author) string
 -- |           , list string |> map (\authors -> "Co-authors: " <> String.join ", " authors)
 -- |           ]
+-- |
+-- | This function was removed in Elm 0.18.
 tuple1 :: ∀ a value. (a -> value) -> Decoder a -> Decoder value
 tuple1 func decoder0 =
     Decoder $ \val -> do
@@ -571,10 +600,10 @@ tryArray val expected = do
 
 
 tryIndex :: ∀ a. Array Value -> Decoder a -> Int -> Result String a
-tryIndex arr (Decoder decoder) index = do
+tryIndex arr (Decoder decoder) i = do
     val <- fromMaybe
         "Internal error getting index"
-        (Array.index arr index)
+        (Array.index arr i)
 
     decoder val
 
@@ -593,6 +622,8 @@ tryIndex arr (Decoder decoder) index = do
 -- |         tuple2 Name string string
 -- |
 -- |     type Name = { first :: String, last :: String }
+-- |
+-- | This function was removed in Elm 0.18.
 tuple2 :: ∀ a b value. (a -> b -> value) -> Decoder a -> Decoder b -> Decoder value
 tuple2 func d0 d1 =
     Decoder $ \val -> do
@@ -605,6 +636,8 @@ tuple2 func d0 d1 =
 
 
 -- | Handle an array with exactly three elements.
+-- |
+-- | This function was removed in Elm 0.18.
 tuple3 :: ∀ a b c value. (a -> b -> c -> value) -> Decoder a -> Decoder b -> Decoder c -> Decoder value
 tuple3 func d0 d1 d2 =
     Decoder $ \val -> do
@@ -617,6 +650,7 @@ tuple3 func d0 d1 d2 =
         pure (func v0 v1 v2)
 
 
+-- | This function was removed in Elm 0.18.
 tuple4 :: ∀ a b c d value. (a -> b -> c -> d -> value) -> Decoder a -> Decoder b -> Decoder c -> Decoder d -> Decoder value
 tuple4 func d0 d1 d2 d3 =
     Decoder $ \val -> do
@@ -630,6 +664,7 @@ tuple4 func d0 d1 d2 d3 =
         pure (func v0 v1 v2 v3)
 
 
+-- | This function was removed in Elm 0.18.
 tuple5 :: ∀ a b c d e value. (a -> b -> c -> d -> e -> value) -> Decoder a -> Decoder b -> Decoder c -> Decoder d -> Decoder e -> Decoder value
 tuple5 func d0 d1 d2 d3 d4 =
     Decoder $ \val -> do
@@ -644,6 +679,7 @@ tuple5 func d0 d1 d2 d3 d4 =
         pure (func v0 v1 v2 v3 v4)
 
 
+-- | This function was removed in Elm 0.18.
 tuple6 :: ∀ a b c d e f value. (a -> b -> c -> d -> e -> f -> value) -> Decoder a -> Decoder b -> Decoder c -> Decoder d -> Decoder e -> Decoder f -> Decoder value
 tuple6 func d0 d1 d2 d3 d4 d5 =
     Decoder $ \val -> do
@@ -659,6 +695,7 @@ tuple6 func d0 d1 d2 d3 d4 d5 =
         pure (func v0 v1 v2 v3 v4 v5)
 
 
+-- | This function was removed in Elm 0.18.
 tuple7 :: ∀ a b c d e f g value. (a -> b -> c -> d -> e -> f -> g -> value) -> Decoder a -> Decoder b -> Decoder c -> Decoder d -> Decoder e -> Decoder f -> Decoder g -> Decoder value
 tuple7 func d0 d1 d2 d3 d4 d5 d6 =
     Decoder $ \val -> do
@@ -675,6 +712,7 @@ tuple7 func d0 d1 d2 d3 d4 d5 d6 =
         pure (func v0 v1 v2 v3 v4 v5 v6)
 
 
+-- | This function was removed in Elm 0.18.
 tuple8 :: ∀ a b c d e f g h value. (a -> b -> c -> d -> e -> f -> g -> h -> value) -> Decoder a -> Decoder b -> Decoder c -> Decoder d -> Decoder e -> Decoder f -> Decoder g -> Decoder h -> Decoder value
 tuple8 func d0 d1 d2 d3 d4 d5 d6 d7 =
     Decoder $ \val -> do

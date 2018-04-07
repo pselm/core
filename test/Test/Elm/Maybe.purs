@@ -60,10 +60,10 @@ tests = suite "Maybe" do
         assert "nil" <| oneOf ([] :: Array (Maybe Int)) == (Nothing :: Maybe Int)
 
     test "andThen" do
-        assert "just just" <| (Just 42) `andThen` (\x -> Just <| x + 1) == Just 43
-        assert "nothing just" <| Nothing `andThen` (\x -> Just <| x + 1) == Nothing :: Maybe Int
-        assert "just nothing" <| (Just 42) `andThen` (\x -> Nothing) == Nothing :: Maybe Int
-        assert "nothing nothing" <| Nothing `andThen` (\x -> Nothing) == Nothing :: Maybe Int
+        assert "just just" <| andThen (\x -> Just <| x + 1) (Just 42) == Just 43
+        assert "nothing just" <| andThen (\x -> Just <| x + 1) Nothing == Nothing :: Maybe Int
+        assert "just nothing" <| andThen (\x -> Nothing) (Just 42) == Nothing :: Maybe Int
+        assert "nothing nothing" <| andThen (\x -> Nothing) Nothing == Nothing :: Maybe Int
 
     where
         func3 a b c =

@@ -7,11 +7,13 @@
 module Elm.Bind (andThen) where
 
 
-import Prelude (class Bind, bind)
+import Prelude (class Bind, bind, flip)
 
 
 -- | Given some computation, chain its result with another computation.
 -- |
 -- | Equivalent to Purescript's `bind`.
-andThen :: ∀ m a b. (Bind m) => m a -> (a -> m b) -> m b
-andThen = bind
+-- |
+-- | The order of the arguments was flipped in Elm 0.18.
+andThen :: ∀ m a b. (Bind m) => (a -> m b) -> m a -> m b
+andThen = flip bind

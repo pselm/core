@@ -45,7 +45,7 @@ module Elm.List
 
 import Data.List
     ( List(..), head, tail, filter, length, reverse
-    , concat, concatMap, take, drop, sort
+    , concat, concatMap, take, drop, sort, singleton
     ) as Virtual
 
 import Data.Foldable
@@ -293,9 +293,15 @@ sortWith :: ∀ a. (a -> a -> Order) -> List a -> List a
 sortWith = List.sortBy
 
 
+-- | This operator was removed in Elm 0.18.
 infixl 4 range as ..
 
--- | The Elm built-in range operator `(..)`.
+-- | Create a list of numbers, every element increasing by one.
+-- | You give the lowest and highest number that should be in the list.
+-- |
+-- |     range 3 6 == [3, 4, 5, 6]
+-- |     range 3 3 == [3]
+-- |     range 6 3 == []
 -- |
 -- | Like Purescript's `range`, except that the Elm version produces an empty list
 -- | if the first parameter is greater than the second.

@@ -46,6 +46,8 @@ withDefault = fromMaybe
 -- |     oneOf [ Nothing, Nothing, Nothing ] == Nothing
 -- |
 -- | The signature uses `Foldable` to work with `List` or `Array`, among others
+-- |
+-- | This function was removed in Elm 0.18.
 oneOf :: ∀ f a. (Foldable f) => f (Maybe a) -> Maybe a
 oneOf =
     foldl stepOneOf Nothing

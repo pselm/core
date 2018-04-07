@@ -55,6 +55,7 @@ module Elm.Basics
     , composeFlipped, (>>)
     , (++)
     , Bool
+    , Never, never
     ) where
 
 
@@ -95,7 +96,7 @@ import Math as Math
 import Data.Int (round, toNumber)
 import Data.Int as Int
 import Data.Tuple (Tuple(..))
-import Data.Void (Void)
+import Data.Void (Void, absurd)
 import Elm.Debug (crash)
 
 
@@ -164,14 +165,12 @@ intDiv :: ∀ a. (EuclideanRing a) => a -> a -> a
 intDiv = Prelude.div
 
 
--- I'd like to do the following, but it looks like it doesn't work.
---
--- infixl 7 `rem`
-
 -- | Find the remainder after dividing one number by another.
 -- |
--- |     7 `rem` 2 == 1
--- |     -1 `rem` 4 == -1
+-- |     rem 11 4 == 3
+-- |     rem 12 4 == 0
+-- |     rem 13 4 == 1
+-- |     rem -1 4 == -1
 -- |
 -- | Equivalent to Purescript's `Prelude.mod`.
 rem :: ∀ a. (EuclideanRing a) => a -> a -> a
@@ -386,33 +385,62 @@ identity :: ∀ a. a -> a
 identity = id
 
 
--- | Create a [constant function](http://en.wikipedia.org/wiki/Constant_function),
--- | a function that *always* returns the same value regardless of what input you give.
--- | It is defined as:
+-- | Create a function that *always* returns the same value. Useful with
+-- | functions like `map`:
 -- |
--- |     always a b = a
+-- |     List.map (always 0) [1,2,3,4,5] == [0,0,0,0,0]
 -- |
--- | It totally ignores the second argument, so `always 42` is a function that always
--- | returns 42. When you are dealing with higher-order functions, this comes in
--- | handy more often than you might expect. For example, creating a zeroed out list
--- | of length ten would be:
--- |
--- |     map (always 0) [0..9]
+-- |     -- List.map (\_ -> 0) [1,2,3,4,5] == [0,0,0,0,0]
+-- |     -- always = (\x _ -> x)
 -- |
 -- | The Purescript equivalent is `const`.
 always :: ∀ a b. a -> b -> a
 always = const
 
 
--- | A type that is "uninhabited". There are no values of type `Never`, and its
--- | primary use is demanding that certain tasks cannot possibly fail.
+-- | A value that can never happen! For context:
 -- |
--- | For example, a task with type `(Task Never Int)` must *always* succeed with an
--- | integer. For the task to fail, someone would need to say `(Task.fail ???)` but
--- | since there is no value with type `Never` they could not fill in the question
--- | marks!
+-- |   - The boolean type `Bool` has two values: `True` and `False`
+-- |   - The unit type `()` has one value: `()`
+-- |   - The never type `Never` has no values!
+-- |
+-- | You may see it in the wild in `Html Never` which means this HTML will never
+-- | produce any messages. You would need to write an event handler like
+-- | `onClick ??? : Attribute Never` but how can we fill in the question marks?!
+-- | So there cannot be any event handlers on that HTML.
+-- |
+-- | You may also see this used with tasks that never fail, like `Task Never ()`.
+-- |
+-- | The `Never` type is useful for restricting *arguments* to a function. Maybe my
+-- | API can only accept HTML without event handlers, so I require `Html Never` and
+-- | users can give `Html msg` and everything will go fine. Generally speaking, you
+-- | do not want `Never` in your return types though.
 -- |
 -- | This type was introduced in Elm 0.17.
 -- |
 -- | The Purescript equivalent is `Void`.
 type Never = Void
+
+
+-- | A function that can never be called. Seems extremely pointless, but it
+-- | *can* come in handy. Imagine you have some HTML that should never produce any
+-- | messages. And say you want to use it in some other HTML that *does* produce
+-- | messages. You could say:
+-- |
+-- |     import Html exposing (..)
+-- |
+-- |     embedHtml :: Html Never -> Html msg
+-- |     embedHtml staticStuff =
+-- |       div []
+-- |         [ text "hello"
+-- |         , Html.map never staticStuff
+-- |         ]
+-- |
+-- | So the `never` function is basically telling the type system, make sure no one
+-- | ever calls me!
+-- |
+-- | The Purescript equivalent is `absurd`.
+-- |
+-- | This function was added in Elm 0.18.
+never :: ∀ a. Never -> a
+never = absurd

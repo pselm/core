@@ -5,7 +5,7 @@ import Test.Unit.Assert (assert, equal)
 
 import Elm.Random
 import Prelude (bind, discard, (<), (-), (+), ($), (<>), show, negate, map)
-import Elm.Basics ((<|), (==), abs)
+import Elm.Basics ((<|), (|>), (==), abs)
 import Data.Int53 (Int53, fromInt)
 import Data.List (fromFoldable)
 import Data.Tuple (Tuple(..))
@@ -96,7 +96,7 @@ tests = suite "Random" do
         assert "map5" <| 186 == (step (map5 (\a b c d e -> a + b - c + d + e) genInt genInt genInt genInt genInt) seed1).value
 
     test "andThen" do
-        let genAndThen = genInt `andThen` int 0
+        let genAndThen = genInt |> andThen (int 0)
         assert "seed1" <| 12 == (step genAndThen seed1).value
         assert "seed2" <| 12 == (step genAndThen seed2).value
         assert "seed3" <| 40 == (step genAndThen seed3).value

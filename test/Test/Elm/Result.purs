@@ -5,7 +5,7 @@ import Test.Unit.Assert (assert)
 
 import Elm.Result as Result
 import Elm.Result (Result(..))
-import Elm.Basics ((<|), (==), (+), (%), (++))
+import Elm.Basics ((<|), (|>), (==), (+), (%), (++))
 import Elm.Maybe (Maybe(..))
 
 import Control.Monad.Eff.Random (RANDOM)
@@ -98,15 +98,15 @@ tests = suite "Result" do
         assertEqual "map5 Err" (Err "x") (Result.map5 add5 (Ok 1) (Ok 2) (Ok 3) (Ok 4) (Err "x"))
 
     test "andThen" do
-        assertEqual "andThen Ok" (Ok 42) ((Ok 42) `Result.andThen` isEven)
+        assertEqual "andThen Ok" (Ok 42) ((Ok 42) |> Result.andThen isEven)
 
         assertEqual "andThen first Err"
             (Err "could not convert string '4.2' to an Int")
-            ((Err "could not convert string '4.2' to an Int") `Result.andThen` isEven)
+            ((Err "could not convert string '4.2' to an Int") |> Result.andThen isEven)
 
         assertEqual "andThen second Err"
             (Err "number is odd")
-            ((Ok 41) `Result.andThen` isEven)
+            ((Ok 41) |> Result.andThen isEven)
 
     test "withDefault" do
         assert "Ok" <|  Result.withDefault 0 (Ok 123) == 123

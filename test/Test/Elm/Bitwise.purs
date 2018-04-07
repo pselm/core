@@ -44,13 +44,26 @@ tests = suite "Trampoline" do
         assertEqual "8 `shiftLeft` 1 == 16" 16 (Bitwise.shiftLeft 8 1)
         assertEqual "8 `shiftLeft` 2 == 32" 32 (Bitwise.shiftLeft 8 2)
 
+    test "shiftLeftBy" do
+        assertEqual "shiftLeftBy 1 8 == 16" 16 (Bitwise.shiftLeftBy 1 8)
+        assertEqual "shiftLeftBy 2 8 == 32" 32 (Bitwise.shiftLeftBy 2 8)
+
     test "shiftRight" do
         assertEqual "32 `shiftRight` 1 == 16" 16 (Bitwise.shiftRight 32 1)
         assertEqual "32 `shiftRight` 2 == 8" 8 (Bitwise.shiftRight 32 2)
         assertEqual "-32 `shiftRight` 1 == -16" (-16) (Bitwise.shiftRight (-32) 1)
+
+    test "shiftRightBy" do
+        assertEqual "shiftRightBy 1 32 == 16" 16 (Bitwise.shiftRightBy 1 32)
+        assertEqual "shiftRightBy 2 32 == 8" 8 (Bitwise.shiftRightBy 2 32)
+        assertEqual "shiftRightBy 1 -32 == -16" (-16) (Bitwise.shiftRightBy 1 (-32))
 
     test "shiftRightLogical" do
         assertEqual "32 `shiftRightLogical` 1 == 16" 16 (Bitwise.shiftRightLogical 32 1)
         assertEqual "32 `shiftRightLogical` 2 == 8" 8 (Bitwise.shiftRightLogical 32 2)
         assertEqual "-32 `shiftRightLogical` 1 == 2147483632" 2147483632 (Bitwise.shiftRightLogical (-32) 1)
 
+    test "shiftRightZfBy" do
+        assertEqual "shiftRightLogicalZfBy 1 32 == 16" 16 (Bitwise.shiftRightZfBy 1 32)
+        assertEqual "shiftRightLogicalZfBy 2 32 == 8" 8 (Bitwise.shiftRightZfBy 2 32)
+        assertEqual "shiftRightLogicalZfBy 1 -32 == 2147483632" 2147483632 (Bitwise.shiftRightZfBy 1 (-32))

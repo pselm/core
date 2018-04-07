@@ -4,6 +4,10 @@ import Test.Unit (TestSuite, Test, suite, test)
 import Test.Unit.Assert (assert)
 
 import Elm.Basics
+import Elm.Array as Array
+import Elm.Set as Set
+import Elm.Dict as Dict
+import Elm.Date as Date
 import Elm.List (List(..), (:))
 import Prelude (discard, Ordering(..), class Eq)
 
@@ -34,6 +38,12 @@ tests = suite "BasicsElm" do
         assertEqual "compare 'f' 'f'" EQ (compare 'f' 'f')
         assertEqual "compare (1, 2, 3, 4, 5, 6) (0, 1, 2, 3, 4, 5)" GT (compare (1 : 2 : 3 : 4 : 5 : 6 : Nil) (0 : 1 : 2 : 3 : 4 : 5 : Nil))
         assertEqual "compare ['a'] ['b']" LT (compare ('a' : Nil) ('b' : Nil))
+        assertEqual "array equality" (Array.fromList [1,1,1,1]) (Array.repeat 4 1)
+        assertEqual "set equality" (Set.fromList [1,2]) (Set.fromList [2,1])
+        assertEqual "dict equality" (Dict.fromList [Tuple 1 1, Tuple 2 2]) (Dict.fromList [Tuple 2 2, Tuple 1 1])
+        assert "char equality" <| '0' /= '饑'
+        assertEqual "date equality" (Date.fromString "2/7/1992") (Date.fromString "2/7/1992")
+        assert "date inequality" <| Date.fromString "11/16/1995" /= Date.fromString "2/7/1992"
 
     test "toString Tests" do
         assertEqual "toString Int" "42" (toString 42)
