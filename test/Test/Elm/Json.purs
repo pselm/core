@@ -8,7 +8,7 @@ import Elm.Json.Decode as JD
 import Elm.Json.Decode ((:=))
 
 import Elm.Result (Result(..), toMaybe)
-import Elm.Basics (Float)
+import Elm.Basics (Float, (|>))
 import Elm.Dict as Dict
 
 import Data.List (List(..), (:))
@@ -493,7 +493,7 @@ tests = suite "Json" do
                         JD.fail (tag <> " is not a recoganized tag for shapes")
 
             decoder =
-                ( "tag" := JD.string ) `JD.andThen` shapeInfo
+                ( "tag" := JD.string ) |> JD.andThen shapeInfo
 
         traverse_ (check decoder)
             [ """ {"tag": "rectangle", "width": 2.0, "height": 2.5} """ ==> Just (Rectangle 2.0 2.5)

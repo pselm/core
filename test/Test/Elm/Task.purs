@@ -7,6 +7,7 @@ import Elm.Task
 import Prelude (flip, bind, discard, class Eq, class Show, ($), (+), (<$>), (<>), (>>>), show, Unit, pure)
 import Data.Either (Either(..))
 import Data.Maybe (Maybe(..))
+import Elm.Basics ((|>))
 import Elm.Result (Result(..))
 import Data.List (List(..), (:))
 import Control.Monad.Aff (nonCanceler)
@@ -150,16 +151,16 @@ tests = suite "Elm.Task" do
 
     test "Task.andThen" do
         tt <- toAff do
-            a `andThen` (\n -> succeed $ n <> "b")
+            a |> andThen (\n -> succeed $ n <> "b")
 
         tf <- toAff do
-            a `andThen` (\n -> fail $ n <> "b")
+            a |> andThen (\n -> fail $ n <> "b")
 
         ft <- toAff do
-            no `andThen` (\n -> succeed $ n <> "b")
+            no |> andThen (\n -> succeed $ n <> "b")
 
         ff <- toAff do
-            no `andThen` (\n -> fail $ n <> "b")
+            no |> andThen (\n -> fail $ n <> "b")
         
         tt === Right "ab" :: Either String String
         tf === Left "ab" :: Either String String
