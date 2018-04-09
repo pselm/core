@@ -212,9 +212,9 @@ pair genA genB =
 -- |
 -- | The return type is polymorphic in order to accommodate `List` or `Array`, among others.
 list :: ∀ t a. Monoid (t a) => Applicative t => Int -> Generator a -> Generator (t a)
-list n (Generator gen) =
+list len (Generator gen) =
     Generator $ \seed ->
-        go mempty n seed
+        go mempty len seed
 
         where
             go memo n seed =
