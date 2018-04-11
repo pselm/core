@@ -53,6 +53,10 @@ but some cases required more work, or a separate implementation.
 | Elm.Json.Encode | Data.Foreign  | purescript-foreign   |
 | Elm.List        | Data.List     | purescript-lists     |
 | Elm.Maybe       | Data.Maybe    | purescript-maybe     |
+| Elm.Platform    |               |                      |
+| Elm.Platform.Cmd |              |                      |
+| Elm.Platform.Sub |              |                      |
+| Elm.Process     |               |                      |
 | Elm.Random      | Test.QuickCheck.Arbitrary | purescript-quickcheck |
 | Elm.Regex       | Data.String.Regex  | purescript-strings  |
 | Elm.Result      | Data.Either        | purescript-either   |
