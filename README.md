@@ -26,40 +26,43 @@ to someone.
 
 ## Compatibility
 
-The modules are based on Elm 0.17, or version 4.0.5 of the Elm core libraries.
+The modules are based on Elm 0.18, or version 5.1.1 of the Elm core libraries.
+However, I have not necessarily been removing things that Elm removes, so some
+things are documented as having been removed in Elm.
 
 ## The Modules
 
-Here is a quick list of the modules in this package, and their Purescript analogues.
-The full API is available below.
+Here is a quick list of the modules in this package, and their Purescript analogues,
+if any. In many cases, the implementation is a thin wrapper over the Purescript analog,
+but some cases required more work, or a separate implementation.
 
-| Module | Description |
-| ------ | ----------- |
-| Elm.Apply       | Like Purescript's `Apply`, but with different function names. |
-| Elm.Array       | Implemented via `Data.Sequence`|
-| Elm.Basics      | Like Purescript's `Prelude`|
-| Elm.Bind        | Like Purescript's `Bind`, but uses `andThen` for `bind` |
-| Elm.Bitwise     | Implemented via `Data.Int.Bits` |
-| Elm.Char        | Implemented via `Data.Char` |
-| Elm.Color       | Implemented via `Color` |
-| Elm.Date        | Implemented via `Data.Date` |
-| Elm.Debug       | Implemented via `Debug.Trace` and `Partial.Unsafe` |
-| Elm.Dict        | Implemented via `Data.Map` |
-| Elm.Foldable    | Like Purescript's `Foldable`, but with a different signature for `foldl` |
-| Elm.Json.Decode | Implemented using `Data.Foreign`, with a fair bit of sugar applied. |
-| Elm.Json.Encode | Implemented using `Data.Foreign` |
-| Elm.List        | Implemented via `Data.List` |
-| Elm.Maybe       | Implemented via `Data.Maybe` |
-| Elm.Random      | A translation from Elm's implementation |
-| Elm.Regex       | Similar to `Data.String.Regex`, but re-implemented due to irreconcilable API differences. |
-| Elm.Result      | Like Purescript's `Data.Either`, but re-implemented to preserve the Elm constructor names (`Ok` and `Err` rather than `Right` and `Left`). |
-| Elm.Set         | Implemented via `Data.Set` |
-| Elm.String      | Implemented via `Data.String` |
-| Elm.Task        | Implemented via `Aff` |
-| Elm.Time        | Implemented via `Data.Time.Duration` |
-| Elm.Trampoline  | A translation from Elm's implementation. This was moved from core to its own package in Elm 0.17. |
-| Elm.Transform2D | Implemented via `Transform` from purescript-canvas. Removed from elm-lang/core in Elm 0.17. |
-| Elm.Tuple       | Implemented via `Data.Tuple` |
+| Module          | Like          | From                 |
+| --------------- | ------------- | ---------------------|
+| Elm.Apply       | Control.Apply | purescript-prelude   |
+| Elm.Array       | Data.Sequence | purescript-sequences |
+| Elm.Basics      | Prelude       | purescript-prelude   |
+| Elm.Bind        | Control.Bind  | purescript-prelude   |
+| Elm.Bitwise     | Data.Int.Bits | purescript-integers  |
+| Elm.Char        | Data.Char     | purescript-strings   |
+| Elm.Color       | Color         | purescript-colors    |
+| Elm.Date        | Data.JSDate   | purescript-js-date   |
+| Elm.Debug       | Debug.Trace   | purescript-debug     |
+| Elm.Dict        | Data.Map      | purescript-maps      |
+| Elm.Foldable    | Data.Foldable | purescript-foldable-traversable |
+| Elm.Json.Decode | Data.Foreign  | purescript-foreign |
+| Elm.Json.Encode | Data.Foreign  | purescript-foreign |
+| Elm.List        | Data.List     | purescript-lists   |
+| Elm.Maybe       | Data.Maybe    | purescript-maybe   |
+| Elm.Random      | Test.QuickCheck.Arbitrary | purescript-quickcheck |
+| Elm.Regex       | Data.String.Regex | purescript-strings     |
+| Elm.Result      | Data.Either   | purescript-either          |
+| Elm.Set         | Data.Set      | purescript-sets            |
+| Elm.String      | Data.String   | purescript-strings         |
+| Elm.Task        | Aff           | purescript-aff             |
+| Elm.Time        | Data.Time.Duration | purescript-datetime   |
+| Elm.Trampoline  | Control.Monad.Trampoline | purescript-free |
+| Elm.Transform2D | Graphics.Canvas | purescript-canvas |
+| Elm.Tuple       | Data.Tuple      | purescript-tuples |
 
 ## Installation
 
