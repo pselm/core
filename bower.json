@@ -26,7 +26,7 @@
     "purescript-foreign-generic": "^5.0.0",
     "purescript-int-53": "^3.0.0",
     "purescript-integers": "^3.0.0",
-    "purescript-js-date": "^5.0.0",
+    "purescript-js-date": "^5.2.0",
     "purescript-lists": "^4.0.0",
     "purescript-maybe": "^3.0.0",
     "purescript-now": "^3.0.0",
