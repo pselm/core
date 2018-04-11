@@ -4,6 +4,7 @@
     "postinstall": "bower install",
     "build": "pulp build",
     "clean": "rimraf output && rimraf .pulp-cache",
+    "docs": "pulp docs",
     "test": "pulp test"
   },
   "devDependencies": {
