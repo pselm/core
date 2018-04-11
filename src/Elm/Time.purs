@@ -23,7 +23,7 @@ import Data.Time.Duration
     )
 
 import Elm.Basics (Float)
-import Elm.Types (TaskE)
+import Elm.Platform (TaskE)
 
 import Control.Monad.Except.Trans (ExceptT(..))
 import Control.Monad.Aff (liftEff')
@@ -42,7 +42,7 @@ import Prelude (flip, id, ($), (/), (<$>), (<<<))
 -- | Note that Purescript's `Data.Time` class does something similar with its
 -- | `Duration` class, which has separate types for `Hours`, `Minutes`, `Seconds`
 -- | and `Milliseconds`.
-type Time = Number 
+type Time = Number
 
 
 -- | Convert any of Purescript's `Duration` types to `Time`.
@@ -65,7 +65,7 @@ millisecond =
     toTime $ Milliseconds 1.0
 
 
-second :: Time 
+second :: Time
 second =
     toTime $ Seconds 1.0
 
@@ -75,7 +75,7 @@ minute =
     toTime $ Minutes 1.0
 
 
-hour :: Time 
+hour :: Time
 hour =
     toTime $ Hours 1.0
 
@@ -104,4 +104,3 @@ inHours = divBy hour
 now :: ∀ e x. TaskE (now :: NOW | e) x Time
 now =
     ExceptT $ (Right <<< toTime <<< unInstant) <$> liftEff' Now.now
-    

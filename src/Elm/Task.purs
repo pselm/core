@@ -15,7 +15,6 @@ module Elm.Task
     , mapError, onError
     , toMaybe, fromMaybe
     , toResult, fromResult
-    , spawn, sleep
     , ThreadID
     ) where
 
@@ -25,25 +24,25 @@ module Elm.Task
 import Prelude (map) as Virtual
 import Elm.Apply (andMap, map2, map3, map4, map5) as Virtual
 import Elm.Bind (andThen) as Virtual
-import Elm.Types (Task, TaskE) as Virtual
+import Elm.Platform (Task, TaskE) as Virtual
+import Elm.Process (spawn, sleep) as Virtual
 import Data.Traversable (sequence) as Virtual
 
 
 -- Internal
 
-import Control.Monad.Aff (Aff, Error, Canceler(..), makeAff, forkAff, delay, nonCanceler)
+import Control.Monad.Aff (Aff, Error, Canceler(..), makeAff, nonCanceler)
 import Control.Monad.Aff.Compat (EffFnCanceler(..), EffFnCb)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Uncurried (EffFn3, mkEffFn1, runEffFn3)
 import Control.Monad.Except.Trans (ExceptT(..), runExceptT, withExceptT)
 import Control.Monad.Error.Class (throwError)
-import Prelude (Unit, map, pure, (<<<), (>>=), const, ($), (<$>), bind, discard)
+import Prelude (Unit, map, pure, (<<<), (>>=), ($), bind, discard)
 import Data.Either (Either(..), either)
 import Elm.Basics ((|>))
 import Elm.Result (Result(..))
 import Elm.Maybe (Maybe(..))
-import Elm.Time (Time, fromTime)
-import Elm.Types (Task, TaskE)
+import Elm.Platform (Task, TaskE, ProcessId)
 
 
 -- | Takes a `Task` and unwraps the underlying `Aff`.
@@ -247,30 +246,7 @@ fromResult result =
 -- THREADS
 
 -- | Abstract type that uniquely identifies a thread.
-newtype ThreadID = ThreadID Int
-
-
--- | Run a task on a separate thread. This lets you start working with basic
--- | concurrency. In the following example, `task1` and `task2` will be interleaved.
--- | If `task1` makes a long HTTP request, we can hop over to `task2` and do some
--- | work there.
 -- |
--- |     spawn task1 `andThen` \_ -> task2
-spawn :: ∀ x y a. Task x a -> Task y ThreadID
-spawn task =
-    ExceptT (
-        -- Since nothing uses the ThreadID at the moment, we'll just make one up ...
-        -- this may need to change in the future ...
-        map
-            (const (Right (ThreadID 1)))
-            (forkAff $ runExceptT task)
-    )
-
-
--- | Make a thread sleep for a certain amount of time. The following example
--- | sleeps for 1 second and then succeeds with 42.
--- |
--- |     sleep 1000 `andThen` \_ -> succeed 42
-sleep :: ∀ x. Time -> Task x Unit
-sleep time =
-    ExceptT $ Right <$> delay (fromTime time)
+-- | This type was renamed `Id` and moved to the `Process` module in Elm 0.17.
+type ThreadID =
+    ProcessId
