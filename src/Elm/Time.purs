@@ -13,7 +13,7 @@ module Elm.Time
 -- For re-export
 
 import Control.Monad.Aff (liftEff')
-import Control.Monad.Eff.Now (NOW)
+import Control.Monad.Aff.Class (liftAff)
 import Control.Monad.Eff.Now as Now
 import Control.Monad.Except.Trans (ExceptT(..))
 import Data.DateTime.Instant (unInstant)
@@ -25,7 +25,7 @@ import Data.Time.Duration (class Duration) as Virtual
 import Elm.Basics (Float, Never)
 import Elm.Dict as Dict
 import Elm.List as List
-import Elm.Platform (Task, TaskE)
+import Elm.Platform (Task)
 import Elm.Platform as Platform
 import Elm.Platform.Sub (Sub)
 import Elm.Task as Task
@@ -99,9 +99,9 @@ inHours = divBy hour
 
 
 -- | Get the `Time` at the moment when this task is run.
-now :: ∀ e x. TaskE (now :: NOW | e) x Time
+now :: ∀ x. Task x Time
 now =
-    ExceptT $ (Right <<< toTime <<< unInstant) <$> liftEff' Now.now
+    ExceptT $ (Right <<< toTime <<< unInstant) <$> (liftAff <<< liftEff') Now.now
 
 
 -- | Subscribe to the current time. First you provide an interval describing how
@@ -150,7 +150,7 @@ type State msg =
 
 
 type Processes =
-    Dict.Dict Time (Platform.ProcessId ( now :: NOW ))
+    Dict.Dict Time Platform.ProcessId
 
 
 type Taggers msg =

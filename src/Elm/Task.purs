@@ -8,7 +8,7 @@
 
 module Elm.Task
     ( module Virtual
-    , toAff, fromAff
+    , toIO, fromIO
     , makeTask
     , EffFnTask, fromEffFnTask
     , succeed, fail
@@ -20,59 +20,52 @@ module Elm.Task
     ) where
 
 
--- For re-export
-
-import Data.Traversable (sequence) as Virtual
-
-import Elm.Apply (andMap, map2, map3, map4, map5) as Virtual
-import Elm.Bind (andThen) as Virtual
-import Elm.Platform (Task, TaskE) as Virtual
-
-import Prelude (map) as Virtual
-
--- Internal
-
-import Control.Monad.Aff (Aff, Error, Canceler(..), makeAff, nonCanceler)
+import Control.Monad.Aff (Error, Canceler(..), makeAff, nonCanceler)
+import Control.Monad.Aff.Class (liftAff)
 import Control.Monad.Aff.Compat (EffFnCanceler(..), EffFnCb)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Uncurried (EffFn3, mkEffFn1, runEffFn3)
-import Control.Monad.Except.Trans (ExceptT(..), runExceptT, withExceptT)
 import Control.Monad.Error.Class (throwError)
-
+import Control.Monad.Except.Trans (ExceptT(..), runExceptT, withExceptT)
+import Control.Monad.IO (IO)
 import Data.Either (Either(..), either)
 import Data.List (List)
 import Data.Traversable (sequence)
-
+import Data.Traversable (sequence) as Virtual
+import Elm.Apply (andMap, map2, map3, map4, map5) as Virtual
 import Elm.Basics (Never, (|>))
+import Elm.Bind (andThen) as Virtual
 import Elm.List as List
 import Elm.Maybe (Maybe(..))
-import Elm.Platform (Task, TaskE, ProcessId)
+import Elm.Platform (Task) as Virtual
+import Elm.Platform (Task, ProcessId)
 import Elm.Platform as Platform
 import Elm.Platform.Cmd (Cmd)
 import Elm.Result (Result(..))
-
 import Partial (crash)
 import Prelude (class Functor, Unit, unit, map, pure, (<<<), (>>=), ($), bind, discard)
+import Prelude (map) as Virtual
 
 
--- | Takes a `Task` and unwraps the underlying `Aff`.
+-- | Takes a `Task` and unwraps the underlying `IO`.
 -- |
 -- | Note that you can use "do notation" directly with the `Task` type -- you
 -- | don't have to unwrap it first. Essentially, you only need to unwrap the
--- | `Task` if you need to interact with the `Aff` type.
-toAff :: ∀ e x a. TaskE e x a -> Aff e (Either x a)
-toAff = runExceptT
+-- | `Task` if you need to interact with the `IO` type.
+toIO :: ∀ x a. Task x a -> IO (Either x a)
+toIO = runExceptT
 
 
--- | Given an `Aff`, make a `Task`. Basically, just wraps it in an `ExceptT`.
-fromAff :: ∀ e x a. Aff e (Either x a) -> TaskE e x a
-fromAff = ExceptT
+-- | Given an `IO`, make a `Task`. Basically, just wraps it in an `ExceptT`.
+fromIO :: ∀ x a. IO (Either x a) -> Task x a
+fromIO = ExceptT
 
 
 -- | Like `makeAff`, but you get a `Task` back.
-makeTask ∷ ∀ e x a. ((Either Error (Either x a) → Eff e Unit) → Eff e (Canceler e)) → TaskE e x a
+makeTask ∷ ∀ e x a. ((Either Error (Either x a) → Eff e Unit) → Eff e (Canceler e)) → Task x a
 makeTask =
-    ExceptT <<< makeAff
+    -- TODO: Define in terms of IOSync instead of Eff?
+    ExceptT <<< liftAff <<< makeAff
 
 
 newtype EffFnTask e x a = EffFnTask (EffFn3 e (EffFnCb e Error) (EffFnCb e x) (EffFnCb e a) (EffFnCanceler e))
@@ -116,7 +109,7 @@ newtype EffFnTask e x a = EffFnTask (EffFn3 e (EffFnCb e Error) (EffFnCb e x) (E
 -- | myTask :: ∀ eff. TaskE (myeffect :: MYEFFECT | eff) Int String
 -- | myTask = fromEffFnTask myTaskImpl
 -- | ````
-fromEffFnTask ∷ ∀ e x a. EffFnTask e x a → TaskE e x a
+fromEffFnTask ∷ ∀ e x a. EffFnTask e x a → Task x a
 fromEffFnTask (EffFnTask ffi) =
     makeTask \k → do
         EffFnCanceler canceler ←
@@ -165,7 +158,7 @@ fail = throwError
 -- | Like Purescript's `catchError`, but with a different signature.
 -- |
 -- | The arguments to this function were flipped in Elm 0.18.
-onError :: ∀ e x y a. (x -> TaskE e y a) -> TaskE e x a -> TaskE e y a
+onError :: ∀ x y a. (x -> Task y a) -> Task x a -> Task y a
 onError handler task =
     -- This is equivalent to `catchError`, but that doesn't work by itself,
     -- because it would need a signature of
@@ -258,8 +251,8 @@ fromResult result =
 -- | Abstract type that uniquely identifies a thread.
 -- |
 -- | This type was renamed `Id` and moved to the `Process` module in Elm 0.17.
-type ThreadID e =
-    ProcessId e
+type ThreadID =
+    ProcessId
 
 
 

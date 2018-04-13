@@ -1,13 +1,14 @@
 
 module Elm.Platform
   ( Program, program, programWithFlags
-  , Task, TaskE, ProcessId
+  , Task, ProcessId
   , Router, sendToApp, sendToSelf
   ) where
 
 
-import Control.Monad.Aff (Aff, Fiber)
+import Control.Monad.Aff (Fiber)
 import Control.Monad.Except.Trans (ExceptT)
+import Control.Monad.IO (INFINITY, IO)
 import Data.Tuple (Tuple)
 import Elm.Basics (Never)
 import Elm.Platform.Cmd (Cmd)
@@ -87,22 +88,20 @@ programWithFlags config =
 -- | succeed with a `User`. So this could represent a task that is asking a server
 -- | for a certain user.
 -- |
--- | Implemented in terms of Purescript's `Aff` type, with `ExceptT` layered on top
+-- | Implemented in terms of Purescript's `IO` type, with `ExceptT` layered on top
 -- | in order to provide for a polymorphically-typed error channel.
+-- |
+-- | We use `IO` rather than `Aff` because the effects-tracking complicates the
+-- | conversion of Elm code, and Purescript is moving away from it anyway.
 type Task x a =
-    ∀ e. ExceptT x (Aff e) a
-
-
--- | Equivalent to a `Task`, but with the effect types specified.
-type TaskE e x a =
-    ExceptT x (Aff e) a
+    ExceptT x IO a
 
 
 -- | Head over to the documentation for the [`Process`](Process) module for
 -- | information on this. It is only defined here because it is a platform
 -- | primitive.
-type ProcessId e =
-    Fiber e Unit
+type ProcessId =
+    Fiber (infinity :: INFINITY) Unit
 
 
 

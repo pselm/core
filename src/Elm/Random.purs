@@ -35,7 +35,6 @@ module Elm.Random
     ) where
 
 
-import Control.Monad.Eff.Now (NOW)
 import Data.Int53 (class Int53Value, Int53, fromInt, fromInt53, toInt53, round, toNumber)
 import Data.List (List(..), (:))
 import Data.Monoid (class Monoid, mempty)
@@ -45,7 +44,7 @@ import Elm.Apply (map2)
 import Elm.Apply (map2, map3, map4, map5) as Virtual
 import Elm.Basics (Bool, Float, Never, (%), (|>))
 import Elm.Bind (andThen) as Virtual
-import Elm.Platform (Task, TaskE)
+import Elm.Platform (Task)
 import Elm.Platform as Platform
 import Elm.Platform.Cmd (Cmd)
 import Elm.Task as Task
@@ -473,7 +472,7 @@ instance functorMyCmd :: Functor MyCmd where
         Generate (map func generator)
 
 
-init :: TaskE (now :: NOW) Never Seed
+init :: Task Never Seed
 init =
     Time.now
         |> Task.andThen (\t -> Task.succeed (initialSeed (round t)))

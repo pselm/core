@@ -12,11 +12,13 @@ module Elm.Process
 
 
 import Control.Monad.Aff (forkAff, delay, killFiber, apathize)
-import Control.Monad.Except.Trans (ExceptT(..), runExceptT)
+import Control.Monad.Aff.Class (liftAff)
 import Control.Monad.Eff.Exception (error)
+import Control.Monad.Except.Trans (ExceptT(..), runExceptT)
 import Control.Monad.Trans.Class (lift)
 import Data.Either (Either(..))
-import Elm.Platform (Task, TaskE, ProcessId)
+import Data.Newtype (unwrap)
+import Elm.Platform (Task, ProcessId)
 import Elm.Time (Time, fromTime)
 import Prelude (Unit, ($), (<$>), (<<<))
 
@@ -34,8 +36,8 @@ import Prelude (Unit, ($), (<$>), (<<<))
 -- | single OS-level thread, Elm can still run things concurrently.
 -- |
 -- | Note that in Purescript, the Id takes an `e` parameter representing effects.
-type Id e =
-    ProcessId e
+type Id =
+    ProcessId
 
 
 -- | Run a task in its own light-weight process. In the following example,
@@ -49,9 +51,9 @@ type Id e =
 -- | **Note:** This creates a relatively restricted kind of `Process` because it
 -- | cannot receive any messages. More flexibility for user-defined processes will
 -- | come in a later release!
-spawn :: ∀ e x y a. TaskE e x a -> TaskE e y (Id e)
+spawn :: ∀ x y a. Task x a -> Task y Id
 spawn =
-     lift <<< forkAff <<< apathize <<< runExceptT
+     lift <<< liftAff <<< forkAff <<< apathize <<< unwrap <<< runExceptT
 
 
 -- | Block progress on the current process for a given amount of time. The
@@ -61,14 +63,14 @@ spawn =
 -- | [setTimeout]: https://developer.mozilla.org/en-US/docs/Web/API/WindowTimers/setTimeout
 sleep :: ∀ x. Time -> Task x Unit
 sleep time =
-    ExceptT $ Right <$> delay (fromTime time)
+    ExceptT $ liftAff $ Right <$> delay (fromTime time)
 
 
 -- | Sometimes you `spawn` a process, but later decide it would be a waste to
 -- | have it keep running and doing stuff. The `kill` function will force a process
 -- | to bail on whatever task it is running. So if there is an HTTP request in
 -- | flight, it will also abort the request.
-kill :: ∀ e y. Id e -> TaskE e y Unit
+kill :: ∀ y. Id -> Task y Unit
 kill =
     -- We have to specify an specific error ...
-    lift <<< killFiber (error "Elm.Process.kill")
+    lift <<< liftAff <<< killFiber (error "Elm.Process.kill")
