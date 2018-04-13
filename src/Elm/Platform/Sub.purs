@@ -8,6 +8,7 @@ module Elm.Platform.Sub
 
 
 import Data.List (List(..))
+import Partial (crash)
 
 
 -- | A subscription is a way of telling Elm, “Hey, let me know if anything
@@ -29,17 +30,17 @@ data Sub msg =
     Sub
 
 
-map :: ∀ a msg. (a -> msg) -> Sub a -> Sub msg
+map :: ∀ a msg. Partial => (a -> msg) -> Sub a -> Sub msg
 map func sub =
-    Sub
+    crash
 
 
-batch :: ∀ msg. List (Sub msg) -> Sub msg
+batch :: ∀ msg. Partial => List (Sub msg) -> Sub msg
 batch subs =
-    Sub
+    crash
 
 
-none :: ∀ msg. Sub msg
+none :: ∀ msg. Partial => Sub msg
 none =
     batch Nil
 

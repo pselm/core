@@ -31,31 +31,28 @@ module Elm.Random
     , list, pair
     , minInt, maxInt
     , step, initialSeed
+    , generate
     ) where
 
 
--- For re-export
-
-import Elm.Apply (map2, map3, map4, map5) as Virtual
-import Elm.Bind (andThen) as Virtual
-import Prelude (map) as Virtual
-
-
--- Internal
-
-import Prelude
-    ( (==), (/), (*), (-), (+), (<), ($), (<>)
-    , negate, zero, one
-    , class Ord, class Functor, class Apply, class Bind, class Semigroup
-    , class Applicative, pure
-    )
-
-import Elm.Apply (map2)
-import Data.Tuple (Tuple(..), fst, snd)
-import Data.Ord (max)
-import Data.Monoid (class Monoid, mempty)
-import Elm.Basics ((%), Bool, Float)
+import Control.Monad.Eff.Now (NOW)
 import Data.Int53 (class Int53Value, Int53, fromInt, fromInt53, toInt53, round, toNumber)
+import Data.List (List(..), (:))
+import Data.Monoid (class Monoid, mempty)
+import Data.Ord (max)
+import Data.Tuple (Tuple(..), fst, snd)
+import Elm.Apply (map2)
+import Elm.Apply (map2, map3, map4, map5) as Virtual
+import Elm.Basics (Bool, Float, Never, (%), (|>))
+import Elm.Bind (andThen) as Virtual
+import Elm.Platform (Task, TaskE)
+import Elm.Platform as Platform
+import Elm.Platform.Cmd (Cmd)
+import Elm.Task as Task
+import Elm.Time as Time
+import Partial (crash)
+import Prelude ((==), (/), (*), (-), (+), (<), ($), (<>), negate, zero, one, class Ord, class Functor, class Apply, class Bind, class Semigroup, class Applicative, pure)
+import Prelude (map) as Virtual
 
 
 -- | Create a generator that produces boolean values. The following example
@@ -450,3 +447,53 @@ next (Seed s1 s2) =
 
     in
         Tuple z' (Seed s1'' s2'')
+
+
+-- MANAGER
+
+
+-- | Create a command that will generate random values.
+-- |
+-- | Read more about how to use this in your programs in [The Elm Architecture
+-- | tutorial][arch] which has a section specifically [about random values][rand].
+-- |
+-- | [arch]: https://evancz.gitbooks.io/an-introduction-to-elm/content/architecture/index.html
+-- | [rand]: https://evancz.gitbooks.io/an-introduction-to-elm/content/architecture/effects/random.html
+generate :: ∀ a msg. Partial => (a -> msg) -> Generator a -> Cmd msg
+generate tagger generator =
+    crash -- command (Generate (map tagger generator))
+
+
+data MyCmd msg
+    = Generate (Generator msg)
+
+
+instance functorMyCmd :: Functor MyCmd where
+    map func (Generate generator) =
+        Generate (map func generator)
+
+
+init :: TaskE (now :: NOW) Never Seed
+init =
+    Time.now
+        |> Task.andThen (\t -> Task.succeed (initialSeed (round t)))
+
+
+onEffects :: ∀ msg. Partial => Platform.Router msg Never -> List (MyCmd msg) -> Seed -> Task Never Seed
+onEffects router commands seed =
+    case commands of
+        Nil ->
+            Task.succeed seed
+
+        Generate generator : rest ->
+            let
+                generated =
+                    step generator seed
+            in
+                Platform.sendToApp router generated.value
+                    |> Task.andThen (\_ -> onEffects router rest generated.seed)
+
+
+onSelfMsg :: ∀ msg. Platform.Router msg Never -> Never -> Seed -> Task Never Seed
+onSelfMsg _ _ seed =
+    Task.succeed seed

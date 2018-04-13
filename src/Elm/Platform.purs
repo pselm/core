@@ -2,16 +2,18 @@
 module Elm.Platform
   ( Program, program, programWithFlags
   , Task, TaskE, ProcessId
-  -- , Router, sendToApp, sendToSelf
+  , Router, sendToApp, sendToSelf
   ) where
 
 
-import Control.Monad.Aff (Aff)
+import Control.Monad.Aff (Aff, Fiber)
 import Control.Monad.Except.Trans (ExceptT)
 import Data.Tuple (Tuple)
 import Elm.Basics (Never)
 import Elm.Platform.Cmd (Cmd)
 import Elm.Platform.Sub (Sub)
+import Partial (crash)
+import Prelude (Unit)
 
 
 -- | A `Program` describes how to manage your Elm app.
@@ -43,13 +45,14 @@ data Program flags model msg =
 -- | ```
 program ::
     ∀ model msg.
-    { init :: Tuple model (Cmd msg)
-    , update :: msg -> model -> Tuple model (Cmd msg)
-    , subscriptions :: model -> Sub msg
-    }
-  -> Program Never model msg
+    Partial
+    => { init :: Tuple model (Cmd msg)
+       , update :: msg -> model -> Tuple model (Cmd msg)
+       , subscriptions :: model -> Sub msg
+       }
+    -> Program Never model msg
 program config =
-    Program
+    crash
 
 
 -- | Same as [`program`](#program), but you can provide flags. Initializing a
@@ -63,13 +66,14 @@ program config =
 -- | allowing you to configure your Elm program however you want from JavaScript!
 programWithFlags ::
     ∀ flags model msg.
-    { init :: flags -> Tuple model (Cmd msg)
-    , update :: msg -> model -> Tuple model (Cmd msg)
-    , subscriptions :: model -> Sub msg
-    }
-  -> Program flags model msg
+    Partial
+    => { init :: flags -> Tuple model (Cmd msg)
+       , update :: msg -> model -> Tuple model (Cmd msg)
+       , subscriptions :: model -> Sub msg
+       }
+    -> Program flags model msg
 programWithFlags config =
-    Program
+    crash
 
 
 
@@ -97,39 +101,32 @@ type TaskE e x a =
 -- | Head over to the documentation for the [`Process`](Process) module for
 -- | information on this. It is only defined here because it is a platform
 -- | primitive.
-data ProcessId =
-    ProcessId
+type ProcessId e =
+    Fiber e Unit
 
 
 
 -- EFFECT MANAGER INTERNALS
 
 
-{-| An effect manager has access to a “router” that routes messages between
-the main app and your individual effect manager.
--}
-{-
-type Router appMsg selfMsg =
-  Router
--}
+-- | An effect manager has access to a “router” that routes messages between
+-- | the main app and your individual effect manager.
+data Router appMsg selfMsg =
+    Router
 
-{-| Send the router a message for the main loop of your app. This message will
-be handled by the overall `update` function, just like events from `Html`.
--}
-{-
-sendToApp : Router msg a -> msg -> Task x ()
-sendToApp =
-  Native.Platform.sendToApp
--}
 
-{-| Send the router a message for your effect manager. This message will
-be routed to the `onSelfMsg` function, where you can update the state of your
-effect manager as necessary.
+-- | Send the router a message for the main loop of your app. This message will
+-- | be handled by the overall `update` function, just like events from `Html`.
+sendToApp :: ∀ x a msg. Partial => Router msg a -> msg -> Task x Unit
+sendToApp router msg =
+    crash
 
-As an example, the effect manager for web sockets
--}
-{-
-sendToSelf : Router a msg -> msg -> Task x ()
-sendToSelf =
-  Native.Platform.sendToSelf
-  -}
+
+-- | Send the router a message for your effect manager. This message will
+-- | be routed to the `onSelfMsg` function, where you can update the state of your
+-- | effect manager as necessary.
+-- |
+-- | As an example, the effect manager for web sockets
+sendToSelf :: ∀ x a msg. Partial => Router a msg -> msg -> Task x Unit
+sendToSelf router msg =
+    crash

@@ -22,6 +22,7 @@ module Elm.Platform.Cmd
 
 import Data.List (List(..))
 import Data.Tuple (Tuple(..))
+import Partial (crash)
 
 
 -- | A command is a way of telling Elm, “Hey, I want you to do this thing!”
@@ -39,22 +40,22 @@ import Data.Tuple (Tuple(..))
 data Cmd msg = Cmd
 
 
-map :: ∀ a msg. (a -> msg) -> Cmd a -> Cmd msg
+map :: ∀ a msg. Partial => (a -> msg) -> Cmd a -> Cmd msg
 map func cmd =
-    Cmd
+    crash
 
 
-batch :: ∀ msg. List (Cmd msg) -> Cmd msg
+batch :: ∀ msg. Partial => List (Cmd msg) -> Cmd msg
 batch cmds =
-    Cmd
+    crash
 
 
-none :: ∀ msg. Cmd msg
+none :: ∀ msg. Partial => Cmd msg
 none =
     batch Nil
 
 
-withCmds :: ∀ model msg. model -> List (Cmd msg) -> Tuple model (Cmd msg)
+withCmds :: ∀ model msg. Partial => model -> List (Cmd msg) -> Tuple model (Cmd msg)
 withCmds model commands =
     Tuple model (batch commands)
 

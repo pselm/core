@@ -11,12 +11,12 @@ module Elm.Process
   ) where
 
 
-import Control.Monad.Aff (Fiber, forkAff, delay, killFiber, apathize)
+import Control.Monad.Aff (forkAff, delay, killFiber, apathize)
 import Control.Monad.Except.Trans (ExceptT(..), runExceptT)
 import Control.Monad.Eff.Exception (error)
 import Control.Monad.Trans.Class (lift)
 import Data.Either (Either(..))
-import Elm.Platform
+import Elm.Platform (Task, TaskE, ProcessId)
 import Elm.Time (Time, fromTime)
 import Prelude (Unit, ($), (<$>), (<<<))
 
@@ -35,7 +35,7 @@ import Prelude (Unit, ($), (<$>), (<<<))
 -- |
 -- | Note that in Purescript, the Id takes an `e` parameter representing effects.
 type Id e =
-    Fiber e Unit
+    ProcessId e
 
 
 -- | Run a task in its own light-weight process. In the following example,

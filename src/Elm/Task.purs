@@ -13,6 +13,7 @@ module Elm.Task
     , EffFnTask, fromEffFnTask
     , succeed, fail
     , mapError, onError
+    , perform, attempt
     , toMaybe, fromMaybe
     , toResult, fromResult
     , ThreadID
@@ -21,13 +22,13 @@ module Elm.Task
 
 -- For re-export
 
-import Prelude (map) as Virtual
+import Data.Traversable (sequence) as Virtual
+
 import Elm.Apply (andMap, map2, map3, map4, map5) as Virtual
 import Elm.Bind (andThen) as Virtual
 import Elm.Platform (Task, TaskE) as Virtual
-import Elm.Process (spawn, sleep) as Virtual
-import Data.Traversable (sequence) as Virtual
 
+import Prelude (map) as Virtual
 
 -- Internal
 
@@ -37,12 +38,21 @@ import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Uncurried (EffFn3, mkEffFn1, runEffFn3)
 import Control.Monad.Except.Trans (ExceptT(..), runExceptT, withExceptT)
 import Control.Monad.Error.Class (throwError)
-import Prelude (Unit, map, pure, (<<<), (>>=), ($), bind, discard)
+
 import Data.Either (Either(..), either)
-import Elm.Basics ((|>))
-import Elm.Result (Result(..))
+import Data.List (List)
+import Data.Traversable (sequence)
+
+import Elm.Basics (Never, (|>))
+import Elm.List as List
 import Elm.Maybe (Maybe(..))
 import Elm.Platform (Task, TaskE, ProcessId)
+import Elm.Platform as Platform
+import Elm.Platform.Cmd (Cmd)
+import Elm.Result (Result(..))
+
+import Partial (crash)
+import Prelude (class Functor, Unit, unit, map, pure, (<<<), (>>=), ($), bind, discard)
 
 
 -- | Takes a `Task` and unwraps the underlying `Aff`.
@@ -248,5 +258,84 @@ fromResult result =
 -- | Abstract type that uniquely identifies a thread.
 -- |
 -- | This type was renamed `Id` and moved to the `Process` module in Elm 0.17.
-type ThreadID =
-    ProcessId
+type ThreadID e =
+    ProcessId e
+
+
+
+-- COMMANDS
+
+
+data MyCmd msg =
+    Perform (Task Never msg)
+
+
+instance functorMyCmd :: Functor MyCmd where
+    map tagger (Perform task) =
+        Perform (map tagger task)
+
+
+-- | The only way to *do* things in Elm is to give commands to the Elm runtime.
+-- | So we describe some complex behavior with a `Task` and then command the runtime
+-- | to `perform` that task. For example, getting the current time looks like this:
+-- |
+-- |     import Task
+-- |     import Time exposing (Time)
+-- |
+-- |     type Msg = Click | NewTime Time
+-- |
+-- |     update : Msg -> Model -> ( Model, Cmd Msg )
+-- |     update msg model =
+-- |       case msg of
+-- |         Click ->
+-- |           ( model, Task.perform NewTime Time.now )
+-- |
+-- |         NewTime time ->
+-- |           ...
+perform :: ∀ a msg. Partial => (a -> msg) -> Task Never a -> Cmd msg
+perform toMessage task =
+    crash -- command (Perform (map toMessage task))
+
+
+-- | Command the Elm runtime to attempt a task that might fail!
+attempt :: ∀ x a msg. Partial => (Result x a -> msg) -> Task x a -> Cmd msg
+attempt resultToMessage task =
+    crash
+{-
+  command (Perform (
+    task
+      |> andThen (succeed << resultToMessage << Ok)
+      |> onError (succeed << resultToMessage << Err)
+  ))
+-}
+
+
+-- MANAGER
+
+
+init :: Task Never Unit
+init =
+    succeed unit
+
+
+onEffects :: ∀ a msg. Partial => Platform.Router msg Never -> List (MyCmd msg) -> a -> Task Never Unit
+onEffects router commands state =
+    map
+        (\_ -> unit)
+        (sequence (List.map (spawnCmd router) commands))
+
+
+onSelfMsg :: ∀ a msg. Platform.Router msg Never -> Never -> a -> Task Never Unit
+onSelfMsg _ _ _ =
+    succeed unit
+
+
+spawnCmd :: ∀ x msg. Partial => Platform.Router msg Never -> MyCmd msg -> Task x Unit
+spawnCmd router (Perform task) =
+    crash
+    {-
+    Native.Scheduler.spawn (
+        task
+        |> andThen (Platform.sendToApp router)
+    )
+    -}

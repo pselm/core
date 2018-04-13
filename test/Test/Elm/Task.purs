@@ -1,19 +1,20 @@
 module Test.Elm.Task (tests) where
 
-import Test.Unit (Test, TestSuite, failure, suite, test)
-import Test.Unit.Assert (equal)
-
 import Elm.Task
-import Prelude (flip, bind, discard, class Eq, class Show, ($), (+), (<$>), (<>), (>>>), show, Unit, pure)
-import Data.Either (Either(..))
-import Data.Maybe (Maybe(..))
-import Elm.Basics ((|>))
-import Elm.Result (Result(..))
-import Data.List (List(..), (:))
+
 import Control.Monad.Aff (nonCanceler)
 import Control.Monad.Eff.Exception (message)
 import Control.Monad.Error.Class (try)
+import Data.Either (Either(..))
+import Data.List (List(..), (:))
+import Data.Maybe (Maybe(..))
+import Elm.Basics ((|>))
+import Elm.Process (sleep, spawn)
+import Elm.Result (Result(..))
 import Math (sqrt)
+import Prelude (flip, bind, discard, class Eq, class Show, ($), (+), (<$>), (<>), (>>>), show, Unit, pure)
+import Test.Unit (Test, TestSuite, failure, suite, test)
+import Test.Unit.Assert (equal)
 
 
 infixl 9 equals as ===
