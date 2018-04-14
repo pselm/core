@@ -25,12 +25,13 @@ import Data.Time.Duration (class Duration) as Virtual
 import Elm.Basics (Float, Never)
 import Elm.Dict as Dict
 import Elm.List as List
-import Elm.Platform (Task)
+import Elm.Platform (Task, Manager)
 import Elm.Platform as Platform
 import Elm.Platform.Sub (Sub)
 import Elm.Task as Task
 import Partial (crash)
 import Prelude (class Functor, Unit, flip, id, pure, ($), (/), (<$>), (<<<))
+import Type.Prelude (Proxy)
 
 
 -- | Type alias to make it clearer when you are working with time values.
@@ -142,6 +143,9 @@ instance functorMySub :: Functor MySub where
 
 -- EFFECT MANAGER
 
+timeManager :: ∀ appMsg. Partial => Manager Proxy MySub appMsg Time (State appMsg)
+timeManager = {init, onEffects, onSelfMsg}
+
 
 type State msg =
     { taggers :: Taggers msg
@@ -165,8 +169,8 @@ init =
         }
 
 
-onEffects :: ∀ msg. Partial => Platform.Router msg Time -> List (MySub msg) -> State msg -> Task Never (State msg)
-onEffects router subs {processes} =
+onEffects :: ∀ msg. Partial => Platform.Router msg Time -> List (Proxy msg) -> List (MySub msg) -> State msg -> Task Never (State msg)
+onEffects router _ subs {processes} =
     crash
     {-
     let

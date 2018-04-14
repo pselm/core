@@ -310,7 +310,7 @@ attempt resultToMessage task =
 
 -- We have no subs or msg type ... for the moment, using Proxy and Unit ...
 -- possibly better options exist.
-taskManager :: Partial => Manager MyCmd Proxy Unit Unit
+taskManager :: ∀ appMsg. Partial => Manager MyCmd Proxy appMsg Unit Unit
 taskManager = {init, onEffects, onSelfMsg}
 
 

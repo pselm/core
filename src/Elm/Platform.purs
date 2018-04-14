@@ -171,13 +171,13 @@ sendToSelf router msg =
 -- |
 -- | We'll start by defining a record type ... this may end up wanting to be a
 -- | type-class, of course, but we won't necessarily start with that.
-type Manager cmd sub selfMsg state =
+type Manager cmd sub appMsg selfMsg state =
     -- | Produces the initial state of the manager.
     { init :: Task Never state
 
     -- | What we get called with when a round of effects is to be handled.
-    , onEffects :: ∀ appMsg. Router appMsg selfMsg -> List (cmd appMsg) -> List (sub appMsg) -> state -> Task Never state
+    , onEffects :: Router appMsg selfMsg -> List (cmd appMsg) -> List (sub appMsg) -> state -> Task Never state
 
     -- | Handle our internal messages when we get them ...
-    , onSelfMsg :: ∀ appMsg. Router appMsg selfMsg -> selfMsg -> state -> Task Never state
+    , onSelfMsg :: Router appMsg selfMsg -> selfMsg -> state -> Task Never state
     }
