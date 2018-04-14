@@ -18,9 +18,13 @@ import Control.Monad.Except.Trans (ExceptT(..), runExceptT)
 import Control.Monad.Trans.Class (lift)
 import Data.Either (Either(..))
 import Data.Newtype (unwrap)
+import Data.Time.Duration (Milliseconds(..), toDuration)
 import Elm.Platform (Task, ProcessId)
-import Elm.Time (Time, fromTime)
 import Prelude (Unit, ($), (<$>), (<<<))
+
+
+-- This is repeated here to avoid a circular dependency
+type Time = Number
 
 
 -- | A light-weight process that runs concurrently. You can use `spawn` to
@@ -63,7 +67,7 @@ spawn =
 -- | [setTimeout]: https://developer.mozilla.org/en-US/docs/Web/API/WindowTimers/setTimeout
 sleep :: ∀ x. Time -> Task x Unit
 sleep time =
-    ExceptT $ liftAff $ Right <$> delay (fromTime time)
+    ExceptT $ liftAff $ Right <$> delay (toDuration $ Milliseconds time)
 
 
 -- | Sometimes you `spawn` a process, but later decide it would be a waste to
