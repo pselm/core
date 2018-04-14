@@ -20,7 +20,7 @@ module Elm.Task
     ) where
 
 
-import Control.Monad.Aff (Canceler(..), Error, apathize, forkAff, makeAff, nonCanceler)
+import Control.Monad.Aff (Canceler(Canceler), Error, makeAff, nonCanceler)
 import Control.Monad.Aff.Class (liftAff)
 import Control.Monad.Aff.Compat (EffFnCanceler(..), EffFnCb)
 import Control.Monad.Eff (Eff)
@@ -28,10 +28,8 @@ import Control.Monad.Eff.Uncurried (EffFn3, mkEffFn1, runEffFn3)
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except.Trans (ExceptT(..), runExceptT, withExceptT)
 import Control.Monad.IO (IO)
-import Control.Monad.Trans.Class (lift)
 import Data.Either (Either(..), either)
 import Data.List (List)
-import Data.Newtype (unwrap)
 import Data.Traversable (sequence)
 import Data.Traversable (sequence) as Virtual
 import Elm.Apply (andMap, map2, map3, map4, map5) as Virtual
@@ -43,6 +41,7 @@ import Elm.Platform (ProcessId, Task, Manager)
 import Elm.Platform (Task) as Virtual
 import Elm.Platform as Platform
 import Elm.Platform.Cmd (Cmd)
+import Elm.Process (spawn)
 import Elm.Result (Result(..))
 import Partial (crash)
 import Prelude (class Functor, Unit, bind, const, discard, map, pure, unit, ($), (<$>), (<<<), (>>=))
@@ -334,10 +333,3 @@ onSelfMsg _ _ _ =
 spawnCmd :: ∀ x appMsg. Partial => Platform.Router appMsg Unit -> MyCmd appMsg -> Task x Unit
 spawnCmd router (Perform task) =
     const (pure unit) <$> spawn $ task >>= Platform.sendToApp router
-
-
--- This is copied from Elm.Process for now, to avoid a circular dependency.
--- Perhaps I can work someting better out at some point.
-spawn :: ∀ x y a. Task x a -> Task y ProcessId
-spawn =
-     lift <<< liftAff <<< forkAff <<< apathize <<< unwrap <<< runExceptT
