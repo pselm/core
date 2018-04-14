@@ -3,12 +3,14 @@ module Elm.Platform
   ( Program, program, programWithFlags
   , Task, ProcessId
   , Router, sendToApp, sendToSelf
+  , Manager
   ) where
 
 
 import Control.Monad.Aff (Fiber)
 import Control.Monad.Except.Trans (ExceptT)
 import Control.Monad.IO (INFINITY, IO)
+import Data.List (List)
 import Data.Tuple (Tuple)
 import Elm.Basics (Never)
 import Elm.Platform.Cmd (Cmd)
@@ -107,10 +109,28 @@ type ProcessId =
 
 -- EFFECT MANAGER INTERNALS
 
+-- There is a nice disucssion of effects modules here:
+--
+-- http://simonh1000.github.io/2017/05/effect-managers/
+--
+-- Note that I'm not sure yet exactly what `Cmd` and `Sub` will be, or, for
+-- that matter, exactly what the `command` function is. Part of what's likely
+-- to be interesting here is the combination of multiple effects managers,
+-- which Elm can do "behind the scenes" (and, I suppose, we could as well if
+-- we must), but which would be interesting to try to write types for.
+--
+-- Also, one of my goals is to allow Elm programs to be converted with as
+-- little fuss as possible, including effects modules. So, ideally I'd like to
+-- work as much as possible with the type signaturs that you find in effects
+-- modules. But, one will no doubt need to make some modifications, to handle
+-- explicitly those things which Elm does magically.
+
 
 -- | An effect manager has access to a “router” that routes messages between
 -- | the main app and your individual effect manager.
 data Router appMsg selfMsg =
+    -- Not yet clear what this will actually be, but this is the surface API
+    -- from Elm that we want to preserve.
     Router
 
 
@@ -129,3 +149,35 @@ sendToApp router msg =
 sendToSelf :: ∀ x a msg. Partial => Router a msg -> msg -> Task x Unit
 sendToSelf router msg =
     crash
+
+
+-- | This is an initial attempt to express the things which effects modules
+-- | have in common.
+-- |
+-- | If, in Elm, you see something like:
+-- |
+-- |     effect module WebSocket where { command = MyCmd, subscription = MySub }
+-- |
+-- | then the thesis is that the module is defining a (hidden) type which:
+-- |
+-- |   - can manage commands of the `command` type
+-- |   - can manage subsriptions of the `subscription` type
+-- |   - keeps some internal state without requiring the user of the module
+-- |     to maintain a bunch of boilerplate
+-- |   - can handle internal messages without requiring the user of the module
+-- |     to maintain a bunch of boilerplate
+-- |
+-- | So, let's try defining that class here and see how far it gets us.
+-- |
+-- | We'll start by defining a record type ... this may end up wanting to be a
+-- | type-class, of course, but we won't necessarily start with that.
+type Manager cmd sub selfMsg state =
+    -- | Produces the initial state of the manager.
+    { init :: Task Never state
+
+    -- | What we get called with when a round of effects is to be handled.
+    , onEffects :: ∀ appMsg. Router appMsg selfMsg -> List (cmd appMsg) -> List (sub appMsg) -> state -> Task Never state
+
+    -- | Handle our internal messages when we get them ...
+    , onSelfMsg :: ∀ appMsg. Router appMsg selfMsg -> selfMsg -> state -> Task Never state
+    }

@@ -20,7 +20,7 @@ module Elm.Task
     ) where
 
 
-import Control.Monad.Aff (Error, Canceler(..), makeAff, nonCanceler)
+import Control.Monad.Aff (Canceler(..), Error, apathize, forkAff, makeAff, nonCanceler)
 import Control.Monad.Aff.Class (liftAff)
 import Control.Monad.Aff.Compat (EffFnCanceler(..), EffFnCb)
 import Control.Monad.Eff (Eff)
@@ -28,8 +28,10 @@ import Control.Monad.Eff.Uncurried (EffFn3, mkEffFn1, runEffFn3)
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except.Trans (ExceptT(..), runExceptT, withExceptT)
 import Control.Monad.IO (IO)
+import Control.Monad.Trans.Class (lift)
 import Data.Either (Either(..), either)
 import Data.List (List)
+import Data.Newtype (unwrap)
 import Data.Traversable (sequence)
 import Data.Traversable (sequence) as Virtual
 import Elm.Apply (andMap, map2, map3, map4, map5) as Virtual
@@ -37,14 +39,15 @@ import Elm.Basics (Never, (|>))
 import Elm.Bind (andThen) as Virtual
 import Elm.List as List
 import Elm.Maybe (Maybe(..))
+import Elm.Platform (ProcessId, Task, Manager)
 import Elm.Platform (Task) as Virtual
-import Elm.Platform (Task, ProcessId)
 import Elm.Platform as Platform
 import Elm.Platform.Cmd (Cmd)
 import Elm.Result (Result(..))
 import Partial (crash)
-import Prelude (class Functor, Unit, unit, map, pure, (<<<), (>>=), ($), bind, discard)
+import Prelude (class Functor, Unit, bind, const, discard, map, pure, unit, ($), (<$>), (<<<), (>>=))
 import Prelude (map) as Virtual
+import Type.Prelude (Proxy)
 
 
 -- | Takes a `Task` and unwraps the underlying `IO`.
@@ -305,30 +308,36 @@ attempt resultToMessage task =
 
 -- MANAGER
 
+-- We have no subs or msg type ... for the moment, using Proxy and Unit ...
+-- possibly better options exist.
+taskManager :: Partial => Manager MyCmd Proxy Unit Unit
+taskManager = {init, onEffects, onSelfMsg}
+
 
 init :: Task Never Unit
 init =
     succeed unit
 
 
-onEffects :: ∀ a msg. Partial => Platform.Router msg Never -> List (MyCmd msg) -> a -> Task Never Unit
-onEffects router commands state =
+onEffects :: ∀ appMsg. Partial => Platform.Router appMsg Unit -> List (MyCmd appMsg) -> List (Proxy appMsg) -> Unit -> Task Never Unit
+onEffects router commands subs state =
     map
         (\_ -> unit)
         (sequence (List.map (spawnCmd router) commands))
 
 
-onSelfMsg :: ∀ a msg. Platform.Router msg Never -> Never -> a -> Task Never Unit
+onSelfMsg :: ∀ appMsg. Platform.Router appMsg Unit -> Unit -> Unit -> Task Never Unit
 onSelfMsg _ _ _ =
     succeed unit
 
 
-spawnCmd :: ∀ x msg. Partial => Platform.Router msg Never -> MyCmd msg -> Task x Unit
+spawnCmd :: ∀ x appMsg. Partial => Platform.Router appMsg Unit -> MyCmd appMsg -> Task x Unit
 spawnCmd router (Perform task) =
-    crash
-    {-
-    Native.Scheduler.spawn (
-        task
-        |> andThen (Platform.sendToApp router)
-    )
-    -}
+    const (pure unit) <$> spawn $ task >>= Platform.sendToApp router
+
+
+-- This is copied from Elm.Process for now, to avoid a circular dependency.
+-- Perhaps I can work someting better out at some point.
+spawn :: ∀ x y a. Task x a -> Task y ProcessId
+spawn =
+     lift <<< liftAff <<< forkAff <<< apathize <<< unwrap <<< runExceptT
