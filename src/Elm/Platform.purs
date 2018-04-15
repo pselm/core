@@ -1,6 +1,7 @@
 
 module Elm.Platform
   ( Program, program, programWithFlags
+  , runProgram
   , Task, ProcessId
   , Router, sendToApp, sendToSelf
   , Manager
@@ -16,7 +17,7 @@ import Elm.Basics (Never)
 import Elm.Platform.Cmd (Cmd)
 import Elm.Platform.Sub (Sub)
 import Partial (crash)
-import Prelude (Unit)
+import Prelude (Unit, const, ($))
 
 
 -- | A `Program` describes how to manage your Elm app.
@@ -31,8 +32,12 @@ import Prelude (Unit)
 -- | Honestly, it is totally normal if this seems crazy at first. The best way to
 -- | understand is to work through [guide.elm-lang.org](http://guide.elm-lang.org/).
 -- | It makes way more sense in context!
-data Program flags model msg =
-    Program
+newtype Program flags model msg = Program
+    -- To start with, let's just record what we get provided
+    { init :: flags -> Tuple model (Cmd msg)
+    , update :: msg -> model -> Tuple model (Cmd msg)
+    , subscriptions :: model -> Sub msg
+    }
 
 
 -- | Create a [headless][] program. This is great if you want to use Elm as the
@@ -46,16 +51,15 @@ data Program flags model msg =
 -- | ```javascript
 -- | var app = Elm.MyThing.worker();
 -- | ```
-program ::
-    ∀ model msg.
-    Partial
-    => { init :: Tuple model (Cmd msg)
-       , update :: msg -> model -> Tuple model (Cmd msg)
-       , subscriptions :: model -> Sub msg
-       }
+program :: ∀ model msg.
+    { init :: Tuple model (Cmd msg)
+    , update :: msg -> model -> Tuple model (Cmd msg)
+    , subscriptions :: model -> Sub msg
+    }
     -> Program Never model msg
 program config =
-    crash
+    programWithFlags $
+        config { init = const config.init }
 
 
 -- | Same as [`program`](#program), but you can provide flags. Initializing a
@@ -67,17 +71,38 @@ program config =
 -- |
 -- | Whatever argument you provide to `worker` will get converted to an Elm value,
 -- | allowing you to configure your Elm program however you want from JavaScript!
-programWithFlags ::
-    ∀ flags model msg.
-    Partial
-    => { init :: flags -> Tuple model (Cmd msg)
-       , update :: msg -> model -> Tuple model (Cmd msg)
-       , subscriptions :: model -> Sub msg
-       }
+programWithFlags :: ∀ flags model msg.
+    { init :: flags -> Tuple model (Cmd msg)
+    , update :: msg -> model -> Tuple model (Cmd msg)
+    , subscriptions :: model -> Sub msg
+    }
     -> Program flags model msg
-programWithFlags config =
-    crash
+programWithFlags =
+    Program
 
+
+-- | In Elm, you simply assign your `Program` to `main` and it gets run. Here,
+-- | we need to explicilty `run` a program to turn it into an `IO` that you can
+-- | execute.
+-- |
+-- | Eventually, this will need to take into account flags and ports, which are
+-- | Elm's way of communicating with Javascript. Flags would be an argument
+-- | that the Javascript side can call when starting the program. Ports would
+-- | be something returned by the function that the Javascript side calls,
+-- | which the Javascript side can use to subscribe to values and send values.
+-- |
+-- | So, eventually this will problem look more like:
+-- |
+-- |     runProgram :: ∀ flags model msg. Foreign -> Program flags model msg -> IO Ports
+-- |
+-- | for some definition of `Ports` (in fact, there's an extra level of
+-- | indirection in Elm with the `.worker()` call, so we could set that up as
+-- | well). And, `flags` will probably need a typeclass constraint in order to
+-- | support the auto-decoding that Elm does. (We can probably auto-decode
+-- | using generics).
+runProgram :: ∀ flags model msg. Partial => Program flags model msg -> IO Unit
+runProgram =
+    crash
 
 
 -- TASKS and PROCESSES
