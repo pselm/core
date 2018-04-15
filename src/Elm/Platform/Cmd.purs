@@ -11,7 +11,7 @@
 -- | and subscriptions.
 
 module Elm.Platform.Cmd
-  ( Cmd
+  ( module Virtual
   , map
   , batch
   , none
@@ -22,22 +22,9 @@ module Elm.Platform.Cmd
 
 import Data.List (List(..))
 import Data.Tuple (Tuple(..))
+import Elm.Platform (Cmd) as Virtual
+import Elm.Platform (Cmd)
 import Partial (crash)
-
-
--- | A command is a way of telling Elm, “Hey, I want you to do this thing!”
--- | So if you want to send an HTTP request, you would need to command Elm to do it.
--- | Or if you wanted to ask for geolocation, you would need to command Elm to go
--- | get it.
--- |
--- | Every `Cmd` specifies (1) which effects you need access to and (2) the type of
--- | messages that will come back into your application.
--- |
--- | **Note:** Do not worry if this seems confusing at first! As with every Elm user
--- | ever, commands will make more sense as you work through [the Elm Architecture
--- | Tutorial](http://guide.elm-lang.org/architecture/index.html) and see how they
--- | fit into a real application!
-data Cmd msg = Cmd
 
 
 map :: ∀ a msg. Partial => (a -> msg) -> Cmd a -> Cmd msg
@@ -61,4 +48,3 @@ withCmds model commands =
 
 
 infixl 5 withCmds as !
-

@@ -5,6 +5,8 @@ module Elm.Platform
   , Task, ProcessId
   , Router, sendToApp, sendToSelf
   , Manager
+  , Cmd, command
+  , Sub, subscription
   ) where
 
 
@@ -14,8 +16,6 @@ import Control.Monad.IO (INFINITY, IO)
 import Data.List (List)
 import Data.Tuple (Tuple)
 import Elm.Basics (Never)
-import Elm.Platform.Cmd (Cmd)
-import Elm.Platform.Sub (Sub)
 import Partial (crash)
 import Prelude (Unit, const, ($))
 
@@ -131,7 +131,6 @@ type ProcessId =
     Fiber (infinity :: INFINITY) Unit
 
 
-
 -- EFFECT MANAGER INTERNALS
 
 -- There is a nice disucssion of effects modules here:
@@ -206,3 +205,89 @@ type Manager cmd sub appMsg selfMsg state =
     -- | Handle our internal messages when we get them ...
     , onSelfMsg :: Router appMsg selfMsg -> selfMsg -> state -> Task Never state
     }
+
+
+-- | A command is a way of telling Elm, “Hey, I want you to do this thing!”
+-- | So if you want to send an HTTP request, you would need to command Elm to do it.
+-- | Or if you wanted to ask for geolocation, you would need to command Elm to go
+-- | get it.
+-- |
+-- | Every `Cmd` specifies (1) which effects you need access to and (2) the type of
+-- | messages that will come back into your application.
+-- |
+-- | **Note:** Do not worry if this seems confusing at first! As with every Elm user
+-- | ever, commands will make more sense as you work through [the Elm Architecture
+-- | Tutorial](http://guide.elm-lang.org/architecture/index.html) and see how they
+-- | fit into a real application!
+data Cmd msg = Cmd
+
+
+-- | `command` is a magical function in Elm. It gets called by effects modules,
+-- | but it isn't explicitly implemented anywhere (probably because it can't be
+-- | well-typed in Elm). 
+-- |
+-- | Effects modules implement "commands" as a kind of data structure to
+-- | interpret later, which, if one were starting from scratch, you might
+-- | implement in Purescript via `Free` (and that may be how it ought to be
+-- | done in the end, but I'm working my way into it, by sketching the surface
+-- | of the Elm API and then seeing what's needed to implement it).
+-- |
+-- | The Elm implementation has a couple of interesting characterstics:
+-- |
+-- | - It is an "open" structure ... that is, the compiler does something to
+-- |   bring together and dispatch the commands defined by whatever effects
+-- |   modules get used.
+-- |
+-- | - The Elm API is such that we need to be able to batch commands from
+-- |   various effects modules together, in the `Cmd` type, so long as they
+-- |   are parameterized by the same `appMsg`. So, that implies, at the very
+-- |   least, that there will need to be an existential element to this ...
+-- |   we'll need to "forget" some of our type information and yet able to
+-- |   "receover" it.
+-- |
+-- | Now, the special role played by the `command` function (in Elm) is that it
+-- | takes whatever type the particular effects module uses for its commands,
+-- | and returns a generic `Cmd a` that can be batched with other commands from
+-- | other effects modules. So, it is basicaly our "hook" where we can
+-- | implement whatever magic is required to make that work.
+-- |
+-- | At a miminum, we're going to need the effects module to provide its
+-- | `Manager`.  Ultimatley, it may be nice for formulate this in terms of type
+-- | classes, but I think it will be easier to start by explicitly passing
+-- | records around.
+command :: ∀ cmd sub appMsg selfMsg state.
+    Partial =>
+    Manager cmd sub appMsg selfMsg state ->
+    cmd appMsg ->
+    Cmd appMsg
+command manager cmd =
+    crash
+
+
+-- | A subscription is a way of telling Elm, “Hey, let me know if anything
+-- | interesting happens over there!” So if you want to listen for messages on a web
+-- | socket, you would tell Elm to create a subscription. If you want to get clock
+-- | ticks, you would tell Elm to subscribe to that. The cool thing here is that
+-- | this means *Elm* manages all the details of subscriptions instead of *you*.
+-- | So if a web socket goes down, *you* do not need to manually reconnect with an
+-- | exponential backoff strategy, *Elm* does this all for you behind the scenes!
+-- |
+-- | Every `Sub` specifies (1) which effects you need access to and (2) the type of
+-- | messages that will come back into your application.
+-- |
+-- | **Note:** Do not worry if this seems confusing at first! As with every Elm user
+-- | ever, subscriptions will make more sense as you work through [the Elm Architecture
+-- | Tutorial](http://guide.elm-lang.org/architecture/index.html) and see how they fit
+-- | into a real application!
+data Sub msg =
+    Sub
+
+
+-- | Like `command`, but for subscriptions.
+subscription :: ∀ cmd sub appMsg selfMsg state.
+    Partial =>
+    Manager cmd sub appMsg selfMsg state ->
+    sub appMsg ->
+    Sub appMsg
+subscription manager sub =
+    crash

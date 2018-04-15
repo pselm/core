@@ -44,12 +44,11 @@ import Elm.Apply (map2)
 import Elm.Apply (map2, map3, map4, map5) as Virtual
 import Elm.Basics (Bool, Float, Never, (%), (|>))
 import Elm.Bind (andThen) as Virtual
-import Elm.Platform (Task, Manager)
+import Elm.Platform (Manager, Task, command)
 import Elm.Platform as Platform
 import Elm.Platform.Cmd (Cmd)
 import Elm.Task as Task
 import Elm.Time as Time
-import Partial (crash)
 import Prelude (class Applicative, class Apply, class Bind, class Functor, class Ord, class Semigroup, Unit, negate, one, pure, zero, ($), (*), (+), (-), (/), (<), (<>), (==))
 import Prelude (map) as Virtual
 import Type.Prelude (Proxy)
@@ -461,11 +460,11 @@ next (Seed s1 s2) =
 -- | [rand]: https://evancz.gitbooks.io/an-introduction-to-elm/content/architecture/effects/random.html
 generate :: ∀ a msg. Partial => (a -> msg) -> Generator a -> Cmd msg
 generate tagger generator =
-    crash -- command (Generate (map tagger generator))
+    command randomManager $ Generate $ map tagger generator
 
 
-taskManager :: ∀ appMsg. Partial => Manager MyCmd Proxy appMsg Unit Seed
-taskManager = {init, onEffects, onSelfMsg}
+randomManager :: ∀ appMsg. Partial => Manager MyCmd Proxy appMsg Unit Seed
+randomManager = {init, onEffects, onSelfMsg}
 
 
 data MyCmd msg

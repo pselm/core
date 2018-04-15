@@ -34,16 +34,16 @@ import Data.Traversable (sequence)
 import Data.Traversable (sequence) as Virtual
 import Elm.Apply (andMap, map2, map3, map4, map5) as Virtual
 import Elm.Basics (Never, (|>))
+import Elm.Bind (andThen)
 import Elm.Bind (andThen) as Virtual
 import Elm.List as List
 import Elm.Maybe (Maybe(..))
-import Elm.Platform (ProcessId, Task, Manager)
+import Elm.Platform (Manager, ProcessId, Task, command)
 import Elm.Platform (Task) as Virtual
 import Elm.Platform as Platform
 import Elm.Platform.Cmd (Cmd)
 import Elm.Process (spawn)
 import Elm.Result (Result(..))
-import Partial (crash)
 import Prelude (class Functor, Unit, bind, const, discard, map, pure, unit, ($), (<$>), (<<<), (>>=))
 import Prelude (map) as Virtual
 import Type.Prelude (Proxy)
@@ -289,20 +289,17 @@ instance functorMyCmd :: Functor MyCmd where
 -- |           ...
 perform :: ∀ a msg. Partial => (a -> msg) -> Task Never a -> Cmd msg
 perform toMessage task =
-    crash -- command (Perform (map toMessage task))
+    command taskManager $ Perform $ map toMessage task
 
 
 -- | Command the Elm runtime to attempt a task that might fail!
 attempt :: ∀ x a msg. Partial => (Result x a -> msg) -> Task x a -> Cmd msg
 attempt resultToMessage task =
-    crash
-{-
-  command (Perform (
     task
-      |> andThen (succeed << resultToMessage << Ok)
-      |> onError (succeed << resultToMessage << Err)
-  ))
--}
+        |> andThen (succeed <<< resultToMessage <<< Ok)
+        |> onError (succeed <<< resultToMessage <<< Err)
+        |> Perform
+        |> command taskManager
 
 
 -- MANAGER

@@ -30,13 +30,12 @@ import Data.Tuple.Nested ((/\))
 import Elm.Basics (Float, Never, (|>))
 import Elm.Dict as Dict
 import Elm.List as List
-import Elm.Platform (Manager, Task)
+import Elm.Platform (Manager, Task, subscription)
 import Elm.Platform as Platform
 import Elm.Platform.Sub (Sub)
 import Elm.Process (kill, spawn)
 import Elm.Task (makeTask, toIO)
 import Elm.Task as Task
-import Partial (crash)
 import Prelude (class Functor, Unit, bind, flip, id, pure, unit, ($), (/), (<$>), (<<<))
 import Type.Prelude (Proxy)
 
@@ -133,7 +132,7 @@ now =
 -- | every 30 seconds”.
 every :: ∀ msg. Partial => Time -> (Time -> msg) -> Sub msg
 every interval tagger =
-    crash -- subscription (Every interval tagger)
+    subscription timeManager (Every interval tagger)
 
 
 -- SUBSCRIPTIONS
