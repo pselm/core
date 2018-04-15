@@ -44,14 +44,15 @@ import Elm.Apply (map2)
 import Elm.Apply (map2, map3, map4, map5) as Virtual
 import Elm.Basics (Bool, Float, Never, (%), (|>))
 import Elm.Bind (andThen) as Virtual
-import Elm.Platform (Task)
+import Elm.Platform (Task, Manager)
 import Elm.Platform as Platform
 import Elm.Platform.Cmd (Cmd)
 import Elm.Task as Task
 import Elm.Time as Time
 import Partial (crash)
-import Prelude ((==), (/), (*), (-), (+), (<), ($), (<>), negate, zero, one, class Ord, class Functor, class Apply, class Bind, class Semigroup, class Applicative, pure)
+import Prelude (class Applicative, class Apply, class Bind, class Functor, class Ord, class Semigroup, Unit, negate, one, pure, zero, ($), (*), (+), (-), (/), (<), (<>), (==))
 import Prelude (map) as Virtual
+import Type.Prelude (Proxy)
 
 
 -- | Create a generator that produces boolean values. The following example
@@ -463,6 +464,10 @@ generate tagger generator =
     crash -- command (Generate (map tagger generator))
 
 
+taskManager :: ∀ appMsg. Partial => Manager MyCmd Proxy appMsg Unit Seed
+taskManager = {init, onEffects, onSelfMsg}
+
+
 data MyCmd msg
     = Generate (Generator msg)
 
@@ -478,8 +483,8 @@ init =
         |> Task.andThen (\t -> Task.succeed (initialSeed (round t)))
 
 
-onEffects :: ∀ msg. Partial => Platform.Router msg Never -> List (MyCmd msg) -> Seed -> Task Never Seed
-onEffects router commands seed =
+onEffects :: ∀ msg. Partial => Platform.Router msg Unit -> List (MyCmd msg) -> List (Proxy msg) -> Seed -> Task Never Seed
+onEffects router commands _ seed =
     case commands of
         Nil ->
             Task.succeed seed
@@ -490,9 +495,9 @@ onEffects router commands seed =
                     step generator seed
             in
                 Platform.sendToApp router generated.value
-                    |> Task.andThen (\_ -> onEffects router rest generated.seed)
+                    |> Task.andThen (\_ -> onEffects router rest Nil generated.seed)
 
 
-onSelfMsg :: ∀ msg. Platform.Router msg Never -> Never -> Seed -> Task Never Seed
+onSelfMsg :: ∀ msg. Platform.Router msg Unit -> Unit -> Seed -> Task Never Seed
 onSelfMsg _ _ seed =
     Task.succeed seed
