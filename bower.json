@@ -36,7 +36,7 @@
     "purescript-sequences": "^1.0.0",
     "purescript-sets": "^3.0.0",
     "purescript-strings": "^3.0.0",
-    "purescript-io": "~5.0.0"
+    "purescript-io": "^5.0.0"
   },
   "devDependencies": {
     "purescript-test-unit": "^13.0.0",
