@@ -17,7 +17,7 @@ import Data.List (List)
 import Data.Tuple (Tuple)
 import Elm.Basics (Never)
 import Partial (crash)
-import Prelude (Unit, const, ($))
+import Prelude (class Functor, Unit, const, map, ($))
 import Unsafe.Coerce (unsafeCoerce)
 
 
@@ -196,15 +196,15 @@ sendToSelf router msg =
 -- |
 -- | We'll start by defining a record type ... this may end up wanting to be a
 -- | type-class, of course, but we won't necessarily start with that.
-type Manager cmd sub appMsg selfMsg state =
+type Manager cmd sub selfMsg state =
     -- | Produces the initial state of the manager.
-    { init :: Task Never state
+    { init :: ∀ appMsg. Task Never (state appMsg)
 
     -- | What we get called with when a round of effects is to be handled.
-    , onEffects :: Router appMsg selfMsg -> List (cmd appMsg) -> List (sub appMsg) -> state -> Task Never state
+    , onEffects :: ∀ appMsg. Router appMsg selfMsg -> List (cmd appMsg) -> List (sub appMsg) -> state appMsg -> Task Never (state appMsg)
 
     -- | Handle our internal messages when we get them ...
-    , onSelfMsg :: Router appMsg selfMsg -> selfMsg -> state -> Task Never state
+    , onSelfMsg :: ∀ appMsg. Router appMsg selfMsg -> selfMsg -> state appMsg -> Task Never (state appMsg)
     }
 
 
@@ -227,7 +227,8 @@ foreign import data Cmd :: Type -> Type
 -- have to bundle together everything else we're going to need ...
 type CmdManager cmd sub appMsg selfMsg state =
     { cmd :: cmd appMsg
-    , manager :: Manager cmd sub appMsg selfMsg state
+    , manager :: Manager cmd sub selfMsg state
+    , map :: ∀ a b. (a -> b) -> cmd a -> cmd b
     }
 
 
@@ -243,7 +244,7 @@ runCmd = unsafeCoerce
 
 -- | `command` is a magical function in Elm. It gets called by effects modules,
 -- | but it isn't explicitly implemented anywhere (probably because it can't be
--- | well-typed in Elm). 
+-- | well-typed in Elm).
 -- |
 -- | Effects modules implement "commands" as a kind of data structure to
 -- | interpret later, which, if one were starting from scratch, you might
@@ -275,11 +276,12 @@ runCmd = unsafeCoerce
 -- | classes, but I think it will be easier to start by explicitly passing
 -- | records around.
 command :: ∀ cmd sub appMsg selfMsg state.
-    Manager cmd sub appMsg selfMsg state ->
+    Functor cmd =>
+    Manager cmd sub selfMsg state ->
     cmd appMsg ->
     Cmd appMsg
 command manager cmd =
-    mkCmd { manager, cmd }
+    mkCmd { manager, cmd, map }
 
 
 -- | A subscription is a way of telling Elm, “Hey, let me know if anything
@@ -297,13 +299,13 @@ command manager cmd =
 -- | ever, subscriptions will make more sense as you work through [the Elm Architecture
 -- | Tutorial](http://guide.elm-lang.org/architecture/index.html) and see how they fit
 -- | into a real application!
-data Sub msg =
-    Sub
+foreign import data Sub :: Type -> Type
 
 
 type SubManager cmd sub appMsg selfMsg state =
     { sub :: sub appMsg
-    , manager :: Manager cmd sub appMsg selfMsg state
+    , manager :: Manager cmd sub selfMsg state
+    , map :: ∀ a b. (a -> b) -> sub a -> sub b
     }
 
 
@@ -319,8 +321,9 @@ runSub = unsafeCoerce
 
 -- | Like `command`, but for subscriptions.
 subscription :: ∀ cmd sub appMsg selfMsg state.
-    Manager cmd sub appMsg selfMsg state ->
+    Functor sub =>
+    Manager cmd sub selfMsg state ->
     sub appMsg ->
     Sub appMsg
 subscription manager sub =
-    mkSub { manager, sub }
+    mkSub { manager, sub, map }

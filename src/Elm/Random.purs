@@ -450,6 +450,9 @@ next (Seed s1 s2) =
 
 -- MANAGER
 
+-- Since our State needs a parameter ... perhaps there is a better way?
+newtype State msg = State Seed
+
 
 -- | Create a command that will generate random values.
 -- |
@@ -463,7 +466,7 @@ generate tagger generator =
     command randomManager $ Generate $ map tagger generator
 
 
-randomManager :: ∀ appMsg. Partial => Manager MyCmd Proxy appMsg Unit Seed
+randomManager :: Partial => Manager MyCmd Proxy Unit State
 randomManager = {init, onEffects, onSelfMsg}
 
 
@@ -476,17 +479,17 @@ instance functorMyCmd :: Functor MyCmd where
         Generate (map func generator)
 
 
-init :: Task Never Seed
+init :: ∀ msg. Task Never (State msg)
 init =
     Time.now
-        |> Task.andThen (\t -> Task.succeed (initialSeed (round t)))
+        |> Task.andThen (\t -> Task.succeed (State (initialSeed (round t))))
 
 
-onEffects :: ∀ msg. Partial => Platform.Router msg Unit -> List (MyCmd msg) -> List (Proxy msg) -> Seed -> Task Never Seed
-onEffects router commands _ seed =
+onEffects :: ∀ msg. Partial => Platform.Router msg Unit -> List (MyCmd msg) -> List (Proxy msg) -> State msg -> Task Never (State msg)
+onEffects router commands _ state@(State seed) =
     case commands of
         Nil ->
-            Task.succeed seed
+            Task.succeed state
 
         Generate generator : rest ->
             let
@@ -494,9 +497,9 @@ onEffects router commands _ seed =
                     step generator seed
             in
                 Platform.sendToApp router generated.value
-                    |> Task.andThen (\_ -> onEffects router rest Nil generated.seed)
+                    |> Task.andThen (\_ -> onEffects router rest Nil (State generated.seed))
 
 
-onSelfMsg :: ∀ msg. Platform.Router msg Unit -> Unit -> Seed -> Task Never Seed
-onSelfMsg _ _ seed =
-    Task.succeed seed
+onSelfMsg :: ∀ msg. Platform.Router msg Unit -> Unit -> State msg -> Task Never (State msg)
+onSelfMsg _ _ state =
+    Task.succeed state

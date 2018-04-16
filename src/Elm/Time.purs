@@ -149,34 +149,35 @@ instance functorMySub :: Functor MySub where
 
 -- EFFECT MANAGER
 
-timeManager :: ∀ appMsg. Partial => Manager Proxy MySub appMsg Time (State appMsg)
+timeManager :: Partial => Manager Proxy MySub Time State
 timeManager = {init, onEffects, onSelfMsg}
 
 
-type State msg =
-    { taggers :: Taggers msg
-    , processes :: Processes
-    }
+newtype State appMsg =
+    State
+        { taggers :: Taggers appMsg
+        , processes :: Processes
+        }
 
 
 type Processes =
     Dict.Dict Time Platform.ProcessId
 
 
-type Taggers msg =
-    Dict.Dict Time (List (Time -> msg))
+type Taggers appMsg =
+    Dict.Dict Time (List (Time -> appMsg))
 
 
-init :: ∀ msg. Task Never (State msg)
+init :: ∀ appMsg. Task Never (State appMsg)
 init =
-    pure
+    pure $ State
         { taggers: Dict.empty
         , processes: Dict.empty
         }
 
 
 onEffects :: ∀ msg. Partial => Platform.Router msg Time -> List (Proxy msg) -> List (MySub msg) -> State msg -> Task Never (State msg)
-onEffects router _ subs {processes} =
+onEffects router _ subs (State {processes}) =
     let
         newTaggers =
             List.foldl addMySub Dict.empty subs
@@ -204,7 +205,7 @@ onEffects router _ subs {processes} =
     in
         killTask
             |> Task.andThen (\_ -> spawnHelp router spawnList existingDict)
-            |> Task.andThen (\newProcesses -> Task.succeed {taggers: newTaggers, processes: newProcesses})
+            |> Task.andThen (\newProcesses -> Task.succeed $ State {taggers: newTaggers, processes: newProcesses})
 
 
 addMySub :: ∀ msg. MySub msg -> Taggers msg -> Taggers msg
@@ -236,15 +237,15 @@ spawnHelp router intervals processes =
 
 
 onSelfMsg :: ∀ msg. Partial => Platform.Router msg Time -> Time -> State msg -> Task Never (State msg)
-onSelfMsg router interval state =
-    case Dict.get interval state.taggers of
+onSelfMsg router interval state@(State {taggers}) =
+    case Dict.get interval taggers of
         Nothing ->
             Task.succeed state
 
-        Just taggers ->
+        Just intervalTaggers ->
             let
                 tellTaggers time =
-                    Task.sequence (List.map (\tagger -> Platform.sendToApp router (tagger time)) taggers)
+                    Task.sequence (List.map (\tagger -> Platform.sendToApp router (tagger time)) intervalTaggers)
             in
                 now
                     |> Task.andThen tellTaggers

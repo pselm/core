@@ -46,7 +46,7 @@ import Elm.Process (spawn)
 import Elm.Result (Result(..))
 import Prelude (class Functor, Unit, bind, const, discard, map, pure, unit, ($), (<$>), (<<<), (>>=))
 import Prelude (map) as Virtual
-import Type.Prelude (Proxy)
+import Type.Proxy (Proxy(..))
 
 
 -- | Takes a `Task` and unwraps the underlying `IO`.
@@ -304,27 +304,32 @@ attempt resultToMessage task =
 
 -- MANAGER
 
--- We have no subs or msg type ... for the moment, using Proxy and Unit ...
--- possibly better options exist.
-taskManager :: ∀ appMsg. Partial => Manager MyCmd Proxy appMsg Unit Unit
+-- We have no subs or msg type, and we don't actually keep state ... for the
+-- moment, using Proxy and Unit ...  possibly better options exist.
+taskManager :: Partial => Manager MyCmd Proxy Unit Proxy
 taskManager = {init, onEffects, onSelfMsg}
 
 
-init :: Task Never Unit
+-- Even though we don't actually keep state, the types are arranged in such a
+-- way that we have to produce some ... I suppose there may be a way to avoid
+-- this, via a `Maybe` somewhere. Also, our state is necessarily parameterized,
+-- so we can't just use `Unit` ... we'd need a kind of `Unit2`. (Like a `Proxy`
+-- ... in fact, so much like a `Proxy` that I'll just use one).
+init :: ∀ appMsg. Task Never (Proxy appMsg)
 init =
-    succeed unit
+    succeed Proxy
 
 
-onEffects :: ∀ appMsg. Partial => Platform.Router appMsg Unit -> List (MyCmd appMsg) -> List (Proxy appMsg) -> Unit -> Task Never Unit
+onEffects :: ∀ appMsg. Partial => Platform.Router appMsg Unit -> List (MyCmd appMsg) -> List (Proxy appMsg) -> Proxy appMsg -> Task Never (Proxy appMsg)
 onEffects router commands subs state =
     map
-        (\_ -> unit)
+        (\_ -> Proxy)
         (sequence (List.map (spawnCmd router) commands))
 
 
-onSelfMsg :: ∀ appMsg. Platform.Router appMsg Unit -> Unit -> Unit -> Task Never Unit
+onSelfMsg :: ∀ appMsg. Platform.Router appMsg Unit -> Unit -> Proxy appMsg -> Task Never (Proxy appMsg)
 onSelfMsg _ _ _ =
-    succeed unit
+    succeed Proxy
 
 
 spawnCmd :: ∀ x appMsg. Partial => Platform.Router appMsg Unit -> MyCmd appMsg -> Task x Unit
