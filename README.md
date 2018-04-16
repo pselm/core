@@ -62,7 +62,7 @@ but some cases required more work, or a separate implementation.
 | Elm.Result      | Data.Either        | purescript-either   |
 | Elm.Set         | Data.Set           | purescript-sets     |
 | Elm.String      | Data.String        | purescript-strings  |
-| Elm.Task        | Conrol.Monad.Aff   | purescript-aff      |
+| Elm.Task        | Conrol.Monad.IO    | purescript-io       |
 | Elm.Time        | Data.Time.Duration | purescript-datetime |
 | Elm.Trampoline  | Control.Monad.Trampoline | purescript-free |
 | Elm.Transform2D | Graphics.Canvas | purescript-canvas |
