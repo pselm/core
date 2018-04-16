@@ -18,6 +18,7 @@ import Data.Tuple (Tuple)
 import Elm.Basics (Never)
 import Partial (crash)
 import Prelude (Unit, const, ($))
+import Unsafe.Coerce (unsafeCoerce)
 
 
 -- | A `Program` describes how to manage your Elm app.
@@ -219,7 +220,25 @@ type Manager cmd sub appMsg selfMsg state =
 -- | ever, commands will make more sense as you work through [the Elm Architecture
 -- | Tutorial](http://guide.elm-lang.org/architecture/index.html) and see how they
 -- | fit into a real application!
-data Cmd msg = Cmd
+foreign import data Cmd :: Type -> Type
+
+
+-- We're going to need to forget most of these types, except for `appMsg`. So, we
+-- have to bundle together everything else we're going to need ...
+type CmdManager cmd sub appMsg selfMsg state =
+    { cmd :: cmd appMsg
+    , manager :: Manager cmd sub appMsg selfMsg state
+    }
+
+
+-- This is basically the `Data.Exists` pattern, but we want to eliminate more
+-- than one type variable, so this is handy.
+mkCmd :: ∀ appMsg selfMsg cmd sub state. CmdManager cmd sub appMsg selfMsg state -> Cmd appMsg
+mkCmd = unsafeCoerce
+
+
+runCmd :: ∀ appMsg r. (∀ selfMsg cmd sub state. CmdManager cmd sub appMsg selfMsg state -> r) -> Cmd appMsg -> r
+runCmd = unsafeCoerce
 
 
 -- | `command` is a magical function in Elm. It gets called by effects modules,
@@ -256,12 +275,11 @@ data Cmd msg = Cmd
 -- | classes, but I think it will be easier to start by explicitly passing
 -- | records around.
 command :: ∀ cmd sub appMsg selfMsg state.
-    Partial =>
     Manager cmd sub appMsg selfMsg state ->
     cmd appMsg ->
     Cmd appMsg
 command manager cmd =
-    crash
+    mkCmd { manager, cmd }
 
 
 -- | A subscription is a way of telling Elm, “Hey, let me know if anything
@@ -283,11 +301,26 @@ data Sub msg =
     Sub
 
 
+type SubManager cmd sub appMsg selfMsg state =
+    { sub :: sub appMsg
+    , manager :: Manager cmd sub appMsg selfMsg state
+    }
+
+
+-- This is basically the `Data.Exists` pattern, but we want to eliminate more
+-- than one type variable.
+mkSub :: ∀ appMsg selfMsg cmd sub state. SubManager cmd sub appMsg selfMsg state -> Sub appMsg
+mkSub = unsafeCoerce
+
+
+runSub :: ∀ appMsg r. (∀ selfMsg cmd sub state. SubManager cmd sub appMsg selfMsg state -> r) -> Sub appMsg -> r
+runSub = unsafeCoerce
+
+
 -- | Like `command`, but for subscriptions.
 subscription :: ∀ cmd sub appMsg selfMsg state.
-    Partial =>
     Manager cmd sub appMsg selfMsg state ->
     sub appMsg ->
     Sub appMsg
 subscription manager sub =
-    crash
+    mkSub { manager, sub }
