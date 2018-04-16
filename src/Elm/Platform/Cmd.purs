@@ -12,34 +12,31 @@
 
 module Elm.Platform.Cmd
   ( module Virtual
-  , batch
-  , none
   , withCmds
   , (!)
   ) where
 
 
-import Data.List (List(..))
+import Data.Foldable (class Foldable, fold)
+import Data.Monoid (class Monoid)
 import Data.Tuple (Tuple(..))
+import Elm.Monoid (batch, none) as Virtual
 import Elm.Platform (Cmd) as Virtual
-import Elm.Platform (Cmd)
-import Partial (crash)
+import Prelude ((<<<))
 import Prelude (map) as Virtual
 
 
-batch :: ∀ msg. Partial => List (Cmd msg) -> Cmd msg
-batch cmds =
-    crash
-
-
-none :: ∀ msg. Partial => Cmd msg
-none =
-    batch Nil
-
-
-withCmds :: ∀ model msg. Partial => model -> List (Cmd msg) -> Tuple model (Cmd msg)
-withCmds model commands =
-    Tuple model (batch commands)
+withCmds :: ∀ f model cmd. Foldable f => Monoid cmd => model -> f cmd -> Tuple model cmd
+withCmds model =
+    Tuple model <<< fold
 
 
 infixl 5 withCmds as !
+
+
+-- Wasn't that easy? The real work here is going on in Elm.Platform, of course.
+-- It's easier to define the `Sub` type there, in order to avoid cirucular
+-- dependencies, and then re-export it here.
+--
+-- And, several other functions Elm defines here are based on the instances for
+-- Cmd, so they can just be re-exported as well.
