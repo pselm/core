@@ -223,8 +223,26 @@ type Manager cmd sub selfMsg state =
 foreign import data Cmd :: Type -> Type
 
 
--- We're going to need to forget most of these types, except for `appMsg`. So, we
--- have to bundle together everything else we're going to need ...
+instance functorCmd :: Functor Cmd where
+    map func =
+        runCmd \cmdManager ->
+            mkCmd $ cmdManager { cmd = cmdManager.map func cmdManager.cmd }
+
+
+-- At least initially, our strategy is to use `command` and `subscription`,
+-- which the Elm code calls anyway, to bundle up the effects manager with the
+-- `Cmd` or the `Sub`. That way, we don't have to pre-collect the effects
+-- managers ... we can just use the ones we are given.
+--
+-- Now, we're ultimately going to need to create some kind of mapping from an
+-- effects manager to the state which it wants. Which, I suppose, will require
+-- that `command` and `subscription` require an `Ord` instance on `Manager`?
+-- Which I suppose can be arranged in one way or another ... possibly via
+-- `Type.Typeable` or the equivalent.
+--
+-- In any event, We're going to need to forget most of these types, except for
+-- `appMsg`, in order to work with Elm's `Cmd msg`. So, we have to bundle
+-- together everything else we're going to need, so we can work existentially.
 type CmdManager cmd sub appMsg selfMsg state =
     { cmd :: cmd appMsg
     , manager :: Manager cmd sub selfMsg state
@@ -300,6 +318,12 @@ command manager cmd =
 -- | Tutorial](http://guide.elm-lang.org/architecture/index.html) and see how they fit
 -- | into a real application!
 foreign import data Sub :: Type -> Type
+
+
+instance functorSub :: Functor Sub where
+    map func =
+        runSub \subManager ->
+            mkSub $ subManager { sub = subManager.map func subManager.sub }
 
 
 type SubManager cmd sub appMsg selfMsg state =

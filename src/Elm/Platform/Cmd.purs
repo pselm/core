@@ -12,7 +12,6 @@
 
 module Elm.Platform.Cmd
   ( module Virtual
-  , map
   , batch
   , none
   , withCmds
@@ -25,11 +24,7 @@ import Data.Tuple (Tuple(..))
 import Elm.Platform (Cmd) as Virtual
 import Elm.Platform (Cmd)
 import Partial (crash)
-
-
-map :: ∀ a msg. Partial => (a -> msg) -> Cmd a -> Cmd msg
-map func cmd =
-    crash
+import Prelude (map) as Virtual
 
 
 batch :: ∀ msg. Partial => List (Cmd msg) -> Cmd msg

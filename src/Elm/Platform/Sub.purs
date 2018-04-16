@@ -1,7 +1,6 @@
 
 module Elm.Platform.Sub
   ( module Virtual
-  , map
   , batch
   , none
   ) where
@@ -11,11 +10,7 @@ import Data.List (List(..))
 import Elm.Platform (Sub) as Virtual
 import Elm.Platform (Sub)
 import Partial (crash)
-
-
-map :: ∀ a msg. Partial => (a -> msg) -> Sub a -> Sub msg
-map func sub =
-    crash
+import Prelude (map) as Virtual
 
 
 batch :: ∀ msg. Partial => List (Sub msg) -> Sub msg
