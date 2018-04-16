@@ -14,10 +14,11 @@ import Control.Monad.Aff (Fiber)
 import Control.Monad.Except.Trans (ExceptT)
 import Control.Monad.IO (INFINITY, IO)
 import Data.List (List)
+import Data.Monoid (class Monoid, mempty)
 import Data.Tuple (Tuple)
 import Elm.Basics (Never)
 import Partial (crash)
-import Prelude (class Functor, Unit, const, map, ($))
+import Prelude (class Functor, class Semigroup, Unit, append, const, map, pure, ($))
 import Unsafe.Coerce (unsafeCoerce)
 
 
@@ -220,13 +221,27 @@ type Manager cmd sub selfMsg state =
 -- | ever, commands will make more sense as you work through [the Elm Architecture
 -- | Tutorial](http://guide.elm-lang.org/architecture/index.html) and see how they
 -- | fit into a real application!
-foreign import data Cmd :: Type -> Type
+newtype Cmd msg =
+    Cmd (List (ExistsCmd msg))
 
 
+-- The compiler  could probably derive all of these.
 instance functorCmd :: Functor Cmd where
-    map func =
-        runCmd \cmdManager ->
-            mkCmd $ cmdManager { cmd = cmdManager.map func cmdManager.cmd }
+    map func (Cmd list) =
+        Cmd $ map (map func) list
+
+instance semigroupCmd :: Semigroup (Cmd msg) where
+    append (Cmd list1) (Cmd list2) =
+        Cmd $ append list1 list2
+
+instance monoidCmd :: Monoid (Cmd msg) where
+    mempty =
+        Cmd mempty
+
+
+-- A `Cmd` is basically a list of existential commands which share the same
+-- appMsg, but may differ in other ways.  The internal list gets us an easy
+-- implementation for `batch` and `none`.
 
 
 -- At least initially, our strategy is to use `command` and `subscription`,
@@ -250,14 +265,21 @@ type CmdManager cmd sub appMsg selfMsg state =
     }
 
 
--- This is basically the `Data.Exists` pattern, but we want to eliminate more
--- than one type variable, so this is handy.
-mkCmd :: ∀ appMsg selfMsg cmd sub state. CmdManager cmd sub appMsg selfMsg state -> Cmd appMsg
-mkCmd = unsafeCoerce
+-- This is essentially a version of `CmdManager` with some types forgotten. So,
+-- it's the `Data.Exists` pattern, but we want to eliminate more than one type
+-- variable, so this is handy.
+foreign import data ExistsCmd :: Type -> Type
 
+mkExistsCmd :: ∀ appMsg selfMsg cmd sub state. CmdManager cmd sub appMsg selfMsg state -> ExistsCmd appMsg
+mkExistsCmd = unsafeCoerce
 
-runCmd :: ∀ appMsg r. (∀ selfMsg cmd sub state. CmdManager cmd sub appMsg selfMsg state -> r) -> Cmd appMsg -> r
-runCmd = unsafeCoerce
+runExistsCmd :: ∀ appMsg r. (∀ selfMsg cmd sub state. CmdManager cmd sub appMsg selfMsg state -> r) -> ExistsCmd appMsg -> r
+runExistsCmd = unsafeCoerce
+
+instance functorExistsCmd :: Functor ExistsCmd where
+    map func =
+        runExistsCmd \cmdManager ->
+            mkExistsCmd $ cmdManager { cmd = cmdManager.map func cmdManager.cmd }
 
 
 -- | `command` is a magical function in Elm. It gets called by effects modules,
@@ -299,7 +321,7 @@ command :: ∀ cmd sub appMsg selfMsg state.
     cmd appMsg ->
     Cmd appMsg
 command manager cmd =
-    mkCmd { manager, cmd, map }
+    Cmd $ pure $ mkExistsCmd { manager, cmd, map }
 
 
 -- | A subscription is a way of telling Elm, “Hey, let me know if anything
@@ -317,13 +339,22 @@ command manager cmd =
 -- | ever, subscriptions will make more sense as you work through [the Elm Architecture
 -- | Tutorial](http://guide.elm-lang.org/architecture/index.html) and see how they fit
 -- | into a real application!
-foreign import data Sub :: Type -> Type
+newtype Sub msg =
+    Sub (List (ExistsSub msg))
 
 
+-- The instances could probably be derived by the compiler.
 instance functorSub :: Functor Sub where
-    map func =
-        runSub \subManager ->
-            mkSub $ subManager { sub = subManager.map func subManager.sub }
+    map func (Sub list) =
+        Sub $ map (map func) list
+
+instance semigroupSub :: Semigroup (Sub msg) where
+    append (Sub list1) (Sub list2) =
+        Sub $ append list1 list2
+
+instance monoidSub :: Monoid (Sub msg) where
+    mempty =
+        Sub mempty
 
 
 type SubManager cmd sub appMsg selfMsg state =
@@ -333,14 +364,18 @@ type SubManager cmd sub appMsg selfMsg state =
     }
 
 
--- This is basically the `Data.Exists` pattern, but we want to eliminate more
--- than one type variable.
-mkSub :: ∀ appMsg selfMsg cmd sub state. SubManager cmd sub appMsg selfMsg state -> Sub appMsg
-mkSub = unsafeCoerce
+foreign import data ExistsSub :: Type -> Type
 
+mkExistsSub :: ∀ appMsg selfMsg cmd sub state. SubManager cmd sub appMsg selfMsg state -> ExistsSub appMsg
+mkExistsSub = unsafeCoerce
 
-runSub :: ∀ appMsg r. (∀ selfMsg cmd sub state. SubManager cmd sub appMsg selfMsg state -> r) -> Sub appMsg -> r
-runSub = unsafeCoerce
+runExistsSub :: ∀ appMsg r. (∀ selfMsg cmd sub state. SubManager cmd sub appMsg selfMsg state -> r) -> ExistsSub appMsg -> r
+runExistsSub = unsafeCoerce
+
+instance functorExistsSub :: Functor ExistsSub where
+    map func =
+        runExistsSub \subManager ->
+            mkExistsSub $ subManager { sub = subManager.map func subManager.sub }
 
 
 -- | Like `command`, but for subscriptions.
@@ -350,4 +385,4 @@ subscription :: ∀ cmd sub appMsg selfMsg state.
     sub appMsg ->
     Sub appMsg
 subscription manager sub =
-    mkSub { manager, sub, map }
+    Sub $ pure $ mkExistsSub { manager, sub, map }
