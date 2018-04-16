@@ -281,7 +281,7 @@ runCmd = unsafeCoerce
 -- |   are parameterized by the same `appMsg`. So, that implies, at the very
 -- |   least, that there will need to be an existential element to this ...
 -- |   we'll need to "forget" some of our type information and yet able to
--- |   "receover" it.
+-- |   "recover" it.
 -- |
 -- | Now, the special role played by the `command` function (in Elm) is that it
 -- | takes whatever type the particular effects module uses for its commands,
