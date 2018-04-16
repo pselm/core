@@ -56,7 +56,7 @@ but some cases required more work, or a separate implementation.
 | Elm.Platform    |               |                      |
 | Elm.Platform.Cmd |              |                      |
 | Elm.Platform.Sub |              |                      |
-| Elm.Process     |               |                      |
+| Elm.Process     | Control.Monad.Aff  | purescript-aff      |                      |
 | Elm.Random      | Test.QuickCheck.Arbitrary | purescript-quickcheck |
 | Elm.Regex       | Data.String.Regex  | purescript-strings  |
 | Elm.Result      | Data.Either        | purescript-either   |
