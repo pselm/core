@@ -307,7 +307,13 @@ attempt resultToMessage task =
 -- We have no subs or msg type, and we don't actually keep state ... for the
 -- moment, using Proxy and Unit ...  possibly better options exist.
 taskManager :: Partial => Manager MyCmd Proxy Unit Proxy
-taskManager = {init, onEffects, onSelfMsg}
+taskManager = {init, onEffects, onSelfMsg, tag}
+
+
+-- A unique tag for our effect manager. (Ideally, we change things eventually
+-- so we don't need this).
+tag :: String
+tag = "Elm.Task"
 
 
 -- Even though we don't actually keep state, the types are arranged in such a

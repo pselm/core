@@ -11,14 +11,17 @@ module Elm.Platform
 
 
 import Control.Monad.Aff (Fiber)
+import Control.Monad.Eff.Class (liftEff)
+import Control.Monad.Eff.Ref (newRef)
 import Control.Monad.Except.Trans (ExceptT)
 import Control.Monad.IO (INFINITY, IO)
 import Data.List (List)
 import Data.Monoid (class Monoid, mempty)
+import Data.StrMap (empty) as StrMap
 import Data.Tuple (Tuple)
 import Elm.Basics (Never)
 import Partial (crash)
-import Prelude (class Functor, class Semigroup, Unit, append, const, map, pure, ($))
+import Prelude (class Functor, class Semigroup, Unit, append, bind, const, map, pure, unit, ($))
 import Unsafe.Coerce (unsafeCoerce)
 
 
@@ -81,30 +84,6 @@ programWithFlags :: ∀ flags model msg.
     -> Program flags model msg
 programWithFlags =
     Program
-
-
--- | In Elm, you simply assign your `Program` to `main` and it gets run. Here,
--- | we need to explicilty `run` a program to turn it into an `IO` that you can
--- | execute.
--- |
--- | Eventually, this will need to take into account flags and ports, which are
--- | Elm's way of communicating with Javascript. Flags would be an argument
--- | that the Javascript side can call when starting the program. Ports would
--- | be something returned by the function that the Javascript side calls,
--- | which the Javascript side can use to subscribe to values and send values.
--- |
--- | So, eventually this will problem look more like:
--- |
--- |     runProgram :: ∀ flags model msg. Foreign -> Program flags model msg -> IO Ports
--- |
--- | for some definition of `Ports` (in fact, there's an extra level of
--- | indirection in Elm with the `.worker()` call, so we could set that up as
--- | well). And, `flags` will probably need a typeclass constraint in order to
--- | support the auto-decoding that Elm does. (We can probably auto-decode
--- | using generics).
-runProgram :: ∀ flags model msg. Partial => Program flags model msg -> IO Unit
-runProgram =
-    crash
 
 
 -- TASKS and PROCESSES
@@ -206,6 +185,15 @@ type Manager cmd sub selfMsg state =
 
     -- | Handle our internal messages when we get them ...
     , onSelfMsg :: ∀ appMsg. Router appMsg selfMsg -> selfMsg -> state appMsg -> Task Never (state appMsg)
+
+    -- | A unique tag we'll use to store and lookup your state. So, you could
+    -- | supply the fully qualified name of your module, for instance.
+    -- |
+    -- | For the moment, at least, this is a bit hackish, as it relies on you
+    -- | to provide a unique string. Ideally, there would be some type-level
+    -- | manipulation we coud do to avoid this, but this is a reasonable
+    -- | start.
+    , tag :: String
     }
 
 
@@ -386,3 +374,83 @@ subscription :: ∀ cmd sub appMsg selfMsg state.
     Sub appMsg
 subscription manager sub =
     Sub $ pure $ mkExistsSub { manager, sub, map }
+
+
+-- RUNNING A PROGRAM
+
+-- | In Elm, you simply assign your `Program` to `main` and it gets run. Here,
+-- | we need to explicilty `run` a program to turn it into an `IO` that you can
+-- | execute.
+-- |
+-- | Eventually, this will need to take into account flags and ports, which are
+-- | Elm's way of communicating with Javascript. Flags would be an argument
+-- | that the Javascript side can call when starting the program. Ports would
+-- | be something returned by the function that the Javascript side calls,
+-- | which the Javascript side can use to subscribe to values and send values.
+-- |
+-- | So, eventually this will problem look more like:
+-- |
+-- |     runProgram :: ∀ flags model msg. Foreign -> Program flags model msg -> IO Ports
+-- |
+-- | for some definition of `Ports` (in fact, there's an extra level of
+-- | indirection in Elm with the `.worker()` call, so we could set that up as
+-- | well). And, `flags` will probably need a typeclass constraint in order to
+-- | support the auto-decoding that Elm does. (We can probably auto-decode
+-- | using generics).
+-- |
+-- | Also, eventually this will need to take the `view` into account! (That
+-- | code is mostly in elm-lang/html, though some code will be needed here to
+-- | integrate with that).
+-- |
+-- | Actually, I think this function will be the "internal" one, so we'll just
+-- | require The flags to be prvoided. We'll have another function that is
+-- | meant for consumption from Javascript, in which we require that the
+-- | `flags` have a `Decode` instance, which you can generate via
+-- | purescript-foreign-generics.
+runProgram :: ∀ flags model msg. Partial => flags -> Program flags model msg -> IO Unit
+runProgram flags (Program p) = do
+    -- This is, to begin with, a kind of "literal" translation of the
+    -- Javascript code from the Elm runtime's `Platform.js`. Ultimately, I am
+    -- quite sure there is a more elegant way to do this.
+    --
+    -- There's an interesting article that brings together some ideas that seem
+    -- relevant:
+    --
+    -- http://www.parsonsmatt.org/2016/07/14/rank_n_classy_limited_effects.html
+    --
+    -- Ultimately, the way effects are implemented in Elm does seem to have
+    -- something in common with the Free Monad pattern ... certainly, that's
+    -- what the various `MyCmd` and `MySub` types look like. So, ultimately I'd
+    -- like to do something more interesting than this with them. But, it seems
+    -- better to start with a more literal translation of the Javascript.
+    --
+    -- We'll start off with the most literal encoding of Javascript stuff, an
+    -- IORef, and see later if we can move to STRef or better.
+    managers <-
+        liftEff $ newRef StrMap.empty
+
+    pure unit
+
+
+
+-- We'll just coerce to and from this for now ... eventually, we should try to
+-- arrange the types so that we can prove the coercions are safe.
+foreign import data ManagerState :: Type -> Type
+
+
+{- Here's a list of how Elm auto-decodes ... I may need to tweak what
+purescript-foreign-generic does in order to match this exactly ...
+
+    Booleans and Strings – both exist in Elm and JS!
+    Numbers – Elm ints and floats correspond to JS numbers
+    Lists – correspond to JS arrays
+    Arrays – correspond to JS arrays
+    Tuples – correspond to fixed-length, mixed-type JS arrays
+    Records – correspond to JavaScript objects
+    Maybes – Nothing and Just 42 correspond to null and 42 in JS
+    Json – Json.Encode.Value corresponds to arbitrary JSON
+
+Records will also need newtypes to be used as flags, sadly -- at least,
+I don't think there is any way around that.
+
+-}

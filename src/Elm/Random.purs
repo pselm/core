@@ -467,7 +467,13 @@ generate tagger generator =
 
 
 randomManager :: Partial => Manager MyCmd Proxy Unit State
-randomManager = {init, onEffects, onSelfMsg}
+randomManager = {init, onEffects, onSelfMsg, tag}
+
+
+-- A unique tag for our effect manager. (Ideally, we change things eventually
+-- so we don't need this).
+tag :: String
+tag = "Elm.Random"
 
 
 data MyCmd msg

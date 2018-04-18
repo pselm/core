@@ -150,7 +150,13 @@ instance functorMySub :: Functor MySub where
 -- EFFECT MANAGER
 
 timeManager :: Partial => Manager Proxy MySub Time State
-timeManager = {init, onEffects, onSelfMsg}
+timeManager = {init, onEffects, onSelfMsg, tag}
+
+
+-- A unique tag for our effect manager. (Ideally, we change things eventually
+-- so we don't need this).
+tag :: String
+tag = "Elm.Time"
 
 
 newtype State appMsg =
