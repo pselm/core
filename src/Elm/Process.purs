@@ -12,7 +12,6 @@ module Elm.Process
 
 
 import Control.Monad.Aff (forkAff, delay, killFiber, apathize)
-import Control.Monad.Aff.AVar (killVar, makeEmptyVar)
 import Control.Monad.Aff.Class (liftAff)
 import Control.Monad.Eff.Exception (error)
 import Control.Monad.Except.Trans (ExceptT(..), runExceptT)
@@ -20,8 +19,8 @@ import Control.Monad.Trans.Class (lift)
 import Data.Either (Either(..))
 import Data.Newtype (unwrap)
 import Data.Time.Duration (Milliseconds(..), toDuration)
-import Elm.Platform (Process(..), ProcessId, Task)
-import Prelude (Unit, bind, discard, pure, ($), (<$>), (<<<))
+import Elm.Platform (Task, ProcessId)
+import Prelude (Unit, ($), (<$>), (<<<))
 
 
 -- This is repeated here to avoid a circular dependency
@@ -57,10 +56,8 @@ type Id =
 -- | cannot receive any messages. More flexibility for user-defined processes will
 -- | come in a later release!
 spawn :: ∀ x y a. Task x a -> Task y Id
-spawn task = do
-    mailbox <- liftAff makeEmptyVar
-    fiber <- (lift <<< liftAff <<< forkAff <<< apathize <<< unwrap <<< runExceptT) task
-    pure $ Process { mailbox, fiber }
+spawn =
+     lift <<< liftAff <<< forkAff <<< apathize <<< unwrap <<< runExceptT
 
 
 -- | Block progress on the current process for a given amount of time. The
@@ -78,14 +75,6 @@ sleep time =
 -- | to bail on whatever task it is running. So if there is an HTTP request in
 -- | flight, it will also abort the request.
 kill :: ∀ y. Id -> Task y Unit
-kill (Process {mailbox, fiber}) =
+kill =
     -- We have to specify an specific error ...
-    let
-        err =
-            error "Elm.Process.kill"
-    in do
-        -- I should figure out how to make `liftAff` lift something straight
-        -- into `Task`. Also, I should probably set things up so that the AVar
-        -- is automatically killed when the fiber exits.
-        lift $ liftAff $ killVar err mailbox
-        lift $ liftAff $ killFiber err fiber
+    lift <<< liftAff <<< killFiber (error "Elm.Process.kill")

@@ -2,7 +2,7 @@
 module Elm.Platform
   ( Program, program, programWithFlags
   , runProgram
-  , Task, Process(..), ProcessId
+  , Task, ProcessId
   , Router, sendToApp, sendToSelf
   , Manager
   , Cmd, command
@@ -11,7 +11,6 @@ module Elm.Platform
 
 
 import Control.Monad.Aff (Fiber)
-import Control.Monad.Aff.AVar (AVar)
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Ref (newRef)
 import Control.Monad.Except.Trans (ExceptT)
@@ -110,15 +109,7 @@ type Task x a =
 -- | information on this. It is only defined here because it is a platform
 -- | primitive.
 type ProcessId =
-    Process Never
-
-
--- | A process which can be sent messages of the given type.
-newtype Process msg =
-    Process
-        { mailbox :: AVar msg
-        , fiber :: Fiber (infinity :: INFINITY) Unit
-        }
+    Fiber (infinity :: INFINITY) Unit
 
 
 -- EFFECT MANAGER INTERNALS
@@ -244,9 +235,7 @@ instance monoidCmd :: Monoid (Cmd msg) where
 -- At least initially, our strategy is to use `command` and `subscription`,
 -- which the Elm code calls anyway, to bundle up the effects manager with the
 -- `Cmd` or the `Sub`. That way, we don't have to pre-collect the effects
--- managers ... we can just use the ones we are given. (Ultimately, we'll
--- probably want to declare in advance which effects managers the app uses,
--- via one mechanism or another, but it's easier to get started this way).
+-- managers ... we can just use the ones we are given.
 --
 -- Now, we're ultimately going to need to create some kind of mapping from an
 -- effects manager to the state which it wants. Which, I suppose, will require
