@@ -8,12 +8,11 @@ module Elm.Process
   , spawn
   , sleep
   , kill
-  , send
   ) where
 
 
 import Control.Monad.Aff (forkAff, delay, killFiber, apathize)
-import Control.Monad.Aff.AVar (killVar, makeEmptyVar, putVar)
+import Control.Monad.Aff.AVar (killVar, makeEmptyVar)
 import Control.Monad.Aff.Class (liftAff)
 import Control.Monad.Eff.Exception (error)
 import Control.Monad.Except.Trans (ExceptT(..), runExceptT)
@@ -90,11 +89,3 @@ kill (Process {mailbox, fiber}) =
         -- is automatically killed when the fiber exits.
         lift $ liftAff $ killVar err mailbox
         lift $ liftAff $ killFiber err fiber
-
-
--- | A task that will send a message to a process that can receive messages.
--- |
--- | This is not exposed in Elm, though something like it is used internally.
-send :: ∀ x msg. Process msg -> msg -> Task x Unit
-send (Process {mailbox}) msg =
-    lift $ liftAff $ putVar msg mailbox
