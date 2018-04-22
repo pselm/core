@@ -5,3 +5,4 @@
 /.psci*
 /docs/
 /**/.DS_Store
+*.elm.js
