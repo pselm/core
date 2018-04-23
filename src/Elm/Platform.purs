@@ -11,17 +11,18 @@ module Elm.Platform
 
 
 import Control.Monad.Aff (Fiber)
-import Control.Monad.Eff.Class (liftEff)
-import Control.Monad.Eff.Ref (newRef)
+import Control.Monad.Aff.AVar (AVar, makeEmptyVar, makeVar, takeVar)
+import Control.Monad.Aff.Class (liftAff)
 import Control.Monad.Except.Trans (ExceptT)
 import Control.Monad.IO (INFINITY, IO)
 import Data.List (List)
 import Data.Monoid (class Monoid, mempty)
+import Data.StrMap (StrMap)
 import Data.StrMap (empty) as StrMap
-import Data.Tuple (Tuple)
+import Data.Tuple (Tuple(..))
 import Elm.Basics (Never)
 import Partial (crash)
-import Prelude (class Functor, class Semigroup, Unit, append, bind, const, map, pure, unit, ($))
+import Prelude (class Functor, class Semigroup, Unit, append, bind, const, discard, map, pure, unit, void, ($))
 import Unsafe.Coerce (unsafeCoerce)
 
 
@@ -423,14 +424,95 @@ runProgram flags (Program p) = do
     -- what the various `MyCmd` and `MySub` types look like. So, ultimately I'd
     -- like to do something more interesting than this with them. But, it seems
     -- better to start with a more literal translation of the Javascript.
-    --
-    -- We'll start off with the most literal encoding of Javascript stuff, an
-    -- IORef, and see later if we can move to STRef or better.
-    managers <-
-        liftEff $ newRef StrMap.empty
 
+    -- We'll need to keep track of some kind of state for the managers. This
+    -- may or may not need to be an AVar, but we'll start there.
+    managers <-
+        liftAff $ makeVar StrMap.empty
+
+    -- We'll need an AVar for feeding messages into the update loop for our
+    -- main process. We can create it out here, empty, so we've got it ...  we
+    -- can figure out what to do with it later.
+    --
+    -- Note that the Elm kernel actually creates a "mailbox" for every Process,
+    -- that is, for everything you `spawn`. But, that would be overkill for us,
+    -- for the moment, because Elm doesn't expose that yet. And, it would
+    -- require an additional type variable on `ProcessId`, and possibly on
+    -- `Task`, to indicate the kind of messages that can be received. So, it's
+    -- easier, for the moment, to special-case the mailboxes here.
+    --
+    -- This may end up being too simple ... we might need to keep a list of
+    -- messages rather than one, and we might need to pay attention to blocking
+    -- and deadlock. But we can start this way.
+    mailbox <-
+        liftAff makeEmptyVar
+
+    -- We could do this immediately, rather than constructing an IO to do it,
+    -- but I think that would leave the initial model in scope for the whole
+    -- program, which isn't ideal. So, we'll define an IO that produces the
+    -- initial model. I suppose it would be nice if we could also arrange for
+    -- the `flags` to go out of scope and be garbage-collected.
+    let initApp = do
+            let (Tuple model cmds) = p.init flags
+            let subs = p.subscriptions model
+
+            -- Eventually, we'll need something here to do our initial view ...
+            -- but I'll wait for that until the basics are done.
+
+            -- So, we've got some effects ... we'll need to do something with
+            -- them!  Now, we're going to have exactly this sort of thing in
+            -- our update loop, so we may as well write a function for it. It
+            -- will definitely need to know about our manager state, and the
+            -- mailbox for our main process.
+            dispatchEffects mailbox managers cmds subs
+
+            -- Then we return the model, to feed to the next loop
+            pure model
+
+    -- So, now we just need to setup the loop that waits to receive a message,
+    -- and then does something useful with it. We could use `forever`, but I
+    -- think we can set it up manually without much trouble -- we can switch
+    -- to `forever` if necessary. I guess the question is whether this is
+    -- going to be stack-safe or not ... it should blow up in a non-subtle
+    -- way if it's not!
+    let loop state = do
+            -- This is to initially run the `initApp` computation before we
+            -- block waiting for a `msg` ... we're trying to let the initial
+            -- model go out-of-scope, which is why we only run the computation
+            -- in here.  (It's possibly that this is misconceived).
+            model <- state
+
+            -- This blocks until a `putVar` to our mailbox
+            msg <- liftAff $ takeVar mailbox
+
+            let (Tuple newModel cmds) = p.update msg model
+            let subs = p.subscriptions model
+
+            -- Eventually, we'll need to do something with a `view` at this
+            -- stage.
+
+            -- We can re-use this one!
+            dispatchEffects mailbox managers cmds subs
+
+            -- Now, we loop back on ourselves, supplying the newly calculated
+            -- model.
+            loop $ pure model
+
+    -- I wonder whether we need to "spawn" this? I guess we'll see ... it may
+    -- be fine to just execute the loop in the main process -- it's not like
+    -- we have anything else to do.
+    void $ loop initApp
+
+    -- We'll never actually get here, since the main event loop for an Elm
+    -- program doesn't really ever end ... at least, I don't think it does.
     pure unit
 
+
+-- | Take a look at some cmds and subs we've collected, and do the right thing
+-- | with them.
+dispatchEffects :: ∀ appMsg. AVar appMsg -> AVar (StrMap (ManagerState appMsg)) -> Cmd appMsg -> Sub appMsg -> IO Unit
+dispatchEffects mailbox managers cmds subs =
+    pure unit
 
 
 -- We'll just coerce to and from this for now ... eventually, we should try to
