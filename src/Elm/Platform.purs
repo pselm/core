@@ -11,18 +11,18 @@ module Elm.Platform
 
 
 import Control.Monad.Aff (Fiber)
-import Control.Monad.Aff.AVar (AVar, makeEmptyVar, makeVar, takeVar)
+import Control.Monad.Aff.AVar (AVar, makeEmptyVar, takeVar)
 import Control.Monad.Aff.Class (liftAff)
 import Control.Monad.Except.Trans (ExceptT)
 import Control.Monad.IO (INFINITY, IO)
-import Data.List (List)
+import Data.List (List(..), (:))
 import Data.Monoid (class Monoid, mempty)
 import Data.StrMap (StrMap)
-import Data.StrMap (empty) as StrMap
+import Data.StrMap as StrMap
 import Data.Tuple (Tuple(..))
 import Elm.Basics (Never)
 import Partial (crash)
-import Prelude (class Functor, class Semigroup, Unit, append, bind, const, discard, map, pure, unit, void, ($))
+import Prelude (class Functor, class Semigroup, Unit, append, bind, const, map, pure, void, ($), (<>))
 import Unsafe.Coerce (unsafeCoerce)
 
 
@@ -425,11 +425,6 @@ runProgram flags (Program p) = do
     -- like to do something more interesting than this with them. But, it seems
     -- better to start with a more literal translation of the Javascript.
 
-    -- We'll need to keep track of some kind of state for the managers. This
-    -- may or may not need to be an AVar, but we'll start there.
-    managers <-
-        liftAff $ makeVar StrMap.empty
-
     -- We'll need an AVar for feeding messages into the update loop for our
     -- main process. We can create it out here, empty, so we've got it ...  we
     -- can figure out what to do with it later.
@@ -464,10 +459,11 @@ runProgram flags (Program p) = do
             -- our update loop, so we may as well write a function for it. It
             -- will definitely need to know about our manager state, and the
             -- mailbox for our main process.
-            dispatchEffects mailbox managers cmds subs
+            managers <-
+                dispatchEffects mailbox cmds subs StrMap.empty
 
-            -- Then we return the model, to feed to the next loop
-            pure model
+            -- Then we return the model and managers, to feed to the next loop
+            pure $ Tuple model managers
 
     -- So, now we just need to setup the loop that waits to receive a message,
     -- and then does something useful with it. We could use `forever`, but I
@@ -480,44 +476,126 @@ runProgram flags (Program p) = do
             -- block waiting for a `msg` ... we're trying to let the initial
             -- model go out-of-scope, which is why we only run the computation
             -- in here.  (It's possibly that this is misconceived).
-            model <- state
+            (Tuple model managers) <- state
 
             -- This blocks until a `putVar` to our mailbox
             msg <- liftAff $ takeVar mailbox
 
             let (Tuple newModel cmds) = p.update msg model
-            let subs = p.subscriptions model
+            let subs = p.subscriptions newModel
 
             -- Eventually, we'll need to do something with a `view` at this
             -- stage.
 
             -- We can re-use this one!
-            dispatchEffects mailbox managers cmds subs
+            newManagers <-
+                dispatchEffects mailbox cmds subs managers
 
             -- Now, we loop back on ourselves, supplying the newly calculated
-            -- model.
-            loop $ pure model
+            -- model and managers.
+            loop $ pure $ Tuple newModel newManagers
 
     -- I wonder whether we need to "spawn" this? I guess we'll see ... it may
     -- be fine to just execute the loop in the main process -- it's not like
     -- we have anything else to do.
     void $ loop initApp
 
-    -- We'll never actually get here, since the main event loop for an Elm
-    -- program doesn't really ever end ... at least, I don't think it does.
-    pure unit
+
+-- There are some parallels between cmds and subs below ... should probably
+-- have a general type `Effects` that can be either. Or, just use Either.
+-- Anyway, I won't do that yet, until it's clearer what this all is.
+
+
+classifyCmd :: ∀ msg. ExistsCmd msg -> Tuple String (List (ExistsCmd msg))
+classifyCmd cmd =
+    runExistsCmd (\exists -> Tuple exists.manager.tag (pure cmd)) cmd
+
+
+classifySub :: ∀ msg. ExistsSub msg -> Tuple String (List (ExistsSub msg))
+classifySub sub =
+    runExistsSub (\exists -> Tuple exists.manager.tag (pure sub)) sub
+
+
+addCmdManager :: ∀ appMsg. StrMap (ManagerState appMsg) -> String -> List (ExistsCmd appMsg) -> IO (StrMap (ManagerState appMsg))
+addCmdManager managers tag cmds =
+    if StrMap.member tag managers then
+        -- We already have one
+        pure managers
+    else
+        case cmds of
+            Nil ->
+                -- I guess we should use a non-empty type, really
+                pure managers
+
+            cmd : _ -> do
+                newManager <- fromExistsCmd cmd
+                pure $ StrMap.insert tag newManager managers
+
+
+addSubManager :: ∀ appMsg. StrMap (ManagerState appMsg) -> String -> List (ExistsSub appMsg) -> IO (StrMap (ManagerState appMsg))
+addSubManager managers tag subs =
+    if StrMap.member tag managers then
+        -- We already have one
+        pure managers
+    else
+        case subs of
+            Nil ->
+                -- I guess we should use a non-empty type, really
+                pure managers
+
+            sub : _ -> do
+                newManager <- fromExistsSub sub
+                pure $ StrMap.insert tag newManager managers
+
+
+fromExistsCmd :: ∀ appMsg. ExistsCmd appMsg -> IO (ManagerState appMsg)
+fromExistsCmd =
+    runExistsCmd \cmd -> makeManagerState cmd.manager
+
+
+fromExistsSub :: ∀ appMsg. ExistsSub appMsg -> IO (ManagerState appMsg)
+fromExistsSub =
+    runExistsSub \sub -> makeManagerState sub.manager
+
+
+makeManagerState :: ∀ appMsg cmd sub selfMsg state. Manager cmd sub selfMsg state -> IO (ManagerState appMsg)
+makeManagerState manager =
+    -- OK, so here's our chance to do whatever we need to do to setup a new
+    -- manager, i.e. when we've collected a Cmd or a Sub from a manager whose
+    -- tag we haven't seen before. Now, each manager gets an event loop roughly
+    -- analogous to our main event loop, except that it gets to listen for its
+    -- own kind of msgs.
+    pure ManagerState
 
 
 -- | Take a look at some cmds and subs we've collected, and do the right thing
 -- | with them.
-dispatchEffects :: ∀ appMsg. AVar appMsg -> AVar (StrMap (ManagerState appMsg)) -> Cmd appMsg -> Sub appMsg -> IO Unit
-dispatchEffects mailbox managers cmds subs =
-    pure unit
+dispatchEffects :: ∀ appMsg. AVar appMsg -> Cmd appMsg -> Sub appMsg -> StrMap (ManagerState appMsg) -> IO (StrMap (ManagerState appMsg))
+dispatchEffects mailbox (Cmd cmds) (Sub subs) managers =
+    let
+        -- Start by organizing the cmds and subs by manager, using the
+        -- (hackish) unique tags.
+        cmdsByTag :: StrMap (List (ExistsCmd appMsg))
+        cmdsByTag =
+            StrMap.fromFoldableWith (<>) (map classifyCmd cmds)
+
+        subsByTag :: StrMap (List (ExistsSub appMsg))
+        subsByTag =
+            StrMap.fromFoldableWith (<>) (map classifySub subs)
+    in do
+        -- Now, create any needed manager state
+        managersWithCmds <-
+            StrMap.foldM addCmdManager managers cmdsByTag
+
+        managersWithSubs <-
+            StrMap.foldM addSubManager managersWithCmds subsByTag
+
+        pure managersWithSubs
 
 
--- We'll just coerce to and from this for now ... eventually, we should try to
--- arrange the types so that we can prove the coercions are safe.
-foreign import data ManagerState :: Type -> Type
+-- | This is whatever we need to remember, in our main loop, for each manager.
+data ManagerState appMsg =
+    ManagerState
 
 
 {- Here's a list of how Elm auto-decodes ... I may need to tweak what
