@@ -461,12 +461,12 @@ newtype State msg = State Seed
 -- |
 -- | [arch]: https://evancz.gitbooks.io/an-introduction-to-elm/content/architecture/index.html
 -- | [rand]: https://evancz.gitbooks.io/an-introduction-to-elm/content/architecture/effects/random.html
-generate :: ∀ a msg. Partial => (a -> msg) -> Generator a -> Cmd msg
+generate :: ∀ a msg. (a -> msg) -> Generator a -> Cmd msg
 generate tagger generator =
     command randomManager $ Generate $ map tagger generator
 
 
-randomManager :: Partial => Manager MyCmd Proxy Unit State
+randomManager :: Manager MyCmd Proxy Unit State
 randomManager = {init, onEffects, onSelfMsg, tag}
 
 
@@ -491,7 +491,7 @@ init =
         |> Task.andThen (\t -> Task.succeed (State (initialSeed (round t))))
 
 
-onEffects :: ∀ msg. Partial => Platform.Router msg Unit -> List (MyCmd msg) -> List (Proxy msg) -> State msg -> Task Never (State msg)
+onEffects :: ∀ msg. Platform.Router msg Unit -> List (MyCmd msg) -> List (Proxy msg) -> State msg -> Task Never (State msg)
 onEffects router commands _ state@(State seed) =
     case commands of
         Nil ->

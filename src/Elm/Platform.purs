@@ -10,19 +10,20 @@ module Elm.Platform
   ) where
 
 
-import Control.Monad.Aff (Fiber)
-import Control.Monad.Aff.AVar (AVar, makeEmptyVar, takeVar)
+import Control.Monad.Aff (Fiber, forkAff)
+import Control.Monad.Aff.AVar (AVar, makeEmptyVar, putVar, takeVar)
 import Control.Monad.Aff.Class (liftAff)
-import Control.Monad.Except.Trans (ExceptT)
+import Control.Monad.Except.Trans (ExceptT, runExceptT)
 import Control.Monad.IO (INFINITY, IO)
+import Data.Either (either)
 import Data.List (List(..), (:))
 import Data.Monoid (class Monoid, mempty)
+import Data.Newtype (unwrap, wrap)
 import Data.StrMap (StrMap)
 import Data.StrMap as StrMap
 import Data.Tuple (Tuple(..))
 import Elm.Basics (Never)
-import Partial (crash)
-import Prelude (class Functor, class Semigroup, Unit, append, bind, const, map, pure, void, ($), (<>))
+import Prelude (class Functor, class Semigroup, Unit, absurd, append, bind, const, discard, id, map, pure, void, ($), (<$>), (<>), (>>>))
 import Unsafe.Coerce (unsafeCoerce)
 
 
@@ -135,16 +136,22 @@ type ProcessId =
 -- | An effect manager has access to a “router” that routes messages between
 -- | the main app and your individual effect manager.
 data Router appMsg selfMsg =
-    -- Not yet clear what this will actually be, but this is the surface API
-    -- from Elm that we want to preserve.
-    Router
+    Router (AVar appMsg) (EffectsMailbox appMsg)
+
+
+-- Note that because of the hackish way we're initially typing the
+-- EffectsMailbox, this is also a litle hackish ... with some effort, we ought
+-- to be able to prove to the compiler that selfMsg is type-safe.
 
 
 -- | Send the router a message for the main loop of your app. This message will
 -- | be handled by the overall `update` function, just like events from `Html`.
-sendToApp :: ∀ x a msg. Partial => Router msg a -> msg -> Task x Unit
-sendToApp router msg =
-    crash
+sendToApp :: ∀ x a msg. Router msg a -> msg -> Task x Unit
+sendToApp (Router app _) msg =
+    -- I have an intuition that we don't want to block until the msg is taken,
+    -- so probably the easiest thing to do is fork. But this might be wrong.
+    liftAff $ void $ forkAff $
+        putVar msg app
 
 
 -- | Send the router a message for your effect manager. This message will
@@ -152,9 +159,12 @@ sendToApp router msg =
 -- | effect manager as necessary.
 -- |
 -- | As an example, the effect manager for web sockets
-sendToSelf :: ∀ x a msg. Partial => Router a msg -> msg -> Task x Unit
-sendToSelf router msg =
-    crash
+sendToSelf :: ∀ x a msg. Router a msg -> msg -> Task x Unit
+sendToSelf (Router _ effects) msg =
+    -- I have an intuition that we don't want to block until the msg is taken,
+    -- so probably the easiest thing to do is fork. But this might be wrong.
+    liftAff $ void $ forkAff $
+        putVar (OnSelfMsg msg) (fromEffectsMailbox effects)
 
 
 -- | This is an initial attempt to express the things which effects modules
@@ -408,7 +418,7 @@ subscription manager sub =
 -- | meant for consumption from Javascript, in which we require that the
 -- | `flags` have a `Decode` instance, which you can generate via
 -- | purescript-foreign-generics.
-runProgram :: ∀ flags model msg. Partial => flags -> Program flags model msg -> IO Unit
+runProgram :: ∀ flags model msg. flags -> Program flags model msg -> IO Unit
 runProgram flags (Program p) = do
     -- This is, to begin with, a kind of "literal" translation of the
     -- Javascript code from the Elm runtime's `Platform.js`. Ultimately, I am
@@ -516,8 +526,8 @@ classifySub sub =
     runExistsSub (\exists -> Tuple exists.manager.tag (pure sub)) sub
 
 
-addCmdManager :: ∀ appMsg. StrMap (ManagerState appMsg) -> String -> List (ExistsCmd appMsg) -> IO (StrMap (ManagerState appMsg))
-addCmdManager managers tag cmds =
+addCmdManager :: ∀ appMsg. AVar appMsg -> StrMap (EffectsMailbox appMsg) -> String -> List (ExistsCmd appMsg) -> IO (StrMap (EffectsMailbox appMsg))
+addCmdManager appMailbox managers tag cmds =
     if StrMap.member tag managers then
         -- We already have one
         pure managers
@@ -528,12 +538,12 @@ addCmdManager managers tag cmds =
                 pure managers
 
             cmd : _ -> do
-                newManager <- fromExistsCmd cmd
+                newManager <- fromExistsCmd appMailbox cmd
                 pure $ StrMap.insert tag newManager managers
 
 
-addSubManager :: ∀ appMsg. StrMap (ManagerState appMsg) -> String -> List (ExistsSub appMsg) -> IO (StrMap (ManagerState appMsg))
-addSubManager managers tag subs =
+addSubManager :: ∀ appMsg. AVar appMsg -> StrMap (EffectsMailbox appMsg) -> String -> List (ExistsSub appMsg) -> IO (StrMap (EffectsMailbox appMsg))
+addSubManager appMailbox managers tag subs =
     if StrMap.member tag managers then
         -- We already have one
         pure managers
@@ -544,58 +554,117 @@ addSubManager managers tag subs =
                 pure managers
 
             sub : _ -> do
-                newManager <- fromExistsSub sub
+                newManager <- fromExistsSub appMailbox sub
                 pure $ StrMap.insert tag newManager managers
 
 
-fromExistsCmd :: ∀ appMsg. ExistsCmd appMsg -> IO (ManagerState appMsg)
-fromExistsCmd =
-    runExistsCmd \cmd -> makeManagerState cmd.manager
+fromExistsCmd :: ∀ appMsg. AVar appMsg -> ExistsCmd appMsg -> IO (EffectsMailbox appMsg)
+fromExistsCmd appMailbox =
+    runExistsCmd \cmd -> makeEffectsMailbox appMailbox cmd.manager
 
 
-fromExistsSub :: ∀ appMsg. ExistsSub appMsg -> IO (ManagerState appMsg)
-fromExistsSub =
-    runExistsSub \sub -> makeManagerState sub.manager
+fromExistsSub :: ∀ appMsg. AVar appMsg -> ExistsSub appMsg -> IO (EffectsMailbox appMsg)
+fromExistsSub appMailbox =
+    runExistsSub \sub -> makeEffectsMailbox appMailbox sub.manager
 
 
-makeManagerState :: ∀ appMsg cmd sub selfMsg state. Manager cmd sub selfMsg state -> IO (ManagerState appMsg)
-makeManagerState manager =
+forkIO :: ∀ a. IO a -> IO (Fiber (infinity :: INFINITY) a)
+forkIO = unwrap >>> forkAff >>> wrap
+
+
+makeEffectsMailbox :: ∀ appMsg selfMsg cmd sub state. AVar appMsg -> Manager cmd sub selfMsg state -> IO (EffectsMailbox appMsg)
+makeEffectsMailbox appMailbox manager = do
     -- OK, so here's our chance to do whatever we need to do to setup a new
     -- manager, i.e. when we've collected a Cmd or a Sub from a manager whose
     -- tag we haven't seen before. Now, each manager gets an event loop roughly
     -- analogous to our main event loop, except that it gets to listen for its
     -- own kind of msgs.
-    pure ManagerState
+    effectsMailbox <-
+        liftAff makeEmptyVar
+
+    let router = Router appMailbox (toEffectsMailbox effectsMailbox)
+
+    -- Now, we've got our mailbox, so launch a new thread that will listen for
+    -- messages and handle them.
+    void $ forkIO do
+        -- Figure out our initial state
+        initialState <-
+            either absurd id <$>
+                runExceptT manager.init
+
+        -- And establish an event loop
+        let loop state = do
+                -- Wait until someone sends us a message.
+                msg <-
+                    liftAff $ takeVar effectsMailbox
+
+                newState <-
+                    map (either absurd id) $ runExceptT $
+                        case msg of
+                            OnEffects cmds subs ->
+                                manager.onEffects router cmds subs state
+
+                            OnSelfMsg selfMsg ->
+                                manager.onSelfMsg router selfMsg state
+
+                -- And loop!
+                loop newState
+
+        -- And start it off
+        loop initialState
+
+    pure $ toEffectsMailbox effectsMailbox
+
+
+-- | These are the messages that an effects managers stateful loop listens for
+-- | ... either some effects the app wants it to handle, or some of the
+-- | managers own msgs that have come back.
+data ManagerMsg cmd sub appMsg selfMsg
+    = OnEffects (List (cmd appMsg)) (List (sub appMsg))
+    | OnSelfMsg selfMsg
+
+
+-- | This is extremely hackish ... we're basically indexing the types via the
+-- | tags, and coercing back and forth ... eventually, this must be made more
+-- | elegant, but it should at least get us started. We'll probably need the
+-- | `command` and `subscription` functions to provide some kind of
+-- | type-witness we can use to unify types, but there's no point trying to
+-- | figure that out before we get this working.
+-- |
+-- | But, we have isolated the hackish bit to here.
+foreign import data EffectsMailbox :: Type -> Type
+
+toEffectsMailbox :: ∀ cmd sub appMsg selfMsg. AVar (ManagerMsg cmd sub appMsg selfMsg) -> EffectsMailbox appMsg
+toEffectsMailbox = unsafeCoerce
+
+fromEffectsMailbox :: ∀ cmd sub appMsg selfMsg. EffectsMailbox appMsg -> AVar (ManagerMsg cmd sub appMsg selfMsg)
+fromEffectsMailbox = unsafeCoerce
 
 
 -- | Take a look at some cmds and subs we've collected, and do the right thing
 -- | with them.
-dispatchEffects :: ∀ appMsg. AVar appMsg -> Cmd appMsg -> Sub appMsg -> StrMap (ManagerState appMsg) -> IO (StrMap (ManagerState appMsg))
+dispatchEffects :: ∀ appMsg. AVar appMsg -> Cmd appMsg -> Sub appMsg -> StrMap (EffectsMailbox appMsg) -> IO (StrMap (EffectsMailbox appMsg))
 dispatchEffects mailbox (Cmd cmds) (Sub subs) managers =
     let
         -- Start by organizing the cmds and subs by manager, using the
         -- (hackish) unique tags.
-        cmdsByTag :: StrMap (List (ExistsCmd appMsg))
         cmdsByTag =
             StrMap.fromFoldableWith (<>) (map classifyCmd cmds)
 
-        subsByTag :: StrMap (List (ExistsSub appMsg))
         subsByTag =
             StrMap.fromFoldableWith (<>) (map classifySub subs)
     in do
         -- Now, create any needed manager state
         managersWithCmds <-
-            StrMap.foldM addCmdManager managers cmdsByTag
+            StrMap.foldM (addCmdManager mailbox) managers cmdsByTag
 
         managersWithSubs <-
-            StrMap.foldM addSubManager managersWithCmds subsByTag
+            StrMap.foldM (addSubManager mailbox) managersWithCmds subsByTag
 
+        -- TODO: Now, send the cmds & subs to the appropriate manager ...
+
+        -- Finally, return the new manager state.
         pure managersWithSubs
-
-
--- | This is whatever we need to remember, in our main loop, for each manager.
-data ManagerState appMsg =
-    ManagerState
 
 
 {- Here's a list of how Elm auto-decodes ... I may need to tweak what

@@ -130,7 +130,7 @@ now =
 -- | on `requestAnimationFrame` to get smooth animations. This is based on
 -- | `setInterval` which is better for recurring tasks like “check on something
 -- | every 30 seconds”.
-every :: ∀ msg. Partial => Time -> (Time -> msg) -> Sub msg
+every :: ∀ msg. Time -> (Time -> msg) -> Sub msg
 every interval tagger =
     subscription timeManager (Every interval tagger)
 
@@ -149,7 +149,7 @@ instance functorMySub :: Functor MySub where
 
 -- EFFECT MANAGER
 
-timeManager :: Partial => Manager Proxy MySub Time State
+timeManager :: Manager Proxy MySub Time State
 timeManager = {init, onEffects, onSelfMsg, tag}
 
 
@@ -182,7 +182,7 @@ init =
         }
 
 
-onEffects :: ∀ msg. Partial => Platform.Router msg Time -> List (Proxy msg) -> List (MySub msg) -> State msg -> Task Never (State msg)
+onEffects :: ∀ msg. Platform.Router msg Time -> List (Proxy msg) -> List (MySub msg) -> State msg -> Task Never (State msg)
 onEffects router _ subs (State {processes}) =
     let
         newTaggers =
@@ -224,7 +224,7 @@ addMySub (Every interval tagger) state =
             Dict.insert interval (tagger : taggers) state
 
 
-spawnHelp :: ∀ x msg. Partial => Platform.Router msg Time -> List Time -> Processes -> Task.Task x Processes
+spawnHelp :: ∀ x msg. Platform.Router msg Time -> List Time -> Processes -> Task.Task x Processes
 spawnHelp router intervals processes =
     case intervals of
         Nil ->
@@ -242,7 +242,7 @@ spawnHelp router intervals processes =
                     |> Task.andThen spawnRest
 
 
-onSelfMsg :: ∀ msg. Partial => Platform.Router msg Time -> Time -> State msg -> Task Never (State msg)
+onSelfMsg :: ∀ msg. Platform.Router msg Time -> Time -> State msg -> Task Never (State msg)
 onSelfMsg router interval state@(State {taggers}) =
     case Dict.get interval taggers of
         Nothing ->

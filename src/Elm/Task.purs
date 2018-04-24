@@ -287,13 +287,13 @@ instance functorMyCmd :: Functor MyCmd where
 -- |
 -- |         NewTime time ->
 -- |           ...
-perform :: ∀ a msg. Partial => (a -> msg) -> Task Never a -> Cmd msg
+perform :: ∀ a msg. (a -> msg) -> Task Never a -> Cmd msg
 perform toMessage task =
     command taskManager $ Perform $ map toMessage task
 
 
 -- | Command the Elm runtime to attempt a task that might fail!
-attempt :: ∀ x a msg. Partial => (Result x a -> msg) -> Task x a -> Cmd msg
+attempt :: ∀ x a msg. (Result x a -> msg) -> Task x a -> Cmd msg
 attempt resultToMessage task =
     task
         |> andThen (succeed <<< resultToMessage <<< Ok)
@@ -306,7 +306,7 @@ attempt resultToMessage task =
 
 -- We have no subs or msg type, and we don't actually keep state ... for the
 -- moment, using Proxy and Unit ...  possibly better options exist.
-taskManager :: Partial => Manager MyCmd Proxy Unit Proxy
+taskManager :: Manager MyCmd Proxy Unit Proxy
 taskManager = {init, onEffects, onSelfMsg, tag}
 
 
@@ -326,7 +326,7 @@ init =
     succeed Proxy
 
 
-onEffects :: ∀ appMsg. Partial => Platform.Router appMsg Unit -> List (MyCmd appMsg) -> List (Proxy appMsg) -> Proxy appMsg -> Task Never (Proxy appMsg)
+onEffects :: ∀ appMsg. Platform.Router appMsg Unit -> List (MyCmd appMsg) -> List (Proxy appMsg) -> Proxy appMsg -> Task Never (Proxy appMsg)
 onEffects router commands subs state =
     map
         (\_ -> Proxy)
@@ -338,6 +338,6 @@ onSelfMsg _ _ _ =
     succeed Proxy
 
 
-spawnCmd :: ∀ x appMsg. Partial => Platform.Router appMsg Unit -> MyCmd appMsg -> Task x Unit
+spawnCmd :: ∀ x appMsg. Platform.Router appMsg Unit -> MyCmd appMsg -> Task x Unit
 spawnCmd router (Perform task) =
     const (pure unit) <$> spawn $ task >>= Platform.sendToApp router
