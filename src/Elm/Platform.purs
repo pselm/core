@@ -17,13 +17,17 @@ import Control.Monad.Except.Trans (ExceptT, runExceptT)
 import Control.Monad.IO (INFINITY, IO)
 import Data.Either (either)
 import Data.List (List(..), (:))
+import Data.List (null) as List
+import Data.Maybe (fromMaybe)
 import Data.Monoid (class Monoid, mempty)
 import Data.Newtype (unwrap, wrap)
 import Data.StrMap (StrMap)
 import Data.StrMap as StrMap
+import Data.Traversable (for)
+import Data.TraversableWithIndex (forWithIndex)
 import Data.Tuple (Tuple(..))
 import Elm.Basics (Never)
-import Prelude (class Functor, class Semigroup, Unit, absurd, append, bind, const, discard, id, map, pure, void, ($), (<$>), (<>), (>>>))
+import Prelude (class Functor, class Semigroup, Unit, absurd, append, bind, const, discard, id, map, pure, unit, void, ($), (&&), (<$>), (<>), (>>>))
 import Unsafe.Coerce (unsafeCoerce)
 
 
@@ -164,7 +168,7 @@ sendToSelf (Router _ effects) msg =
     -- I have an intuition that we don't want to block until the msg is taken,
     -- so probably the easiest thing to do is fork. But this might be wrong.
     liftAff $ void $ forkAff $
-        putVar (OnSelfMsg msg) (fromEffectsMailbox effects)
+        putVar (OnSelfMsg msg) (unsafeFromEffectsMailbox effects)
 
 
 -- | This is an initial attempt to express the things which effects modules
@@ -582,7 +586,7 @@ makeEffectsMailbox appMailbox manager = do
     effectsMailbox <-
         liftAff makeEmptyVar
 
-    let router = Router appMailbox (toEffectsMailbox effectsMailbox)
+    let router = Router appMailbox (unsafeToEffectsMailbox effectsMailbox)
 
     -- Now, we've got our mailbox, so launch a new thread that will listen for
     -- messages and handle them.
@@ -613,7 +617,7 @@ makeEffectsMailbox appMailbox manager = do
         -- And start it off
         loop initialState
 
-    pure $ toEffectsMailbox effectsMailbox
+    pure $ unsafeToEffectsMailbox effectsMailbox
 
 
 -- | These are the messages that an effects managers stateful loop listens for
@@ -634,17 +638,25 @@ data ManagerMsg cmd sub appMsg selfMsg
 -- | But, we have isolated the hackish bit to here.
 foreign import data EffectsMailbox :: Type -> Type
 
-toEffectsMailbox :: ∀ cmd sub appMsg selfMsg. AVar (ManagerMsg cmd sub appMsg selfMsg) -> EffectsMailbox appMsg
-toEffectsMailbox = unsafeCoerce
+unsafeToEffectsMailbox :: ∀ cmd sub appMsg selfMsg. AVar (ManagerMsg cmd sub appMsg selfMsg) -> EffectsMailbox appMsg
+unsafeToEffectsMailbox = unsafeCoerce
 
-fromEffectsMailbox :: ∀ cmd sub appMsg selfMsg. EffectsMailbox appMsg -> AVar (ManagerMsg cmd sub appMsg selfMsg)
-fromEffectsMailbox = unsafeCoerce
+unsafeFromEffectsMailbox :: ∀ cmd sub appMsg selfMsg. EffectsMailbox appMsg -> AVar (ManagerMsg cmd sub appMsg selfMsg)
+unsafeFromEffectsMailbox = unsafeCoerce
+
+-- | runExistsCmd is safe ... this one is not
+unsafeCoerceExistsCmd :: ∀ f cmd sub appMsg selfMsg state. f (ExistsCmd appMsg) -> f (CmdManager cmd sub appMsg selfMsg state)
+unsafeCoerceExistsCmd = unsafeCoerce
+
+-- | runExistsCmd is safe ... this one is not
+unsafeCoerceExistsSub :: ∀ f cmd sub appMsg selfMsg state. f (ExistsSub appMsg) -> f (SubManager cmd sub appMsg selfMsg state)
+unsafeCoerceExistsSub = unsafeCoerce
 
 
 -- | Take a look at some cmds and subs we've collected, and do the right thing
 -- | with them.
 dispatchEffects :: ∀ appMsg. AVar appMsg -> Cmd appMsg -> Sub appMsg -> StrMap (EffectsMailbox appMsg) -> IO (StrMap (EffectsMailbox appMsg))
-dispatchEffects mailbox (Cmd cmds) (Sub subs) managers =
+dispatchEffects appMailbox (Cmd cmds) (Sub subs) managers =
     let
         -- Start by organizing the cmds and subs by manager, using the
         -- (hackish) unique tags.
@@ -654,14 +666,58 @@ dispatchEffects mailbox (Cmd cmds) (Sub subs) managers =
         subsByTag =
             StrMap.fromFoldableWith (<>) (map classifySub subs)
     in do
-        -- Now, create any needed manager state
+        -- Now, create any needed manager state. `addCmdManager` and
+        -- `addSubManager` do nothing if we already have a manager with the
+        -- relevant tag.
         managersWithCmds <-
-            StrMap.foldM (addCmdManager mailbox) managers cmdsByTag
+            StrMap.foldM (addCmdManager appMailbox) managers cmdsByTag
 
         managersWithSubs <-
-            StrMap.foldM (addSubManager mailbox) managersWithCmds subsByTag
+            StrMap.foldM (addSubManager appMailbox) managersWithCmds subsByTag
 
-        -- TODO: Now, send the cmds & subs to the appropriate manager ...
+        -- Now, send the cmds & subs to the appropriate manager ... I'll start
+        -- by traversing the managers ... there may be a more efficient way.
+        --
+        -- Now that I know what the manager state looks like ... it's just an
+        -- AVar ... I wonder whether I could keep it in a Record type instead
+        -- of a Map. Then, I could give each Manager the whole record, with an
+        -- extensible row type, and it could create, and then later pick out,
+        -- the label it needs. Well, it's a thought, anyway. Or, it could be
+        -- that I need to carry along a type-witness of some kind.
+        --
+        -- For the moment, I'll just coerce based on matching the tags.
+        void $ forWithIndex managersWithSubs \tag effectsMailbox ->
+            for (StrMap.lookup tag managersWithSubs) \manager ->
+                -- We artificially unify the types as between the maanger and
+                -- the cmds & subs, on the basis that the tags matched ...
+                -- there will be a better way.
+                let
+                    myCmds =
+                        map _.cmd $
+                        unsafeCoerceExistsCmd $
+                        fromMaybe Nil $
+                        StrMap.lookup tag cmdsByTag
+
+                    mySubs =
+                        map _.sub $
+                        unsafeCoerceExistsSub $
+                        fromMaybe Nil $
+                        StrMap.lookup tag subsByTag
+
+                -- Now, curiously, we don't actually need the `Manager` here
+                -- ...  we've already set up the event loop, and we have its
+                -- mailbox, so we can just send the event. But, since we're
+                -- folding through all the managers, we don't send an event to
+                -- those who aren't getting any cmds or subs.
+                in
+                    if List.null myCmds && List.null mySubs then
+                        pure unit
+                    else
+                        -- I have an intuition that we don't want to block
+                        -- until the msg is taken, so probably the easiest
+                        -- thing to do is fork. But this might be wrong.
+                        liftAff $ void $ forkAff $
+                            putVar (OnEffects myCmds mySubs) (unsafeFromEffectsMailbox effectsMailbox)
 
         -- Finally, return the new manager state.
         pure managersWithSubs
