@@ -1,8 +1,12 @@
 module Test.Main where
 
-import Test.Unit.Main (runTest)
-import Test.Unit.Console (TESTOUTPUT)
-
+import Control.Monad.Aff.AVar (AVAR)
+import Control.Monad.Eff (Eff)
+import Control.Monad.Eff.Console (CONSOLE)
+import Control.Monad.Eff.Exception (EXCEPTION)
+import Control.Monad.Eff.Random (RANDOM)
+import Control.Monad.IO (INFINITY)
+import Prelude (Unit, discard)
 import Test.Elm.Array as Array
 import Test.Elm.Basics as Basics
 import Test.Elm.BasicsElm as BasicsElm
@@ -23,23 +27,18 @@ import Test.Elm.String as String
 import Test.Elm.Task as Task
 import Test.Elm.Time as Time
 import Test.Elm.Trampoline as Trampoline
+import Test.Unit.Console (TESTOUTPUT)
+import Test.Unit.Main (runTest)
 
-import Control.Monad.Eff (Eff)
-import Control.Monad.Eff.Random (RANDOM)
-import Control.Monad.Eff.Console (CONSOLE)
-import Control.Monad.Eff.Exception (EXCEPTION)
-import Control.Monad.Aff.AVar (AVAR)
-
-import Prelude (Unit, discard)
 
 main :: Eff
     ( console :: CONSOLE
     , testOutput :: TESTOUTPUT
     , avar :: AVAR
     , exception :: EXCEPTION
+    , infinity :: INFINITY
     , random :: RANDOM
     ) Unit
-
 main =
     runTest do
         Array.tests

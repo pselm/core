@@ -8,62 +8,66 @@
 
 module Elm.Task
     ( module Virtual
-    , toAff, fromAff
+    , toIO, fromIO
     , makeTask
     , EffFnTask, fromEffFnTask
     , succeed, fail
     , mapError, onError
+    , perform, attempt
     , toMaybe, fromMaybe
     , toResult, fromResult
-    , spawn, sleep
     , ThreadID
     ) where
 
 
--- For re-export
-
-import Prelude (map) as Virtual
-import Elm.Apply (andMap, map2, map3, map4, map5) as Virtual
-import Elm.Bind (andThen) as Virtual
-import Elm.Types (Task, TaskE) as Virtual
-import Data.Traversable (sequence) as Virtual
-
-
--- Internal
-
-import Control.Monad.Aff (Aff, Error, Canceler(..), makeAff, forkAff, delay, nonCanceler)
+import Control.Monad.Aff (Canceler(Canceler), Error, makeAff, nonCanceler)
+import Control.Monad.Aff.Class (liftAff)
 import Control.Monad.Aff.Compat (EffFnCanceler(..), EffFnCb)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Uncurried (EffFn3, mkEffFn1, runEffFn3)
-import Control.Monad.Except.Trans (ExceptT(..), runExceptT, withExceptT)
 import Control.Monad.Error.Class (throwError)
-import Prelude (Unit, map, pure, (<<<), (>>=), const, ($), (<$>), bind, discard)
+import Control.Monad.Except.Trans (ExceptT(..), runExceptT, withExceptT)
+import Control.Monad.IO (IO)
 import Data.Either (Either(..), either)
-import Elm.Basics ((|>))
-import Elm.Result (Result(..))
+import Data.List (List)
+import Data.Traversable (sequence)
+import Data.Traversable (sequence) as Virtual
+import Elm.Apply (andMap, map2, map3, map4, map5) as Virtual
+import Elm.Basics (Never, (|>))
+import Elm.Bind (andThen)
+import Elm.Bind (andThen) as Virtual
+import Elm.List as List
 import Elm.Maybe (Maybe(..))
-import Elm.Time (Time, fromTime)
-import Elm.Types (Task, TaskE)
+import Elm.Platform (Manager, ProcessId, Task, command)
+import Elm.Platform (Task) as Virtual
+import Elm.Platform as Platform
+import Elm.Platform.Cmd (Cmd)
+import Elm.Process (spawn)
+import Elm.Result (Result(..))
+import Prelude (class Functor, Unit, bind, discard, map, pure, void, ($), (<<<), (>>=))
+import Prelude (map) as Virtual
+import Type.Proxy (Proxy(..))
 
 
--- | Takes a `Task` and unwraps the underlying `Aff`.
+-- | Takes a `Task` and unwraps the underlying `IO`.
 -- |
 -- | Note that you can use "do notation" directly with the `Task` type -- you
 -- | don't have to unwrap it first. Essentially, you only need to unwrap the
--- | `Task` if you need to interact with the `Aff` type.
-toAff :: ∀ e x a. TaskE e x a -> Aff e (Either x a)
-toAff = runExceptT
+-- | `Task` if you need to interact with the `IO` type.
+toIO :: ∀ x a. Task x a -> IO (Either x a)
+toIO = runExceptT
 
 
--- | Given an `Aff`, make a `Task`. Basically, just wraps it in an `ExceptT`.
-fromAff :: ∀ e x a. Aff e (Either x a) -> TaskE e x a
-fromAff = ExceptT
+-- | Given an `IO`, make a `Task`. Basically, just wraps it in an `ExceptT`.
+fromIO :: ∀ x a. IO (Either x a) -> Task x a
+fromIO = ExceptT
 
 
 -- | Like `makeAff`, but you get a `Task` back.
-makeTask ∷ ∀ e x a. ((Either Error (Either x a) → Eff e Unit) → Eff e (Canceler e)) → TaskE e x a
+makeTask ∷ ∀ e x a. ((Either Error (Either x a) → Eff e Unit) → Eff e (Canceler e)) → Task x a
 makeTask =
-    ExceptT <<< makeAff
+    -- TODO: Define in terms of IOSync instead of Eff?
+    ExceptT <<< liftAff <<< makeAff
 
 
 newtype EffFnTask e x a = EffFnTask (EffFn3 e (EffFnCb e Error) (EffFnCb e x) (EffFnCb e a) (EffFnCanceler e))
@@ -107,7 +111,7 @@ newtype EffFnTask e x a = EffFnTask (EffFn3 e (EffFnCb e Error) (EffFnCb e x) (E
 -- | myTask :: ∀ eff. TaskE (myeffect :: MYEFFECT | eff) Int String
 -- | myTask = fromEffFnTask myTaskImpl
 -- | ````
-fromEffFnTask ∷ ∀ e x a. EffFnTask e x a → TaskE e x a
+fromEffFnTask ∷ ∀ e x a. EffFnTask e x a → Task x a
 fromEffFnTask (EffFnTask ffi) =
     makeTask \k → do
         EffFnCanceler canceler ←
@@ -156,7 +160,7 @@ fail = throwError
 -- | Like Purescript's `catchError`, but with a different signature.
 -- |
 -- | The arguments to this function were flipped in Elm 0.18.
-onError :: ∀ e x y a. (x -> TaskE e y a) -> TaskE e x a -> TaskE e y a
+onError :: ∀ x y a. (x -> Task y a) -> Task x a -> Task y a
 onError handler task =
     -- This is equivalent to `catchError`, but that doesn't work by itself,
     -- because it would need a signature of
@@ -247,30 +251,93 @@ fromResult result =
 -- THREADS
 
 -- | Abstract type that uniquely identifies a thread.
-newtype ThreadID = ThreadID Int
-
-
--- | Run a task on a separate thread. This lets you start working with basic
--- | concurrency. In the following example, `task1` and `task2` will be interleaved.
--- | If `task1` makes a long HTTP request, we can hop over to `task2` and do some
--- | work there.
 -- |
--- |     spawn task1 `andThen` \_ -> task2
-spawn :: ∀ x y a. Task x a -> Task y ThreadID
-spawn task =
-    ExceptT (
-        -- Since nothing uses the ThreadID at the moment, we'll just make one up ...
-        -- this may need to change in the future ...
-        map
-            (const (Right (ThreadID 1)))
-            (forkAff $ runExceptT task)
-    )
+-- | This type was renamed `Id` and moved to the `Process` module in Elm 0.17.
+type ThreadID =
+    ProcessId
 
 
--- | Make a thread sleep for a certain amount of time. The following example
--- | sleeps for 1 second and then succeeds with 42.
+
+-- COMMANDS
+
+
+data MyCmd msg =
+    Perform (Task Never msg)
+
+
+instance functorMyCmd :: Functor MyCmd where
+    map tagger (Perform task) =
+        Perform (map tagger task)
+
+
+-- | The only way to *do* things in Elm is to give commands to the Elm runtime.
+-- | So we describe some complex behavior with a `Task` and then command the runtime
+-- | to `perform` that task. For example, getting the current time looks like this:
 -- |
--- |     sleep 1000 `andThen` \_ -> succeed 42
-sleep :: ∀ x. Time -> Task x Unit
-sleep time =
-    ExceptT $ Right <$> delay (fromTime time)
+-- |     import Task
+-- |     import Time exposing (Time)
+-- |
+-- |     type Msg = Click | NewTime Time
+-- |
+-- |     update : Msg -> Model -> ( Model, Cmd Msg )
+-- |     update msg model =
+-- |       case msg of
+-- |         Click ->
+-- |           ( model, Task.perform NewTime Time.now )
+-- |
+-- |         NewTime time ->
+-- |           ...
+perform :: ∀ a msg. (a -> msg) -> Task Never a -> Cmd msg
+perform toMessage task =
+    command taskManager $ Perform $ map toMessage task
+
+
+-- | Command the Elm runtime to attempt a task that might fail!
+attempt :: ∀ x a msg. (Result x a -> msg) -> Task x a -> Cmd msg
+attempt resultToMessage task =
+    task
+        |> andThen (succeed <<< resultToMessage <<< Ok)
+        |> onError (succeed <<< resultToMessage <<< Err)
+        |> Perform
+        |> command taskManager
+
+
+-- MANAGER
+
+-- We have no subs or msg type, and we don't actually keep state ... for the
+-- moment, using Proxy and Unit ...  possibly better options exist.
+taskManager :: Manager MyCmd Proxy Unit Proxy
+taskManager = {init, onEffects, onSelfMsg, tag}
+
+
+-- A unique tag for our effect manager. (Ideally, we change things eventually
+-- so we don't need this).
+tag :: String
+tag = "Elm.Task"
+
+
+-- Even though we don't actually keep state, the types are arranged in such a
+-- way that we have to produce some ... I suppose there may be a way to avoid
+-- this, via a `Maybe` somewhere. Also, our state is necessarily parameterized,
+-- so we can't just use `Unit` ... we'd need a kind of `Unit2`. (Like a `Proxy`
+-- ... in fact, so much like a `Proxy` that I'll just use one).
+init :: ∀ appMsg. Task Never (Proxy appMsg)
+init =
+    succeed Proxy
+
+
+onEffects :: ∀ appMsg. Platform.Router appMsg Unit -> List (MyCmd appMsg) -> List (Proxy appMsg) -> Proxy appMsg -> Task Never (Proxy appMsg)
+onEffects router commands subs state =
+    map
+        (\_ -> Proxy)
+        (sequence (List.map (spawnCmd router) commands))
+
+
+onSelfMsg :: ∀ appMsg. Platform.Router appMsg Unit -> Unit -> Proxy appMsg -> Task Never (Proxy appMsg)
+onSelfMsg _ _ _ =
+    succeed Proxy
+
+
+spawnCmd :: ∀ x appMsg. Platform.Router appMsg Unit -> MyCmd appMsg -> Task x Unit
+spawnCmd router (Perform task) =
+    void $ spawn $ task >>= Platform.sendToApp router

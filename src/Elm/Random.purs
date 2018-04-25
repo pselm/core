@@ -31,31 +31,27 @@ module Elm.Random
     , list, pair
     , minInt, maxInt
     , step, initialSeed
+    , generate
     ) where
 
 
--- For re-export
-
-import Elm.Apply (map2, map3, map4, map5) as Virtual
-import Elm.Bind (andThen) as Virtual
-import Prelude (map) as Virtual
-
-
--- Internal
-
-import Prelude
-    ( (==), (/), (*), (-), (+), (<), ($), (<>)
-    , negate, zero, one
-    , class Ord, class Functor, class Apply, class Bind, class Semigroup
-    , class Applicative, pure
-    )
-
-import Elm.Apply (map2)
-import Data.Tuple (Tuple(..), fst, snd)
-import Data.Ord (max)
-import Data.Monoid (class Monoid, mempty)
-import Elm.Basics ((%), Bool, Float)
 import Data.Int53 (class Int53Value, Int53, fromInt, fromInt53, toInt53, round, toNumber)
+import Data.List (List(..), (:))
+import Data.Monoid (class Monoid, mempty)
+import Data.Ord (max)
+import Data.Tuple (Tuple(..), fst, snd)
+import Elm.Apply (map2)
+import Elm.Apply (map2, map3, map4, map5) as Virtual
+import Elm.Basics (Bool, Float, Never, (%), (|>))
+import Elm.Bind (andThen) as Virtual
+import Elm.Platform (Manager, Task, command)
+import Elm.Platform as Platform
+import Elm.Platform.Cmd (Cmd)
+import Elm.Task as Task
+import Elm.Time as Time
+import Prelude (class Applicative, class Apply, class Bind, class Functor, class Ord, class Semigroup, Unit, negate, one, pure, zero, ($), (*), (+), (-), (/), (<), (<>), (==))
+import Prelude (map) as Virtual
+import Type.Prelude (Proxy)
 
 
 -- | Create a generator that produces boolean values. The following example
@@ -450,3 +446,66 @@ next (Seed s1 s2) =
 
     in
         Tuple z' (Seed s1'' s2'')
+
+
+-- MANAGER
+
+-- Since our State needs a parameter ... perhaps there is a better way?
+newtype State msg = State Seed
+
+
+-- | Create a command that will generate random values.
+-- |
+-- | Read more about how to use this in your programs in [The Elm Architecture
+-- | tutorial][arch] which has a section specifically [about random values][rand].
+-- |
+-- | [arch]: https://evancz.gitbooks.io/an-introduction-to-elm/content/architecture/index.html
+-- | [rand]: https://evancz.gitbooks.io/an-introduction-to-elm/content/architecture/effects/random.html
+generate :: ∀ a msg. (a -> msg) -> Generator a -> Cmd msg
+generate tagger generator =
+    command randomManager $ Generate $ map tagger generator
+
+
+randomManager :: Manager MyCmd Proxy Unit State
+randomManager = {init, onEffects, onSelfMsg, tag}
+
+
+-- A unique tag for our effect manager. (Ideally, we change things eventually
+-- so we don't need this).
+tag :: String
+tag = "Elm.Random"
+
+
+data MyCmd msg
+    = Generate (Generator msg)
+
+
+instance functorMyCmd :: Functor MyCmd where
+    map func (Generate generator) =
+        Generate (map func generator)
+
+
+init :: ∀ msg. Task Never (State msg)
+init =
+    Time.now
+        |> Task.andThen (\t -> Task.succeed (State (initialSeed (round t))))
+
+
+onEffects :: ∀ msg. Platform.Router msg Unit -> List (MyCmd msg) -> List (Proxy msg) -> State msg -> Task Never (State msg)
+onEffects router commands _ state@(State seed) =
+    case commands of
+        Nil ->
+            Task.succeed state
+
+        Generate generator : rest ->
+            let
+                generated =
+                    step generator seed
+            in
+                Platform.sendToApp router generated.value
+                    |> Task.andThen (\_ -> onEffects router rest Nil (State generated.seed))
+
+
+onSelfMsg :: ∀ msg. Platform.Router msg Unit -> Unit -> State msg -> Task Never (State msg)
+onSelfMsg _ _ state =
+    Task.succeed state

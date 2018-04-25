@@ -1,19 +1,21 @@
 module Test.Elm.Task (tests) where
 
-import Test.Unit (Test, TestSuite, failure, suite, test)
-import Test.Unit.Assert (equal)
-
 import Elm.Task
-import Prelude (flip, bind, discard, class Eq, class Show, ($), (+), (<$>), (<>), (>>>), show, Unit, pure)
-import Data.Either (Either(..))
-import Data.Maybe (Maybe(..))
-import Elm.Basics ((|>))
-import Elm.Result (Result(..))
-import Data.List (List(..), (:))
-import Control.Monad.Aff (nonCanceler)
+
+import Control.Monad.Aff (Aff, nonCanceler)
 import Control.Monad.Eff.Exception (message)
 import Control.Monad.Error.Class (try)
+import Control.Monad.IO (INFINITY, runIO')
+import Data.Either (Either(..))
+import Data.List (List(..), (:))
+import Data.Maybe (Maybe(..))
+import Elm.Basics ((|>))
+import Elm.Process (sleep, spawn)
+import Elm.Result (Result(..))
 import Math (sqrt)
+import Prelude (class Eq, class Show, Unit, bind, discard, flip, pure, show, ($), (+), (<$>), (<<<), (<>), (>>>))
+import Test.Unit (Test, TestSuite, failure, suite, test)
+import Test.Unit.Assert (equal)
 
 
 infixl 9 equals as ===
@@ -44,12 +46,18 @@ no = fail "No"
 foreign import _evenAfter50 :: ∀ e. Int -> EffFnTask e String Int
 
 
-evenAfter50 :: ∀ e. Int -> TaskE e String Int
+evenAfter50 :: Int -> Task String Int
 evenAfter50 =
     _evenAfter50 >>> fromEffFnTask
 
 
-tests :: forall e. TestSuite e
+-- There is almost surely a better way than this.
+toAff :: ∀ e x a. Task x a -> Aff (infinity :: INFINITY | e) (Either x a)
+toAff =
+    runIO' <<< toIO
+
+
+tests :: ∀ e. TestSuite (infinity :: INFINITY | e) 
 tests = suite "Elm.Task" do
     test "Task.succeed" do
         result <- toAff (succeed 42)

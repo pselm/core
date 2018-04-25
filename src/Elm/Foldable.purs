@@ -7,12 +7,11 @@ module Elm.Foldable (foldl) where
 
 import Data.Foldable (class Foldable)
 import Data.Foldable as Foldable
-import Prelude (flip)
+import Prelude (flip, (<<<))
 
 
 -- | Reduce a container from the left.
 -- |
 -- | Equivalent to Purescript's `foldl`, but the function you supply is flipped.
 foldl :: ∀ a b f. (Foldable f) => (a -> b -> b) -> b -> f a -> b
-foldl func =
-    Foldable.foldl (flip func)
+foldl = Foldable.foldl <<< flip

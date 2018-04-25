@@ -30,12 +30,11 @@ import Data.Maybe (fromJust)
 import Data.Enum (toEnum)
 import Data.Int (round)
 import Elm.Result (Result(..))
-import Elm.Task (TaskE)
+import Elm.Task (Task)
 import Elm.Time as Time
 
 import Partial (crashWith)
 import Partial.Unsafe (unsafePartial)
-import Control.Monad.Eff.Now (NOW)
 import Control.Monad.Eff.Unsafe (unsafePerformEff)
 
 import Prelude ((<<<), (<>), show, ($), (<$>), (+))
@@ -180,6 +179,6 @@ millisecond = round <<< unsafePerformEff <<< getMilliseconds
 -- | Get the `Date` at the moment when this task is run.
 -- |
 -- | * Added in Elm 0.17 / version 4.0.0 of elm-lang/core *
-now :: ∀ e x. TaskE (now :: NOW | e) x Date
+now :: ∀ x. Task x Date
 now =
     fromTime <$> Time.now 
