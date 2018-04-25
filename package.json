@@ -5,7 +5,8 @@
     "build": "pulp build",
     "clean": "rimraf output && rimraf .pulp-cache",
     "docs": "pulp docs",
-    "test": "pulp test"
+    "test": "pulp test",
+    "simple": "pulp run -m Examples.Simple -I examples"
   },
   "devDependencies": {
     "bower": "^1.8.4",

@@ -44,7 +44,7 @@ import Elm.Platform as Platform
 import Elm.Platform.Cmd (Cmd)
 import Elm.Process (spawn)
 import Elm.Result (Result(..))
-import Prelude (class Functor, Unit, bind, const, discard, map, pure, unit, ($), (<$>), (<<<), (>>=))
+import Prelude (class Functor, Unit, bind, discard, map, pure, void, ($), (<<<), (>>=))
 import Prelude (map) as Virtual
 import Type.Proxy (Proxy(..))
 
@@ -340,4 +340,4 @@ onSelfMsg _ _ _ =
 
 spawnCmd :: ∀ x appMsg. Platform.Router appMsg Unit -> MyCmd appMsg -> Task x Unit
 spawnCmd router (Perform task) =
-    const (pure unit) <$> spawn $ task >>= Platform.sendToApp router
+    void $ spawn $ task >>= Platform.sendToApp router

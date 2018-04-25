@@ -62,12 +62,12 @@ newtype Program flags model msg = Program
 -- | ```javascript
 -- | var app = Elm.MyThing.worker();
 -- | ```
-program :: ∀ model msg.
+program :: ∀ flags model msg.
     { init :: Tuple model (Cmd msg)
     , update :: msg -> model -> Tuple model (Cmd msg)
     , subscriptions :: model -> Sub msg
     }
-    -> Program Never model msg
+    -> Program flags model msg
 program config =
     programWithFlags $
         config { init = const config.init }
