@@ -8,11 +8,12 @@
 -- | package, so I've re-implemented it, using parts of purescript-foreign as
 -- | a base. For other approaches to decoding JSON in Purescript, you could see
 -- | purescript-foreign, and the purescript-argonaut-* packages.
+-- |
+-- | Note that (so far) we're not trying to preserve all the nice error messages
+-- | that Elm gives ... we could do a better job of that.
 
 module Elm.Json.Decode
     ( module Virtual
-    , module Elm.Bind
-    , module Elm.Apply
     , Decoder
     , decodeString, decodeValue
     , fromForeign
@@ -27,52 +28,72 @@ module Elm.Json.Decode
     ) where
 
 
-import Prelude (map) as Virtual
-import Elm.Json.Encode (Value) as Virtual
-import Elm.Bind (andThen)
-import Elm.Apply (andMap, map2, map3, map4, map5, map6, map7, map8)
-
+import Control.Alt (class Alt, alt, (<|>))
+import Control.Apply (lift2, lift3, lift4, lift5)
+import Control.Bind ((>=>))
+import Control.Monad.Except (runExcept)
+import Data.Array (uncons)
+import Data.Array as Array
+import Data.Coyoneda (Coyoneda, coyoneda, unCoyoneda)
+import Data.Either (Either(..))
+import Data.Exists (Exists, mkExists, runExists)
+import Data.Foldable (class Foldable, foldl, foldMap)
 import Data.Foreign (Foreign, ForeignError(..), F, readArray, readString, readBoolean, readNumber, readInt, isNull, isUndefined, typeOf)
 import Data.Foreign as DF
 import Data.Foreign.Index (readIndex, readProp)
 import Data.Foreign.JSON (parseJSON)
-import Data.Traversable (traverse)
+import Data.Leibniz (type (~), coerceSymm)
 import Data.Monoid (class Monoid)
-import Data.Foldable (class Foldable, foldl, foldMap)
+import Data.Traversable (traverse)
+import Data.Tuple (Tuple(..))
 import Data.Unfoldable (class Unfoldable, unfoldr)
-import Elm.Json.Encode (Value)
-import Control.Apply (lift2, lift3, lift4, lift5)
-import Control.Alt (class Alt, alt)
-import Control.Bind ((>=>))
-import Control.Monad.Except (runExcept)
-import Data.Either (Either(..))
-import Elm.Result (Result(..), fromMaybe)
+import Elm.Apply (andMap, map2, map3, map4, map5, map6, map7, map8) as Virtual
+import Elm.Apply (map6, map7, map8)
 import Elm.Basics (Bool, Float)
-import Elm.List (List, foldr)
-import Data.List as List
+import Elm.Bind (andThen) as Virtual
 import Elm.Dict (Dict)
 import Elm.Dict as Dict
-import Data.Tuple (Tuple(..))
+import Elm.Json.Encode (Value)
+import Elm.Json.Encode (Value) as Virtual
+import Elm.List (List, foldr)
 import Elm.Maybe (Maybe(..))
-import Data.Array (uncons)
-import Data.Array as Array
-
-import Prelude
-    ( class Functor, map
-    , class Apply, apply
-    , class Applicative, pure
-    , class Bind, bind
-    , class Monad, (>>=)
-    , Unit, unit, show, ($), (<<<), (<$>), const, (==), (<>)
-    )
+import Elm.Result (Result(Err, Ok))
+import Prelude (class Applicative, class Apply, class Bind, class Functor, class Monad, Unit, apply, bind, const, discard, id, map, pure, show, unit, void, (#), ($), (<$>), (<<<), (<>), (==), (>>=), (>>>))
+import Prelude (map) as Virtual
 
 
 -- | A value that knows how to decode JSON values.
-newtype Decoder a = Decoder (Value -> Result String a)
+--
+-- We collect some evidence about what the `a` is, in cases where it's not
+-- fully polymorphic.
+--
+-- The `Run` constructor is probably an example of something more general that
+-- I'm not seeing yet.
+--
+-- This little DSL could probably be sipmlified a bit ...  ideally, it should
+-- consist of irreducible things.
+data Decoder a
+    = Ap (ApplyCoyoneda Decoder a)
+    | Array (a ~ Array Foreign)
+    | ArrayOfLength (a ~ Array Foreign) Int
+    | Bind (BindCoyoneda Decoder a)
+    | Fail String
+    | Field (a ~ Foreign) String
+    | FromForeign (Foreign -> F a)
+    | Index (a ~ Foreign) Int
+    | Keys (a ~ Array String)
+    | Map (Coyoneda Decoder a)
+    | Null a
+    | OneOf (Decoder a) (Decoder a)
+    | Run (Decoder Foreign) (Decoder a)
+    | Succeed a
+    | Value (a ~ Foreign)
 
 
--- The Foreign module uses `Except` to pass errors around,
--- whereas we need `Result String a`.
+-- The Foreign module uses `Except` to pass errors around, whereas we need
+-- `Result String a`.
+--
+-- We should render the err case a little more nicely.
 toResult :: ∀ a. F a -> Result String a
 toResult f =
     case runExcept f of
@@ -80,49 +101,175 @@ toResult f =
         Left err -> Err (show err)
 
 
+-- | Run a `Decoder` on some JSON `Value`. You can send these JSON values
+-- | through ports, so that is probably the main time you would use this function.
+decodeValue :: ∀ a. Decoder a -> Value -> Result String a
+decodeValue =
+    -- This gets called recursively without tail-calls, so it will use stack
+    -- space. However, a decoder should not be constructed in a way that chews
+    -- through too much stack space. If it turns out to be a problem, we can
+    -- make this stack-safe in one way or another.
+    case _ of
+        Ap coyo ->
+            \val ->
+                coyo # unApplyCoyoneda
+                    (\tagger decoder ->
+                        apply ((decodeValue tagger) val) ((decodeValue decoder) val)
+                    )
+
+        Array proof ->
+            readArray >>> toResult >>> map (coerceSymm proof)
+
+        ArrayOfLength proof expected ->
+            \val -> map (coerceSymm proof) $ do
+                arr <- toResult $ readArray val
+                let len = Array.length arr
+                if len == expected
+                    then Ok arr
+                    else Err $ "Expected array with exact length: " <> (show expected) <> ", but got length: " <> (show len)
+
+        Bind coyo ->
+            \val ->
+                coyo # unBindCoyoneda
+                    (\decoder func ->
+                        case (decodeValue decoder) val of
+                            Err err ->
+                                Err err
+
+                            Ok a ->
+                                decodeValue (func a) val
+                    )
+
+        Fail err ->
+            const $ Err err
+
+        Field proof key ->
+            readProp key >>> toResult >>> map (coerceSymm proof)
+
+        FromForeign func ->
+            func >>> toResult
+
+        Index proof i ->
+            readIndex i >>> toResult >>> map (coerceSymm proof)
+
+        Keys proof ->
+            keys >>> map (coerceSymm proof)
+
+        Map coyo ->
+            coyo # unCoyoneda
+                (\tagger decoder ->
+                    map tagger <<< (decodeValue decoder)
+                )
+
+        Null a ->
+            \val ->
+                if isNull val
+                    then Ok a
+                    else toResult $ DF.fail $ TypeMismatch "null" (typeOf val)
+
+        OneOf left right ->
+            -- There is probably a more elevant implementation possible.
+            \val ->
+                case (decodeValue left) val of
+                    Ok result ->
+                        Ok result
+
+                    Err leftErr ->
+                        case (decodeValue right) val of
+                            Ok result ->
+                                Ok result
+
+                            Err rightErr ->
+                                Err $ leftErr <> " <|> " <> rightErr
+
+        Run decodeForeign decoder ->
+            (decodeValue decodeForeign) >=> (decodeValue decoder)
+
+        Succeed a ->
+            const $ Ok a
+
+        Value proof ->
+            id >>> coerceSymm proof >>> Ok
+
+
+-- For all the instances we need, we're basically just collecting the inputs,
+-- so we can run them later. We apply the Coyoneda strategry to the `Apply` and
+-- `Bind` instances as well. (There may well be a better way to do that, e.g. a
+-- free monad?)
 instance functorDecoder :: Functor Decoder where
-    map func (Decoder decoder) =
-        Decoder $ map func <<< decoder
+    map func decoder =
+        Map $ coyoneda func decoder
 
 
 instance altDecoder :: Alt Decoder where
-    alt (Decoder left) (Decoder right) =
-        Decoder $ \val ->
-            case left val of
-                Ok result ->
-                    Ok result
-
-                Err leftErr ->
-                    case right val of
-                        Ok result ->
-                            Ok result
-
-                        Err rightErr ->
-                            Err $ leftErr <> " <|> " <> rightErr
+    alt = OneOf
 
 
+-- This is the coyoneda strategy, but for Apply rather than Functor ... not
+-- sure it this is a thing or not.
+data ApplyCoyonedaF f a i = ApplyCoyonedaF (f (i -> a)) (f i)
+
+newtype ApplyCoyoneda f a = ApplyCoyoneda (Exists (ApplyCoyonedaF f a))
+
+applyCoyoneda :: ∀ f a b. f (a -> b) -> f a -> ApplyCoyoneda f b
+applyCoyoneda k fi = ApplyCoyoneda $ mkExists $ ApplyCoyonedaF k fi
+
+unApplyCoyoneda :: ∀ f a r. (∀ b. f (b -> a) -> f b -> r) -> ApplyCoyoneda f a -> r
+unApplyCoyoneda f (ApplyCoyoneda e) = runExists (\(ApplyCoyonedaF k fi) -> f k fi) e
+
+
+-- It's possible that this is unnecessary if I just used a free monad ...  that
+-- is, I might be able to get this for free.
 instance applyDecoder :: Apply Decoder where
-    apply (Decoder func) (Decoder decoder) =
-        Decoder $ \val ->
-            apply (func val) (decoder val)
+    apply f g =
+        Ap $ applyCoyoneda f g
 
 
 instance applicativeDecoder :: Applicative Decoder where
-    pure = Decoder <<< const <<< pure
+    pure = Succeed
 
 
+-- This is the coyoneda strategy, but for Bind rather than Functor ... not
+-- sure it this is a thing or not.
+data BindCoyonedaF f a i = BindCoyonedaF (f i) (i -> f a)
+
+newtype BindCoyoneda f a = BindCoyoneda (Exists (BindCoyonedaF f a))
+
+bindCoyoneda :: ∀ f a b. f a -> (a -> f b) -> BindCoyoneda f b
+bindCoyoneda fi k = BindCoyoneda $ mkExists $ BindCoyonedaF fi k
+
+unBindCoyoneda :: ∀ f a r. (∀ b. f b -> (b -> f a) -> r) -> BindCoyoneda f a -> r
+unBindCoyoneda f (BindCoyoneda e) = runExists (\(BindCoyonedaF k fi) -> f k fi) e
+
+
+-- Again, one wonders whether I'm really looking for a free monad here.
 instance bindDecoder :: Bind Decoder where
-    bind (Decoder decoder) func =
-        Decoder $ \val ->
-            case decoder val of
-                Err err ->
-                    Err err
-
-                Ok a ->
-                    decodeValue (func a) val
+    bind decoder func =
+        Bind $ bindCoyoneda decoder func
 
 
 instance monadDecoder :: Monad Decoder
+
+
+-- These are some partially-applied constructors from which other things
+-- can be built.
+arrayT :: Decoder (Array Foreign)
+arrayT = Array id
+
+arrayOfLengthT :: Int -> Decoder (Array Foreign)
+arrayOfLengthT = ArrayOfLength id
+
+fieldT :: String -> Decoder Foreign
+fieldT = Field id
+
+indexT :: Int -> Decoder Foreign
+indexT = Index id
+
+keysT :: Decoder (Array String)
+keysT = Keys id
+
+valueT :: Decoder Value
+valueT = Value id
 
 
 -- | Parse the given string into a JSON value and then run the `Decoder` on it.
@@ -132,8 +279,8 @@ instance monadDecoder :: Monad Decoder
 -- |     decodeString int "4"     == Ok 4
 -- |     decodeString int "1 + 2" == Err ...
 decodeString :: ∀ a. Decoder a -> String -> Result String a
-decodeString (Decoder decoder) str =
-    toResult (parseJSON str) >>= decoder
+decodeString decoder str =
+    toResult (parseJSON str) >>= (decodeValue decoder)
 
 
 -- OBJECTS
@@ -167,9 +314,7 @@ at fields decoder =
 -- |
 -- | This function was added in Elm 0.18.
 index :: ∀ a. Int -> Decoder a -> Decoder a
-index i (Decoder decoder) =
-    Decoder $ \val ->
-        toResult (readIndex i val) >>= decoder
+index = Run <<< indexT
 
 
 -- | Decode a JSON object, requiring a particular field.
@@ -186,9 +331,8 @@ index i (Decoder decoder) =
 -- |
 -- | Check out [`map2`](#map2) to see how to decode multiple fields!
 field :: ∀ a. String -> Decoder a -> Decoder a
-field f (Decoder decoder) =
-    Decoder $ \val ->
-        toResult (readProp f val) >>= decoder
+field = Run <<< fieldT
+
 
 infixl 4 field as :=
 
@@ -275,15 +419,14 @@ object8 = map8
 -- |
 -- | The container for the return type is polymorphic in order to accommodate `List` or `Array`, among others.
 keyValuePairs :: ∀ f a. Monoid (f (Tuple String a)) => Applicative f => Decoder a -> Decoder (f (Tuple String a))
-keyValuePairs (Decoder decoder) =
-    Decoder $ \val -> do
-        ks <- keys val
-        arr <- traverse (\key -> do
-            p <- toResult $ readProp key val
-            d <- decoder p
-            pure $ Tuple key d
-        ) ks
-        pure $ foldMap pure arr
+keyValuePairs decoder = do
+    arr <-
+        keysT >>= traverse
+            (\key -> do
+                prop <- field key decoder
+                pure $ Tuple key prop
+            )
+    pure $ foldMap pure arr
 
 
 -- | Get an array of the keys defined on a foreign value.
@@ -337,15 +480,15 @@ dict decoder =
 -- | The container has a polymorphic type to accommodate `List` or `Array`,
 -- | among others.
 oneOf :: ∀ f a. (Foldable f) => f (Decoder a) -> Decoder a
-oneOf decoders =
-    foldl alt (fail "Expected one of: ") decoders
+oneOf =
+    foldl alt (Fail "Expected one of: ")
 
 
 -- | Given a function which reads a `Foreign`, make a decoder.
 -- |
 -- | Note that this is not in the Elm API.
-fromForeign :: ∀ a. (Foreign -> F a) ->  Decoder a
-fromForeign func = Decoder $ toResult <<< func
+fromForeign :: ∀ a. (Foreign -> F a) -> Decoder a
+fromForeign = FromForeign
 
 
 -- | Decode a JSON string into an Elm `String`.
@@ -397,10 +540,7 @@ bool = fromForeign readBoolean
 -- |     decodeString (list int) "[1,2,3]"       == Ok [1,2,3]
 -- |     decodeString (list bool) "[true,false]" == Ok [True,False]
 list :: ∀ a. Decoder a -> Decoder (List a)
-list (Decoder decoder) =
-    Decoder $ \val -> do
-        arr <- toResult $ readArray val
-        List.fromFoldable <$> traverse decoder arr
+list = unfoldable
 
 
 -- | Decode a JSON array into an Elm `Array`.
@@ -424,13 +564,11 @@ array = unfoldable
 -- |
 -- | Note that this is not part of the Elm API.
 unfoldable :: ∀ f a. (Unfoldable f) => Decoder a -> Decoder (f a)
-unfoldable (Decoder decoder) =
-    Decoder $ \val -> do
-        arr <- toResult $ readArray val
-        decoded <- traverse decoder arr
-        pure $ unfoldr
-            (\a -> map (\b -> Tuple b.head b.tail) (uncons a))
-            decoded
+unfoldable decoder = do
+    arr <- arrayT >>= traverse (\val -> Run (Succeed val) decoder)
+    pure $ unfoldr
+        (\a -> map (\b -> Tuple b.head b.tail) (uncons a))
+        arr
 
 
 -- | Decode a `null` value into some Elm value.
@@ -442,12 +580,7 @@ unfoldable (Decoder decoder) =
 -- |
 -- | So if you ever see a `null`, this will return whatever value you specified.
 null :: ∀ a. a -> Decoder a
-null default =
-    Decoder $
-        \val ->
-            if isNull val
-                then Ok default
-                else toResult $ DF.fail $ TypeMismatch "null" (typeOf val)
+null = Null
 
 
 -- | Decode a nullable JSON value into an Elm value.
@@ -460,10 +593,7 @@ null default =
 -- | This function was added in Elm 0.18.
 nullable :: ∀ a. Decoder a -> Decoder (Maybe a)
 nullable decoder =
-    oneOf
-        [ null Nothing
-        , map Just decoder
-        ]
+    null Nothing <|> map Just decoder
 
 
 -- | Helpful for dealing with optional fields. Here are a few slightly different
@@ -485,14 +615,8 @@ nullable decoder =
 -- | Point is, `maybe` will make exactly what it contains conditional. For optional
 -- | fields, this means you probably want it *outside* a use of `field` or `at`.
 maybe :: ∀ a. Decoder a -> Decoder (Maybe a)
-maybe (Decoder decoder) =
-    Decoder $ \val ->
-        case decoder val of
-            Ok decoded ->
-                Ok (Just decoded)
-
-            Err _ ->
-                Ok Nothing
+maybe decoder =
+    map Just decoder <|> Succeed Nothing
 
 
 -- | Do not do anything with a JSON value, just bring it into Elm as a `Value`.
@@ -500,20 +624,24 @@ maybe (Decoder decoder) =
 -- | deal with later. Or if you are going to send it out a port and do not care
 -- | about its structure.
 value :: Decoder Value
-value = Decoder $ Ok
-
-
--- | Run a `Decoder` on some JSON `Value`. You can send these JSON values
--- | through ports, so that is probably the main time you would use this function.
-decodeValue :: ∀ a. Decoder a -> Value -> Result String a
-decodeValue (Decoder decoder) val = decoder val
+value = valueT
 
 
 -- | Create a custom decoder that may do some fancy computation.
 customDecoder :: ∀ a b. Decoder a -> (a -> Result String b) -> Decoder b
-customDecoder (Decoder decoder) func =
-    Decoder $ decoder >=> func
+customDecoder decoder func =
+    -- This should work, but it may end up not playing well with `equalDecoder`
+    -- ... I might have to capture the decoder and func in the DSL. Because the
+    -- function I'm captured in the `Bind` is a lmbda, constructed fresh each
+    -- time, so it won't be referentially equal, even if it's the same func.
+    decoder >>=
+        \a ->
+            case func a of
+                Ok ok ->
+                    Succeed ok
 
+                Err err ->
+                    Fail err
 
 
 -- | Sometimes you have JSON with recursive structure, like nested comments.
@@ -544,15 +672,14 @@ customDecoder (Decoder decoder) func =
 -- |
 -- | This function was added in Elm 0.18.
 lazy :: ∀ a. (Unit -> Decoder a) -> Decoder a
-lazy thunk =
-    pure unit >>= thunk
+lazy = bind (pure unit)
 
 
 -- | Ignore the JSON and make the decoder fail. This is handy when used with
 -- | `oneOf` or `andThen` where you want to give a custom error message in some
 -- | case.
 fail :: ∀ a. String -> Decoder a
-fail = Decoder <<< const <<< Err
+fail = Fail
 
 
 -- | Ignore the JSON and produce a certain Elm value.
@@ -563,7 +690,7 @@ fail = Decoder <<< const <<< Err
 -- |
 -- | This is handy when used with `oneOf` or `andThen`.
 succeed :: ∀ a. a -> Decoder a
-succeed = pure
+succeed = Succeed
 
 
 -- TUPLES
@@ -583,29 +710,9 @@ succeed = pure
 -- |
 -- | This function was removed in Elm 0.18.
 tuple1 :: ∀ a value. (a -> value) -> Decoder a -> Decoder value
-tuple1 func decoder0 =
-    Decoder $ \val -> do
-        values <- tryArray val 1
-        v0 <- tryIndex values decoder0 0
-        pure (func v0)
-
-
-tryArray :: Value -> Int -> Result String (Array Value)
-tryArray val expected = do
-    arr <- toResult $ readArray val
-    let len = Array.length arr
-    if len == expected
-        then Ok arr
-        else Err $ "Expected array with exact length: " <> (show expected) <> ", but got length: " <> (show len)
-
-
-tryIndex :: ∀ a. Array Value -> Decoder a -> Int -> Result String a
-tryIndex arr (Decoder decoder) i = do
-    val <- fromMaybe
-        "Internal error getting index"
-        (Array.index arr i)
-
-    decoder val
+tuple1 func d0 = do
+    void $ arrayOfLengthT 1
+    func <$> index 0 d0
 
 
 -- | Handle an array with exactly two elements. Useful for points and simple
@@ -625,107 +732,99 @@ tryIndex arr (Decoder decoder) i = do
 -- |
 -- | This function was removed in Elm 0.18.
 tuple2 :: ∀ a b value. (a -> b -> value) -> Decoder a -> Decoder b -> Decoder value
-tuple2 func d0 d1 =
-    Decoder $ \val -> do
-        values <- tryArray val 2
+tuple2 func d0 d1 = do
+    void $ arrayOfLengthT 2
 
-        v0 <- tryIndex values d0 0
-        v1 <- tryIndex values d1 1
+    v0 <- index 0 d0
+    v1 <- index 1 d1
 
-        pure (func v0 v1)
+    pure $ func v0 v1
 
 
 -- | Handle an array with exactly three elements.
 -- |
 -- | This function was removed in Elm 0.18.
 tuple3 :: ∀ a b c value. (a -> b -> c -> value) -> Decoder a -> Decoder b -> Decoder c -> Decoder value
-tuple3 func d0 d1 d2 =
-    Decoder $ \val -> do
-        values <- tryArray val 3
+tuple3 func d0 d1 d2 = do
+    void $ arrayOfLengthT 3
 
-        v0 <- tryIndex values d0 0
-        v1 <- tryIndex values d1 1
-        v2 <- tryIndex values d2 2
+    v0 <- index 0 d0
+    v1 <- index 1 d1
+    v2 <- index 2 d2
 
-        pure (func v0 v1 v2)
+    pure $ func v0 v1 v2
 
 
 -- | This function was removed in Elm 0.18.
 tuple4 :: ∀ a b c d value. (a -> b -> c -> d -> value) -> Decoder a -> Decoder b -> Decoder c -> Decoder d -> Decoder value
-tuple4 func d0 d1 d2 d3 =
-    Decoder $ \val -> do
-        values <- tryArray val 4
+tuple4 func d0 d1 d2 d3 = do
+    void $ arrayOfLengthT 4
 
-        v0 <- tryIndex values d0 0
-        v1 <- tryIndex values d1 1
-        v2 <- tryIndex values d2 2
-        v3 <- tryIndex values d3 3
+    v0 <- index 0 d0
+    v1 <- index 1 d1
+    v2 <- index 2 d2
+    v3 <- index 3 d3
 
-        pure (func v0 v1 v2 v3)
+    pure $ func v0 v1 v2 v3
 
 
 -- | This function was removed in Elm 0.18.
 tuple5 :: ∀ a b c d e value. (a -> b -> c -> d -> e -> value) -> Decoder a -> Decoder b -> Decoder c -> Decoder d -> Decoder e -> Decoder value
-tuple5 func d0 d1 d2 d3 d4 =
-    Decoder $ \val -> do
-        values <- tryArray val 5
+tuple5 func d0 d1 d2 d3 d4 = do
+    void $ arrayOfLengthT 5
 
-        v0 <- tryIndex values d0 0
-        v1 <- tryIndex values d1 1
-        v2 <- tryIndex values d2 2
-        v3 <- tryIndex values d3 3
-        v4 <- tryIndex values d4 4
+    v0 <- index 0 d0
+    v1 <- index 1 d1
+    v2 <- index 2 d2
+    v3 <- index 3 d3
+    v4 <- index 4 d4
 
-        pure (func v0 v1 v2 v3 v4)
+    pure $ func v0 v1 v2 v3 v4
 
 
 -- | This function was removed in Elm 0.18.
 tuple6 :: ∀ a b c d e f value. (a -> b -> c -> d -> e -> f -> value) -> Decoder a -> Decoder b -> Decoder c -> Decoder d -> Decoder e -> Decoder f -> Decoder value
-tuple6 func d0 d1 d2 d3 d4 d5 =
-    Decoder $ \val -> do
-        values <- tryArray val 6
+tuple6 func d0 d1 d2 d3 d4 d5 = do
+    void $ arrayOfLengthT 6
 
-        v0 <- tryIndex values d0 0
-        v1 <- tryIndex values d1 1
-        v2 <- tryIndex values d2 2
-        v3 <- tryIndex values d3 3
-        v4 <- tryIndex values d4 4
-        v5 <- tryIndex values d5 5
+    v0 <- index 0 d0
+    v1 <- index 1 d1
+    v2 <- index 2 d2
+    v3 <- index 3 d3
+    v4 <- index 4 d4
+    v5 <- index 5 d5
 
-        pure (func v0 v1 v2 v3 v4 v5)
+    pure $ func v0 v1 v2 v3 v4 v5
 
 
 -- | This function was removed in Elm 0.18.
 tuple7 :: ∀ a b c d e f g value. (a -> b -> c -> d -> e -> f -> g -> value) -> Decoder a -> Decoder b -> Decoder c -> Decoder d -> Decoder e -> Decoder f -> Decoder g -> Decoder value
-tuple7 func d0 d1 d2 d3 d4 d5 d6 =
-    Decoder $ \val -> do
-        values <- tryArray val 7
+tuple7 func d0 d1 d2 d3 d4 d5 d6 = do
+    void $ arrayOfLengthT 7
 
-        v0 <- tryIndex values d0 0
-        v1 <- tryIndex values d1 1
-        v2 <- tryIndex values d2 2
-        v3 <- tryIndex values d3 3
-        v4 <- tryIndex values d4 4
-        v5 <- tryIndex values d5 5
-        v6 <- tryIndex values d6 6
+    v0 <- index 0 d0
+    v1 <- index 1 d1
+    v2 <- index 2 d2
+    v3 <- index 3 d3
+    v4 <- index 4 d4
+    v5 <- index 5 d5
+    v6 <- index 6 d6
 
-        pure (func v0 v1 v2 v3 v4 v5 v6)
+    pure $ func v0 v1 v2 v3 v4 v5 v6
 
 
 -- | This function was removed in Elm 0.18.
 tuple8 :: ∀ a b c d e f g h value. (a -> b -> c -> d -> e -> f -> g -> h -> value) -> Decoder a -> Decoder b -> Decoder c -> Decoder d -> Decoder e -> Decoder f -> Decoder g -> Decoder h -> Decoder value
-tuple8 func d0 d1 d2 d3 d4 d5 d6 d7 =
-    Decoder $ \val -> do
-        values <- tryArray val 8
+tuple8 func d0 d1 d2 d3 d4 d5 d6 d7 = do
+    void $ arrayOfLengthT 8
 
-        v0 <- tryIndex values d0 0
-        v1 <- tryIndex values d1 1
-        v2 <- tryIndex values d2 2
-        v3 <- tryIndex values d3 3
-        v4 <- tryIndex values d4 4
-        v5 <- tryIndex values d5 5
-        v6 <- tryIndex values d6 6
-        v7 <- tryIndex values d7 7
+    v0 <- index 0 d0
+    v1 <- index 1 d1
+    v2 <- index 2 d2
+    v3 <- index 3 d3
+    v4 <- index 4 d4
+    v5 <- index 5 d5
+    v6 <- index 6 d6
+    v7 <- index 7 d7
 
-        pure (func v0 v1 v2 v3 v4 v5 v6 v7)
-
+    pure $ func v0 v1 v2 v3 v4 v5 v6 v7
