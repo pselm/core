@@ -37,7 +37,8 @@
     "purescript-sets": "^3.0.0",
     "purescript-strings": "^3.0.0",
     "purescript-io": "^5.0.0",
-    "purescript-leibniz": "^4.1.0"
+    "purescript-leibniz": "^4.1.0",
+    "purescript-unsafe-reference": "^2.0.0"
   },
   "devDependencies": {
     "purescript-test-unit": "^13.0.0",

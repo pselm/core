@@ -25,6 +25,7 @@ module Elm.Json.Decode
     , keyValuePairs, dict
     , oneOf, nullable, maybe, fail, succeed
     , value, customDecoder, lazy
+    , equalDecoders
     ) where
 
 
@@ -58,8 +59,9 @@ import Elm.Json.Encode (Value) as Virtual
 import Elm.List (List, foldr)
 import Elm.Maybe (Maybe(..))
 import Elm.Result (Result(Err, Ok))
-import Prelude (class Applicative, class Apply, class Bind, class Functor, class Monad, Unit, apply, bind, const, discard, id, map, pure, show, unit, void, (#), ($), (<$>), (<<<), (<>), (==), (>>=), (>>>))
+import Prelude (class Applicative, class Apply, class Bind, class Functor, class Monad, Unit, apply, bind, const, discard, id, map, pure, show, unit, void, (#), ($), (&&), (<$>), (<<<), (<>), (==), (>>=), (>>>), (||))
 import Prelude (map) as Virtual
+import Unsafe.Reference (unsafeRefEq)
 
 
 -- | A value that knows how to decode JSON values.
@@ -190,6 +192,69 @@ decodeValue =
 
         Value proof ->
             id >>> coerceSymm proof >>> Ok
+
+
+-- | Tries to compare two decoders for equality. Subject to false negatives,
+-- | but positives should be reliatble.
+-- |
+-- | If the `a` type has an `Eq` instance, then use `ersatzEqDecoders` instead
+-- | to help with the `succeed` case.
+equalDecoders :: ∀ a. Decoder a -> Decoder a -> Bool
+equalDecoders d1 d2 =
+    unsafeRefEq d1 d2 || case d1, d2 of
+        Ap coyoLeft, Ap coyoRight ->
+            false
+
+        Array _, Array _ ->
+            true
+
+        ArrayOfLength _ leftN, ArrayOfLength _ rightN ->
+            leftN == rightN
+
+        Bind coyoLeft, Bind coyoRight ->
+            false
+
+        Fail reasonLeft, Fail reasonRight ->
+            reasonLeft == reasonRight
+
+        Field _ keyLeft, Field _ keyRight ->
+            keyLeft == keyRight
+
+        FromForeign funcLeft, FromForeign funcRight ->
+            unsafeRefEq funcLeft funcRight
+
+        Index _ indexLeft, Index _ indexRight ->
+            indexLeft == indexRight
+
+        Keys _, Keys _ ->
+            true
+
+        Map coyoLeft, Map coyoRight ->
+            false
+
+        Null a, Null b ->
+            unsafeRefEq a b
+
+        OneOf leftLeft leftRight, OneOf rightLeft rightRight ->
+            equalDecoders leftLeft rightLeft &&
+            equalDecoders leftRight rightRight
+
+        Run leftLeft leftRight, Run rightLeft rightRight ->
+            equalDecoders leftLeft rightLeft &&
+            equalDecoders leftRight rightRight
+
+        Succeed a, Succeed b ->
+            -- TODO: I should capture an equals function with the succeed case.
+            -- I can probably do this automatically with instance chains in
+            -- Purescript 0.12 ... prior to that, I'll need a separate
+            -- `succeed_` that has an equality constraint.
+            unsafeRefEq a b
+
+        Value _, Value _ ->
+            true
+
+        _, _ ->
+            false
 
 
 -- For all the instances we need, we're basically just collecting the inputs,
