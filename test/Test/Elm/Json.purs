@@ -16,7 +16,7 @@ import Data.Sequence as Sequence
 import Data.Tuple (Tuple(..))
 import Elm.Basics (Float, (|>))
 import Elm.Dict as Dict
-import Elm.Json.Decode (Decoder, at, bool, dict, equalDecoders, fail, field, float, index, int, keyValuePairs, maybe, null, null_, nullable, oneOf, string, succeed, succeed_, value, (:=))
+import Elm.Json.Decode (Decoder, array, at, bool, dict, equalDecoders, fail, field, float, index, int, keyValuePairs, list, maybe, null, null_, nullable, object2, object3, oneOf, string, succeed, succeed_, unfoldable, value, (:=))
 import Elm.Json.Decode as JD
 import Elm.Json.Encode as JE
 import Elm.Result (Result(..), toMaybe)
@@ -650,6 +650,63 @@ tests = suite "Json" do
             assertFalse "unequal 1" $ at [ "data", "age" ] int `equalDecoders` at [ "data", "weight" ] int
             assertFalse "unequal 2" $ at [ "data", "age" ] int `equalDecoders` at [ "data", "age", "inyears" ] int
             assertFalse "unequal 3" $ at [ "data", "age" ] int `equalDecoders` at [ "data", "age" ] (succeed 17)
+
+        test "map" do
+            let func = \x -> x + 1
+            let func2 = \x -> x + 2
+            assert "equal" $ map func (succeed 1) `equalDecoders` map func (succeed 1)
+            assertFalse "unequal 1" $ map func (succeed 1) `equalDecoders` map func (succeed 2)
+            assertFalse "unequal 2" $ map func (succeed 1) `equalDecoders` map func2 (succeed 1)
+
+        test "alt" do
+            assert "equal" $ alt (succeed 1) (succeed 2) `equalDecoders` alt (succeed 1) (succeed 2)
+            assertFalse "unequal" $ alt (succeed 1) (succeed 2) `equalDecoders` alt (succeed 1) (succeed 3)
+
+        test "bind" do
+            let func = \x -> succeed (x + 1)
+            let func2 = \x -> succeed (x + 2)
+            assert "equal" $ bind (succeed 1) func `equalDecoders` bind (succeed 1) func
+            assertFalse "unequal 1" $ bind (succeed 1) func `equalDecoders` bind (succeed 2) func
+            assertFalse "unequal 2" $ bind (succeed 1) func `equalDecoders` bind (succeed 1) func2
+
+        test "object2" do
+            let func = \x y -> Tuple x y
+
+            let decoderA1 = (field "name" string)
+            let decoderB1 = (field "age" int)
+            let decoderA2 = (field "name2" string)
+            let decoderB2 = (field "age2" int)
+
+            -- Separate production doesn't work in this case.
+            --
+            -- let decoder1 = JD.object2 Tuple ("name" := JD.string) ("age" := JD.int)
+            -- let decoder2 = JD.object2 Tuple ("name" := JD.string) ("age" := JD.int)
+            -- assert "equal" $ decoder1 `equalDecoders` decoder2
+
+            -- However, should work if the decoders and func are referentially equal
+            assert "equal" $ object2 Tuple decoderA1 decoderB1 `equalDecoders` object2 Tuple decoderA1 decoderB1
+            assertFalse "unequal 1" $ object2 Tuple decoderA1 decoderB1 `equalDecoders` object2 Tuple decoderA1 decoderB2
+            assertFalse "unequal 2" $ object2 Tuple decoderA1 decoderB1 `equalDecoders` object2 Tuple decoderA2 decoderB1
+            assertFalse "unequal 3" $ object2 Tuple decoderA1 decoderB1 `equalDecoders` object2 func decoderA1 decoderB1
+
+        test "object3" do
+           -- add a test once object2 works better
+            let decoder1 = field "name" string
+            let decoder2 = field "id" int
+            let decoder3 = field "completed" bool
+            assert "equal" $ object3 makeJob decoder1 decoder2 decoder3 `equalDecoders` object3 makeJob decoder1 decoder2 decoder3
+
+        test "list" do
+            -- assert "equal" $ list (succeed 17) `equalDecoders` list (succeed 17)
+            assertFalse "unequal" $ list (succeed 17) `equalDecoders` list (succeed 18)
+
+        test "array" do
+            -- assert "equal" $ array (succeed 17) `equalDecoders` array (succeed 17)
+            assertFalse "unequal" $ array (succeed 17) `equalDecoders` array (succeed 18)
+
+        test "unfoldable" do
+           -- assert "equal" $ unfoldable (succeed 17) :: Decoder (Array Int) `equalDecoders` unfoldable (succeed 17)
+           assertFalse "unequal" $ unfoldable (succeed 17) :: Decoder (Array Int) `equalDecoders` unfoldable (succeed 18)
 
     test "laws\n" $
         liftEff do

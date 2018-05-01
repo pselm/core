@@ -50,6 +50,7 @@ import Data.Tuple (Tuple(..))
 import Data.Unfoldable (class Unfoldable, unfoldr)
 import Elm.Apply (andMap, map2, map3, map4, map5, map6, map7, map8) as Virtual
 import Elm.Apply (map6, map7, map8)
+import Elm.Array as ElmArray
 import Elm.Basics (Bool, Float)
 import Elm.Bind (andThen) as Virtual
 import Elm.Dict (Dict)
@@ -203,8 +204,7 @@ unsafeCoerceDecoder = unsafeCoerce
 -- | Tries to compare two decoders for equality. Subject to false negatives,
 -- | but positives should be reliatble.
 -- |
--- | If the `a` type has an `Eq` instance, then use `ersatzEqDecoders` instead
--- | to help with the `succeed` case.
+-- | Add some notes about which cases produce false negatives.
 equalDecoders :: ∀ a. Decoder a -> Decoder a -> Bool
 equalDecoders d1 d2 =
     unsafeRefEq d1 d2 || case d1, d2 of
@@ -322,11 +322,14 @@ equalDecoders d1 d2 =
 -- `Bind` instances as well. (There may well be a better way to do that, e.g. a
 -- free monad?)
 instance functorDecoder :: Functor Decoder where
+    -- | Works with `equalDecoders` so long as the supplied functions are
+    -- | referentially equal.
     map func decoder =
         Map $ coyoneda func decoder
 
 
 instance altDecoder :: Alt Decoder where
+    -- | Works with `equalDecoders`
     alt = OneOf
 
 
@@ -346,11 +349,17 @@ unApplyCoyoneda f (ApplyCoyoneda e) = runExists (\(ApplyCoyonedaF k fi) -> f k f
 -- It's possible that this is unnecessary if I just used a free monad ...  that
 -- is, I might be able to get this for free.
 instance applyDecoder :: Apply Decoder where
+    -- | Works with `equalDecoders` only if at least one of the arguments is
+    -- | referentially equal to the other case.
     apply f g =
         Ap $ applyCoyoneda f g
 
 
 instance applicativeDecoder :: Applicative Decoder where
+    -- | Works with `equalDecoders` if the supplied values are referentially
+    -- | equal. If the supplied values have an `Eq` instance, consider using
+    -- | `succeed` instead of `pure`, since `equalDecoders` will then be able
+    -- | to use the `Eq` instance.
     pure = succeed_
 
 
@@ -369,6 +378,8 @@ unBindCoyoneda f (BindCoyoneda e) = runExists (\(BindCoyonedaF k fi) -> f k fi) 
 
 -- Again, one wonders whether I'm really looking for a free monad here.
 instance bindDecoder :: Bind Decoder where
+    -- | Works with `equalDecoders` so long ast hte functions supplied are
+    -- | referentially equal.
     bind decoder func =
         Bind $ bindCoyoneda decoder func
 
@@ -405,7 +416,7 @@ valueT = Value id
 -- |     decodeString int "1 + 2" == Err ...
 decodeString :: ∀ a. Decoder a -> String -> Result String a
 decodeString decoder str =
-    toResult (parseJSON str) >>= (decodeValue decoder)
+    toResult (parseJSON str) >>= decodeValue decoder
 
 
 -- OBJECTS
@@ -483,6 +494,9 @@ infixl 4 field as :=
 -- | Equivalent to Purescript's `map`.
 -- |
 -- | Removed in Elm 0.18, in favour of `map`.
+-- |
+-- | Works with `equalDecoers` so long as the functions supp;lied are
+-- | referentially equal.
 object1 :: ∀ a value. (a -> value) -> Decoder a -> Decoder value
 object1 = map
 
@@ -499,6 +513,10 @@ object1 = map
 -- | Equivalent to Purescript's `lift2`.
 -- |
 -- | Removed in Elm 0.18, in favour of `map2`.
+-- |
+-- | Works with `equalDecoders` so long as the function supp;lied is
+-- | referntially equal to the other case, and teh decoders are also
+-- | referntially equal. It may be possible to improve on this.
 object2 :: ∀ a b value. (a -> b -> value) -> Decoder a -> Decoder b -> Decoder value
 object2 = lift2
 
@@ -518,6 +536,10 @@ object2 = lift2
 -- | Equivalent to Purescript's `lift3`.
 -- |
 -- | Removed in Elm 0.18, in favour of `map3`.
+-- |
+-- | Works with `equalDecoders` so long as the function supp;lied is
+-- | referntially equal to the other case, and teh decoders are also
+-- | referntially equal. It may be possible to improve on this.
 object3 :: ∀ a b c value. (a -> b -> c -> value) -> Decoder a -> Decoder b -> Decoder c -> Decoder value
 object3 = lift3
 
@@ -525,6 +547,10 @@ object3 = lift3
 -- | Equivalent to Purescript's `lift4`.
 -- |
 -- | Removed in Elm 0.18, in favour of `map4`.
+-- |
+-- | Works with `equalDecoders` so long as the function supp;lied is
+-- | referntially equal to the other case, and teh decoders are also
+-- | referntially equal. It may be possible to improve on this.
 object4 :: ∀ a b c d value. (a -> b -> c -> d -> value) -> Decoder a -> Decoder b -> Decoder c -> Decoder d -> Decoder value
 object4 = lift4
 
@@ -532,21 +558,37 @@ object4 = lift4
 -- | Equivalent to Purescript's `lift5`.
 -- |
 -- | Removed in Elm 0.18, in favour of `map5`.
+-- |
+-- | Works with `equalDecoders` so long as the function supp;lied is
+-- | referntially equal to the other case, and teh decoders are also
+-- | referntially equal. It may be possible to improve on this.
 object5 :: ∀ a b c d e value. (a -> b -> c -> d -> e -> value) -> Decoder a -> Decoder b -> Decoder c -> Decoder d -> Decoder e -> Decoder value
 object5 = lift5
 
 
 -- | Removed in Elm 0.18, in favour of `map6`.
+-- |
+-- | Works with `equalDecoders` so long as the function supp;lied is
+-- | referntially equal to the other case, and teh decoders are also
+-- | referntially equal. It may be possible to improve on this.
 object6 :: ∀ a b c d e f value. (a -> b -> c -> d -> e -> f -> value) -> Decoder a -> Decoder b -> Decoder c -> Decoder d -> Decoder e -> Decoder f -> Decoder value
 object6 = map6
 
 
 -- | Removed in Elm 0.18, in favour of `map7`.
+-- |
+-- | Works with `equalDecoders` so long as the function supp;lied is
+-- | referntially equal to the other case, and teh decoders are also
+-- | referntially equal. It may be possible to improve on this.
 object7 :: ∀ a b c d e f g value. (a -> b -> c -> d -> e -> f -> g -> value) -> Decoder a -> Decoder b -> Decoder c -> Decoder d -> Decoder e -> Decoder f -> Decoder g -> Decoder value
 object7 = map7
 
 
 -- | Removed in Elm 0.18, in favour of `map8`.
+-- |
+-- | Works with `equalDecoders` so long as the function supp;lied is
+-- | referntially equal to the other case, and teh decoders are also
+-- | referntially equal. It may be possible to improve on this.
 object8 :: ∀ a b c d e f g h value. (a -> b -> c -> d -> e -> f -> g -> h -> value) -> Decoder a -> Decoder b -> Decoder c -> Decoder d -> Decoder e -> Decoder f -> Decoder g -> Decoder h -> Decoder value
 object8 = map8
 
@@ -632,6 +674,13 @@ oneOf =
 -- | Given a function which reads a `Foreign`, make a decoder.
 -- |
 -- | Note that this is not in the Elm API.
+-- |
+-- | Because you are supplying a function, `equalDecoders` will only consider
+-- | the resulting decoders equal if the function you supply is referentially
+-- | equal to the function you supply in the other case.  So, to preserve
+-- | equality, the supplied function should not be a lambda -- it should be a
+-- | top-level function definition. See the docs for `equalDecoders` for more
+-- | discussion.
 fromForeign :: ∀ a. (Foreign -> F a) -> Decoder a
 fromForeign = FromForeign
 
@@ -692,6 +741,8 @@ bool = fromForeign readBoolean
 -- |
 -- |     decodeString (list int) "[1,2,3]"       == Ok [1,2,3]
 -- |     decodeString (list bool) "[true,false]" == Ok [True,False]
+-- |
+-- | Does not currently work with `equalDecoders`, but should be fixable.
 list :: ∀ a. Decoder a -> Decoder (List a)
 list = unfoldable
 
@@ -703,7 +754,9 @@ list = unfoldable
 -- |
 -- | The return type is polymorphic to accommodate `Array` and `Elm.Array`,
 -- | among others.
-array :: ∀ f a. (Unfoldable f) => Decoder a -> Decoder (f a)
+-- |
+-- | Does not currently work with `equalDecoders`, but should be fixable.
+array :: ∀ a. Decoder a -> Decoder (ElmArray.Array a)
 array = unfoldable
 
 
@@ -716,6 +769,8 @@ array = unfoldable
 -- |         unfoldable int
 -- |
 -- | Note that this is not part of the Elm API.
+-- |
+-- | Does not currently work with `equalDecoders`, but should be fixable.
 unfoldable :: ∀ f a. (Unfoldable f) => Decoder a -> Decoder (f a)
 unfoldable decoder = do
     arr <- arrayT >>= traverse (\val -> Run (succeed_ val) decoder)
@@ -732,6 +787,8 @@ unfoldable decoder = do
 -- |     decodeString (null 42) "false"   == Err ..
 -- |
 -- | So if you ever see a `null`, this will return whatever value you specified.
+-- |
+-- | Works with `equalDecoders`
 null :: ∀ a. Eq a => a -> Decoder a
 null = Null (Just eq)
 
