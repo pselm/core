@@ -23,7 +23,7 @@ module Elm.Json.Decode
     , field, (:=), at, index
     , object1, object2, object3, object4, object5, object6, object7, object8
     , keyValuePairs, dict
-    , oneOf, nullable, maybe, fail, succeed
+    , oneOf, nullable, maybe, fail, succeed, succeed_
     , value, customDecoder, lazy
     , equalDecoders
     ) where
@@ -44,6 +44,7 @@ import Data.Foreign as DF
 import Data.Foreign.Index (readIndex, readProp)
 import Data.Foreign.JSON (parseJSON)
 import Data.Leibniz (type (~), coerceSymm)
+import Data.Maybe (fromMaybe)
 import Data.Monoid (class Monoid)
 import Data.Traversable (traverse)
 import Data.Tuple (Tuple(..))
@@ -59,7 +60,7 @@ import Elm.Json.Encode (Value) as Virtual
 import Elm.List (List, foldr)
 import Elm.Maybe (Maybe(..))
 import Elm.Result (Result(Err, Ok))
-import Prelude (class Applicative, class Apply, class Bind, class Functor, class Monad, Unit, apply, bind, const, discard, id, map, pure, show, unit, void, (#), ($), (&&), (<$>), (<<<), (<>), (==), (>>=), (>>>), (||))
+import Prelude (class Applicative, class Apply, class Bind, class Eq, class Functor, class Monad, Unit, apply, bind, const, discard, eq, id, map, pure, show, unit, void, (#), ($), (&&), (<$>), (<<<), (<>), (==), (>>=), (>>>), (||))
 import Prelude (map) as Virtual
 import Unsafe.Reference (unsafeRefEq)
 
@@ -85,10 +86,10 @@ data Decoder a
     | Index (a ~ Foreign) Int
     | Keys (a ~ Array String)
     | Map (Coyoneda Decoder a)
-    | Null a
+    | Null (Maybe (a -> a -> Bool)) a
     | OneOf (Decoder a) (Decoder a)
     | Run (Decoder Foreign) (Decoder a)
-    | Succeed a
+    | Succeed (Maybe (a -> a -> Bool)) a
     | Value (a ~ Foreign)
 
 
@@ -163,7 +164,7 @@ decodeValue =
                     map tagger <<< (decodeValue decoder)
                 )
 
-        Null a ->
+        Null _ a ->
             \val ->
                 if isNull val
                     then Ok a
@@ -187,7 +188,7 @@ decodeValue =
         Run decodeForeign decoder ->
             (decodeValue decodeForeign) >=> (decodeValue decoder)
 
-        Succeed a ->
+        Succeed _ a ->
             const $ Ok a
 
         Value proof ->
@@ -232,8 +233,9 @@ equalDecoders d1 d2 =
         Map coyoLeft, Map coyoRight ->
             false
 
-        Null a, Null b ->
-            unsafeRefEq a b
+        Null equals a, Null _ b ->
+            unsafeRefEq a b ||
+            (fromMaybe false $ map (\eq -> eq a b) equals)
 
         OneOf leftLeft leftRight, OneOf rightLeft rightRight ->
             equalDecoders leftLeft rightLeft &&
@@ -243,12 +245,9 @@ equalDecoders d1 d2 =
             equalDecoders leftLeft rightLeft &&
             equalDecoders leftRight rightRight
 
-        Succeed a, Succeed b ->
-            -- TODO: I should capture an equals function with the succeed case.
-            -- I can probably do this automatically with instance chains in
-            -- Purescript 0.12 ... prior to that, I'll need a separate
-            -- `succeed_` that has an equality constraint.
-            unsafeRefEq a b
+        Succeed equals a, Succeed _ b ->
+            unsafeRefEq a b ||
+            (fromMaybe false $ map (\eq -> eq a b) equals)
 
         Value _, Value _ ->
             true
@@ -291,7 +290,7 @@ instance applyDecoder :: Apply Decoder where
 
 
 instance applicativeDecoder :: Applicative Decoder where
-    pure = Succeed
+    pure = succeed_
 
 
 -- This is the coyoneda strategy, but for Bind rather than Functor ... not
@@ -630,7 +629,7 @@ array = unfoldable
 -- | Note that this is not part of the Elm API.
 unfoldable :: ∀ f a. (Unfoldable f) => Decoder a -> Decoder (f a)
 unfoldable decoder = do
-    arr <- arrayT >>= traverse (\val -> Run (Succeed val) decoder)
+    arr <- arrayT >>= traverse (\val -> Run (succeed_ val) decoder)
     pure $ unfoldr
         (\a -> map (\b -> Tuple b.head b.tail) (uncons a))
         arr
@@ -644,8 +643,15 @@ unfoldable decoder = do
 -- |     decodeString (null 42) "false"   == Err ..
 -- |
 -- | So if you ever see a `null`, this will return whatever value you specified.
-null :: ∀ a. a -> Decoder a
-null = Null
+null :: ∀ a. Eq a => a -> Decoder a
+null = Null (Just eq)
+
+
+-- | LIke `null`, but for cases where your default value does not have an `Eq`
+-- | instance. Use `null` where you can, because it will make `equalDecoders`
+-- | more reliable.
+null_ :: ∀ a. a -> Decoder a
+null_ = Null Nothing
 
 
 -- | Decode a nullable JSON value into an Elm value.
@@ -658,7 +664,7 @@ null = Null
 -- | This function was added in Elm 0.18.
 nullable :: ∀ a. Decoder a -> Decoder (Maybe a)
 nullable decoder =
-    null Nothing <|> map Just decoder
+    null_ Nothing <|> map Just decoder
 
 
 -- | Helpful for dealing with optional fields. Here are a few slightly different
@@ -681,7 +687,7 @@ nullable decoder =
 -- | fields, this means you probably want it *outside* a use of `field` or `at`.
 maybe :: ∀ a. Decoder a -> Decoder (Maybe a)
 maybe decoder =
-    map Just decoder <|> Succeed Nothing
+    map Just decoder <|> succeed_ Nothing
 
 
 -- | Do not do anything with a JSON value, just bring it into Elm as a `Value`.
@@ -703,10 +709,10 @@ customDecoder decoder func =
         \a ->
             case func a of
                 Ok ok ->
-                    Succeed ok
+                    succeed_ ok
 
                 Err err ->
-                    Fail err
+                    fail err
 
 
 -- | Sometimes you have JSON with recursive structure, like nested comments.
@@ -754,8 +760,15 @@ fail = Fail
 -- |     decodeString (succeed 42) "hello"   == Err ... -- this is not a valid JSON string
 -- |
 -- | This is handy when used with `oneOf` or `andThen`.
-succeed :: ∀ a. a -> Decoder a
-succeed = Succeed
+succeed :: ∀ a. Eq a => a -> Decoder a
+succeed = Succeed (Just eq)
+
+
+-- | Like `succeed`, but for cases where your value does not have an
+-- | `Eq` instance. Using `succeed` instead will make `equalDecoders`
+-- | more reliable.
+succeed_ :: ∀ a. a -> Decoder a
+succeed_ = Succeed Nothing
 
 
 -- TUPLES
