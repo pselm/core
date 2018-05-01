@@ -44,7 +44,6 @@ import Data.Foreign as DF
 import Data.Foreign.Index (readIndex, readProp)
 import Data.Foreign.JSON (parseJSON)
 import Data.Leibniz (type (~), coerceSymm)
-import Data.Maybe (fromMaybe)
 import Data.Monoid (class Monoid)
 import Data.Traversable (traverse)
 import Data.Tuple (Tuple(..))
@@ -285,9 +284,14 @@ equalDecoders d1 d2 =
                     false
             ))
 
-        Null equals a, Null _ b ->
-            unsafeRefEq a b ||
-            (fromMaybe false $ map (\eq -> eq a b) equals)
+        Null (Just equals) a, Null _ b ->
+            unsafeRefEq a b || equals a b
+
+        Null _ a, Null (Just equals) b ->
+            unsafeRefEq a b || equals a b
+
+        Null _ a, Null _ b ->
+            unsafeRefEq a b
 
         OneOf leftLeft leftRight, OneOf rightLeft rightRight ->
             equalDecoders leftLeft rightLeft &&
@@ -297,9 +301,14 @@ equalDecoders d1 d2 =
             equalDecoders leftLeft rightLeft &&
             equalDecoders leftRight rightRight
 
-        Succeed equals a, Succeed _ b ->
-            unsafeRefEq a b ||
-            (fromMaybe false $ map (\eq -> eq a b) equals)
+        Succeed (Just equals) a, Succeed _ b ->
+            unsafeRefEq a b || equals a b
+
+        Succeed _ a, Succeed (Just equals) b ->
+            unsafeRefEq a b || equals a b
+
+        Succeed _ a, Succeed _ b ->
+            unsafeRefEq a b
 
         Value _, Value _ ->
             true
@@ -737,6 +746,9 @@ nullable decoder =
 -- |
 -- | Point is, `maybe` will make exactly what it contains conditional. For optional
 -- | fields, this means you probably want it *outside* a use of `field` or `at`.
+-- |
+-- | `equalDecoders` will consider the results of this function to be equal if
+-- | the provided decoder is equal ... that is, `maybe` is equal-preserving.
 maybe :: ∀ a. Decoder a -> Decoder (Maybe a)
 maybe decoder =
     map Just decoder <|> succeed_ Nothing
@@ -746,6 +758,8 @@ maybe decoder =
 -- | This can be useful if you have particularly crazy data that you would like to
 -- | deal with later. Or if you are going to send it out a port and do not care
 -- | about its structure.
+-- |
+-- | Works with `equalDecoders`
 value :: Decoder Value
 value = valueT
 
@@ -794,6 +808,11 @@ customDecoder decoder func =
 -- | [here]: https://github.com/elm-lang/elm-compiler/blob/master/hints/recursive-alias.md
 -- |
 -- | This function was added in Elm 0.18.
+-- |
+-- | This function works with `equalDecoders` so long as you provide functions
+-- | that are referentially equal ... see the docs for `equalDecoders` for more
+-- | information.  That's probably the best we can do, since the point of
+-- | `lazy` is to avoid unrolling the actual decoder until needed.
 lazy :: ∀ a. (Unit -> Decoder a) -> Decoder a
 lazy = bind (pure unit)
 
@@ -801,6 +820,9 @@ lazy = bind (pure unit)
 -- | Ignore the JSON and make the decoder fail. This is handy when used with
 -- | `oneOf` or `andThen` where you want to give a custom error message in some
 -- | case.
+-- |
+-- | `equalDecoders` considers two `fail` decoders to be equal if they have the
+-- | same message.
 fail :: ∀ a. String -> Decoder a
 fail = Fail
 
@@ -812,13 +834,16 @@ fail = Fail
 -- |     decodeString (succeed 42) "hello"   == Err ... -- this is not a valid JSON string
 -- |
 -- | This is handy when used with `oneOf` or `andThen`.
+-- |
+-- | Works well with `equalDecoders`.
 succeed :: ∀ a. Eq a => a -> Decoder a
 succeed = Succeed (Just eq)
 
 
 -- | Like `succeed`, but for cases where your value does not have an
 -- | `Eq` instance. Using `succeed` instead will make `equalDecoders`
--- | more reliable.
+-- | more reliable -- without an `Eq` instance, we have to rely on
+-- | referential equality.
 succeed_ :: ∀ a. a -> Decoder a
 succeed_ = Succeed Nothing
 

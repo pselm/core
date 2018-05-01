@@ -1,51 +1,37 @@
 module Test.Elm.Json (tests) where
 
-import Test.Unit (TestSuite, Test, suite, test)
-import Test.Unit.Assert (equal)
-
-import Elm.Json.Encode as JE
-import Elm.Json.Decode as JD
-import Elm.Json.Decode ((:=))
-
-import Elm.Result (Result(..), toMaybe)
-import Elm.Basics (Float, (|>))
-import Elm.Dict as Dict
-
+import Control.Alt (class Alt, alt, (<|>))
+import Control.Monad.Eff.Class (liftEff)
+import Control.Monad.Eff.Console (CONSOLE)
+import Control.Monad.Eff.Exception (EXCEPTION)
+import Control.Monad.Eff.Random (RANDOM)
+import Data.Foldable (traverse_)
+import Data.Foreign (toForeign)
+import Data.Generic (class Generic, gEq, gShow)
 import Data.List (List(..), (:))
 import Data.List as List
-import Data.Foldable (traverse_)
+import Data.Maybe (Maybe(..))
 import Data.Sequence (Seq)
 import Data.Sequence as Sequence
 import Data.Tuple (Tuple(..))
-import Data.Maybe (Maybe(..))
-import Data.Generic (class Generic, gEq, gShow)
-
+import Elm.Basics (Float, (|>))
+import Elm.Dict as Dict
+import Elm.Json.Decode (equalDecoders, fail, maybe, succeed, succeed_, value, (:=))
+import Elm.Json.Decode as JD
+import Elm.Json.Encode as JE
+import Elm.Result (Result(..), toMaybe)
 import Math (sqrt)
-
-import Control.Alt (class Alt, alt, (<|>))
-import Control.Monad.Eff.Class (liftEff)
-import Control.Monad.Eff.Random (RANDOM)
-import Control.Monad.Eff.Exception (EXCEPTION)
-import Control.Monad.Eff.Console (CONSOLE)
-
+import Prelude (class Show, show, class Monad, class Bind, bind, class Eq, (==), class Functor, map, class Apply, apply, class Applicative, pure, flip, negate, discard, (<>), ($), (+), (<<<))
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
-import Test.QuickCheck.Laws.Data.Functor (checkFunctor)
 import Test.QuickCheck.Laws.Control.Alt (checkAlt)
-import Test.QuickCheck.Laws.Control.Apply (checkApply)
 import Test.QuickCheck.Laws.Control.Applicative (checkApplicative)
+import Test.QuickCheck.Laws.Control.Apply (checkApply)
 import Test.QuickCheck.Laws.Control.Bind (checkBind)
 import Test.QuickCheck.Laws.Control.Monad (checkMonad)
+import Test.QuickCheck.Laws.Data.Functor (checkFunctor)
+import Test.Unit (TestSuite, Test, suite, test)
+import Test.Unit.Assert (assert, assertFalse, equal)
 import Type.Proxy (Proxy2(..))
-
-import Prelude
-    ( class Show, show
-    , class Monad, class Bind, bind
-    , class Eq, (==)
-    , class Functor, map
-    , class Apply, apply
-    , class Applicative, pure
-    , flip, negate, discard, (<>), ($), (+), (<<<)
-    )
 
 
 infixl 9 equals as ===
@@ -554,6 +540,45 @@ tests = suite "Json" do
             , "[17.5, 18]" ==> Nothing
             ]
 
+    suite "equalDecoders" do
+        test "succeed" do
+            -- Should test something that actually relies on its `Eq` instance
+            assert "equal" $ succeed 17 `equalDecoders` succeed 17
+            assertFalse "unequal" $ succeed 17 `equalDecoders` succeed 18
+            assertFalse "differnt" $ succeed 17 `equalDecoders` fail "problem"
+
+        test "succeed_" do
+            -- Should test something that actually relies on its `Eq` instance
+            assert "equal" $ succeed_ 17 `equalDecoders` succeed_ 17
+            assertFalse "unequal" $ succeed_ 17 `equalDecoders` succeed_ 18
+            assertFalse "differnt" $ succeed_ 17 `equalDecoders` fail "problem"
+
+        test "succeed & succeed_" do
+            assert "equal" $ succeed 17 `equalDecoders` succeed_ 17
+            assertFalse "unequal" $ succeed 17 `equalDecoders` succeed_ 18
+
+        test "succeed_ & succeed" do
+            assert "equal" $ succeed_ 17 `equalDecoders` succeed 17
+            assertFalse "unequal" $ succeed_ 17 `equalDecoders` succeed 18
+
+        test "fail" do
+            assert "equal" $ fail "message" `equalDecoders` fail "message"
+            assertFalse "unequal" $ fail "message" `equalDecoders` fail "other message"
+
+        test "lazy" do
+            let func = \_ -> succeed 17
+            assert "same" $ JD.lazy func `equalDecoders` JD.lazy func
+            -- assert "equal" $ JD.lazy (\_ -> succeed 17) `equalDecoders` JD.lazy (\_ -> succeed 17)
+            assertFalse "unequal" $ JD.lazy (\_ -> succeed 17) `equalDecoders` JD.lazy (\_ -> succeed 18)
+
+        test "value" do
+            assert "equal" $ value `equalDecoders` value
+            assertFalse "unequal" $ value `equalDecoders` succeed_ (toForeign 17)
+
+        test "maybe" do
+            assert "equal" $ maybe (succeed 17) `equalDecoders` maybe (succeed 17)
+            assertFalse "unequal" $ maybe (succeed 17) `equalDecoders` maybe (succeed 18)
+
     test "laws\n" $
         liftEff do
             checkFunctor proxyDecoder
@@ -605,7 +630,7 @@ instance arbitraryDecoderLawsA :: (Arbitrary a) => Arbitrary (DecoderLaws a) whe
 
         pure $ DecoderLaws
             if a
-               then JD.succeed b
+               then JD.succeed_ b
                else JD.fail c
 
 
