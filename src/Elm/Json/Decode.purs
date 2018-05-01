@@ -17,7 +17,7 @@ module Elm.Json.Decode
     , Decoder
     , decodeString, decodeValue
     , fromForeign
-    , string, int, float, bool, null
+    , string, int, float, bool, null, null_
     , list, array, unfoldable
     , tuple1, tuple2, tuple3, tuple4, tuple5, tuple6, tuple7, tuple8
     , field, (:=), at, index
@@ -423,6 +423,10 @@ decodeString decoder str =
 -- |
 -- | Note that the signature is defined in terms of `Foldable` so that it will
 -- | work with `Array` or `List` (among others).
+-- |
+-- | Works as you would expect with `equalDecoders`. Will also be considered
+-- | equal with decoders constructed manually with nested fields, if the field
+-- | names match.
 at :: ∀ f a. (Foldable f) => f String -> Decoder a -> Decoder a
 at fields decoder =
     foldr field decoder fields
@@ -438,6 +442,11 @@ at fields decoder =
 -- |     decodeString (index 3 string) json  == Err ...
 -- |
 -- | This function was added in Elm 0.18.
+-- |
+-- | `equalDecoders` will consider the resulting decoder equal to another
+-- | produced by this function if the indexes are equal and the supplied
+-- | decoders are themselves considered equal by `equalDecoders`. So, it is
+-- | equality-preserving.
 index :: ∀ a. Int -> Decoder a -> Decoder a
 index = Run <<< indexT
 
@@ -455,6 +464,11 @@ index = Run <<< indexT
 -- | cares about is if `x` is present and that the value there is an `Int`.
 -- |
 -- | Check out [`map2`](#map2) to see how to decode multiple fields!
+-- |
+-- | `equalDecoders` will consider the resulting decoder equal to another
+-- | produced by this function if the field names are equal and the supplied
+-- | decoders are themselves considered equal by `equalDecoders`. So, it is
+-- | equality-preserving.
 field :: ∀ a. String -> Decoder a -> Decoder a
 field = Run <<< fieldT
 
@@ -543,6 +557,8 @@ object8 = map8
 -- |       == [("alice", 42), ("bob", 99)]
 -- |
 -- | The container for the return type is polymorphic in order to accommodate `List` or `Array`, among others.
+-- |
+-- | Does not work with `equalDecoders` yet, but should be fixable.
 keyValuePairs :: ∀ f a. Monoid (f (Tuple String a)) => Applicative f => Decoder a -> Decoder (f (Tuple String a))
 keyValuePairs decoder = do
     arr <-
@@ -572,6 +588,8 @@ foreign import unsafeKeys :: Foreign -> Array String
 -- |
 -- |     decodeString (dict int) "{ \"alice\": 42, \"bob\": 99 }"
 -- |       == Dict.fromList [("alice", 42), ("bob", 99)]
+-- |
+-- | Does not work with `equalDecoders` yet, but should be fixable.
 dict :: ∀ a. Decoder a -> Decoder (Dict String a)
 dict decoder =
     let
@@ -604,6 +622,8 @@ dict decoder =
 -- |
 -- | The container has a polymorphic type to accommodate `List` or `Array`,
 -- | among others.
+-- |
+-- | Works with `equalDecoders` to the extent that the supplied decoders do.
 oneOf :: ∀ f a. (Foldable f) => f (Decoder a) -> Decoder a
 oneOf =
     foldl alt (Fail "Expected one of: ")
@@ -623,6 +643,8 @@ fromForeign = FromForeign
 -- |     decodeString string "3.14"              == Err ...
 -- |     decodeString string "\"hello\""         == Ok "hello"
 -- |     decodeString string "{ \"hello\": 42 }" == Err ...
+-- |
+-- | Works with `equalDecoders`
 string :: Decoder String
 string = fromForeign readString
 
@@ -634,6 +656,8 @@ string = fromForeign readString
 -- |     decodeString float "3.14"              == Ok 3.14
 -- |     decodeString float "\"hello\""         == Err ...
 -- |     decodeString float "{ \"hello\": 42 }" == Err ...
+-- |
+-- | Works with `equalDecoders`
 float :: Decoder Float
 float = fromForeign readNumber
 
@@ -645,6 +669,8 @@ float = fromForeign readNumber
 -- |     decodeString int "3.14"              == Err ...
 -- |     decodeString int "\"hello\""         == Err ...
 -- |     decodeString int "{ \"hello\": 42 }" == Err ...
+-- |
+-- | Works with `equalDecoders`
 int :: Decoder Int
 int = fromForeign readInt
 
@@ -656,6 +682,8 @@ int = fromForeign readInt
 -- |     decodeString bool "3.14"              == Err ...
 -- |     decodeString bool "\"hello\""         == Err ...
 -- |     decodeString bool "{ \"hello\": 42 }" == Err ...
+-- |
+-- | Works with `equalDecoders`
 bool :: Decoder Bool
 bool = fromForeign readBoolean
 
@@ -723,6 +751,9 @@ null_ = Null Nothing
 -- |     decodeString (nullable int) "true"  == Err ..
 -- |
 -- | This function was added in Elm 0.18.
+-- |
+-- | For `equalDecoders`, this preserves whatever answer would be given for the
+-- | inputs.
 nullable :: ∀ a. Decoder a -> Decoder (Maybe a)
 nullable decoder =
     null_ Nothing <|> map Just decoder

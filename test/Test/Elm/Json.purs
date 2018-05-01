@@ -16,7 +16,7 @@ import Data.Sequence as Sequence
 import Data.Tuple (Tuple(..))
 import Elm.Basics (Float, (|>))
 import Elm.Dict as Dict
-import Elm.Json.Decode (equalDecoders, fail, maybe, succeed, succeed_, value, (:=))
+import Elm.Json.Decode (Decoder, at, bool, dict, equalDecoders, fail, field, float, index, int, keyValuePairs, maybe, null, null_, nullable, oneOf, string, succeed, succeed_, value, (:=))
 import Elm.Json.Decode as JD
 import Elm.Json.Encode as JE
 import Elm.Result (Result(..), toMaybe)
@@ -561,6 +561,26 @@ tests = suite "Json" do
             assert "equal" $ succeed_ 17 `equalDecoders` succeed 17
             assertFalse "unequal" $ succeed_ 17 `equalDecoders` succeed 18
 
+        test "null" do
+            -- Should test something that actually relies on its `Eq` instance
+            assert "equal" $ null 17 `equalDecoders` null 17
+            assertFalse "unequal" $ null 17 `equalDecoders` null 18
+            assertFalse "differnt" $ null 17 `equalDecoders` fail "problem"
+
+        test "null_" do
+            -- Should test something that actually relies on its `Eq` instance
+            assert "equal" $ null_ 17 `equalDecoders` null_ 17
+            assertFalse "unequal" $ null_ 17 `equalDecoders` null_ 18
+            assertFalse "differnt" $ null_ 17 `equalDecoders` fail "problem"
+
+        test "null & null_" do
+            assert "equal" $ null 17 `equalDecoders` null_ 17
+            assertFalse "unequal" $ null 17 `equalDecoders` null_ 18
+
+        test "null_ & null" do
+            assert "equal" $ null_ 17 `equalDecoders` null 17
+            assertFalse "unequal" $ null_ 17 `equalDecoders` null 18
+
         test "fail" do
             assert "equal" $ fail "message" `equalDecoders` fail "message"
             assertFalse "unequal" $ fail "message" `equalDecoders` fail "other message"
@@ -578,6 +598,58 @@ tests = suite "Json" do
         test "maybe" do
             assert "equal" $ maybe (succeed 17) `equalDecoders` maybe (succeed 17)
             assertFalse "unequal" $ maybe (succeed 17) `equalDecoders` maybe (succeed 18)
+
+        test "nullable" do
+            assert "equal" $ nullable (succeed 17) `equalDecoders` nullable (succeed 17)
+            assertFalse "unequal" $ nullable (succeed 17) `equalDecoders` nullable (succeed 18)
+
+        test "bool" do
+            assert "equal" $ bool `equalDecoders` bool
+            assertFalse "unequal" $ bool `equalDecoders` succeed true
+
+        test "int" do
+            assert "equal" $ int `equalDecoders` int
+            assertFalse "unequal" $ int `equalDecoders` succeed 17
+
+        test "float" do
+            assert "equal" $ float `equalDecoders` float
+            assertFalse "unequal" $ float `equalDecoders` succeed 17.0
+
+        test "string" do
+            assert "equal" $ string `equalDecoders` string
+            assertFalse "unequal" $ string `equalDecoders` succeed "s"
+
+        test "oneOf" do
+            assert "equal 1" $ oneOf [ succeed 17, succeed 18 ] `equalDecoders` oneOf [ succeed 17, succeed 18 ]
+            assert "equal 2" $ oneOf ( succeed 17 : succeed 18 : Nil ) `equalDecoders` oneOf [ succeed 17, succeed 18 ]
+            assertFalse "unequal 1" $ oneOf [ succeed 17, succeed 18 ] `equalDecoders` oneOf [ succeed 17, succeed 19 ]
+            assertFalse "unequal 2" $ oneOf [ succeed 17, succeed 18 ] `equalDecoders` oneOf [ succeed 17, succeed 18, succeed 19 ]
+
+        test "keyValuePairs" do
+            -- assert "equal" $ keyValuePairs int :: Decoder (List (Tuple String Int)) `equalDecoders` keyValuePairs int
+            assertFalse "unequal" $ keyValuePairs int :: Decoder (List (Tuple String Int)) `equalDecoders` keyValuePairs (succeed 7)
+
+        test "dict" do
+            -- assert "equal" $ dict int `equalDecoders` dict int
+            assertFalse "unequal" $ dict int `equalDecoders` dict (succeed 7)
+
+        test "field" do
+            assert "equal" $ field "age" int `equalDecoders` field "age" int
+            assertFalse "unequal 1" $ field "age" int `equalDecoders` field "age" (succeed 7)
+            assertFalse "unequal 2" $ field "age" int `equalDecoders` field "weight" int
+
+        test "index" do
+            assert "equal" $ index 0 int `equalDecoders` index 0 int
+            assertFalse "unequal 1" $ index 0 int `equalDecoders` index 0 (succeed 7)
+            assertFalse "unequal 2" $ index 0 int `equalDecoders` index 1 int
+
+        test "at" do
+            assert "equal 1" $ at [ "data", "age" ] int `equalDecoders` at [ "data", "age" ] int
+            assert "equal 2" $ at ( "data" : "age" : Nil ) int `equalDecoders` at [ "data", "age" ] int
+            assert "equal 3" $ at [ "data", "age" ] int `equalDecoders` field "data" (field "age" int)
+            assertFalse "unequal 1" $ at [ "data", "age" ] int `equalDecoders` at [ "data", "weight" ] int
+            assertFalse "unequal 2" $ at [ "data", "age" ] int `equalDecoders` at [ "data", "age", "inyears" ] int
+            assertFalse "unequal 3" $ at [ "data", "age" ] int `equalDecoders` at [ "data", "age" ] (succeed 17)
 
     test "laws\n" $
         liftEff do
