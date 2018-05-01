@@ -23,7 +23,7 @@ module Elm.Json.Decode
     , field, (:=), at, index
     , object1, object2, object3, object4, object5, object6, object7, object8
     , keyValuePairs, dict
-    , oneOf, nullable, maybe, fail, succeed, succeed_
+    , nullable, maybe, fail, succeed, succeed_
     , value, customDecoder, lazy
     , equalDecoders
     ) where
@@ -33,12 +33,14 @@ import Control.Alt (class Alt, alt, (<|>))
 import Control.Apply (lift2, lift3, lift4, lift5)
 import Control.Bind ((>=>))
 import Control.Monad.Except (runExcept)
+import Control.Plus (class Plus)
 import Data.Array (uncons)
 import Data.Array as Array
 import Data.Coyoneda (Coyoneda, coyoneda, unCoyoneda)
 import Data.Either (Either(..))
 import Data.Exists (Exists, mkExists, runExists)
 import Data.Foldable (class Foldable, foldl, foldMap)
+import Data.Foldable (oneOf) as Virtual
 import Data.Foreign (Foreign, ForeignError(..), F, readArray, readString, readBoolean, readNumber, readInt, isNull, isUndefined, typeOf)
 import Data.Foreign as DF
 import Data.Foreign.Index (readIndex, readProp)
@@ -81,6 +83,7 @@ data Decoder a
     | Array (a ~ Array Foreign)
     | ArrayOfLength (a ~ Array Foreign) Int
     | Bind (BindCoyoneda Decoder a)
+    | Empty
     | Fail String
     | Field (a ~ Foreign) String
     | FromForeign (Foreign -> F a)
@@ -113,6 +116,13 @@ decodeValue =
     -- space. However, a decoder should not be constructed in a way that chews
     -- through too much stack space. If it turns out to be a problem, we can
     -- make this stack-safe in one way or another.
+    --
+    -- In principle, it might be nice to make this partly lazy ... so that we
+    -- can take a Decoder and produce the `Value -> Result String a` function
+    -- once, rather than many times. Or, perhaps we could pre-construct the
+    -- `Value -> Result String a` function for each decoder and store it in the
+    -- type, along with the things we need for `equalDecoders`. Anyway, we can
+    -- explore those kinds of strategies at some point.
     case _ of
         Ap coyo ->
             \val ->
@@ -144,6 +154,9 @@ decodeValue =
                                 decodeValue (func a) val
                     )
 
+        Empty ->
+            const $ Err "empty decoder"
+
         Fail err ->
             const $ Err err
 
@@ -171,8 +184,13 @@ decodeValue =
                     then Ok a
                     else toResult $ DF.fail $ TypeMismatch "null" (typeOf val)
 
+        OneOf Empty right ->
+            decodeValue right
+
+        OneOf left Empty ->
+            decodeValue left
+
         OneOf left right ->
-            -- There is probably a more elevant implementation possible.
             \val ->
                 case (decodeValue left) val of
                     Ok result ->
@@ -257,6 +275,9 @@ equalDecoders d1 d2 =
                     false
             ))
 
+        Empty, Empty ->
+            true
+
         Fail reasonLeft, Fail reasonRight ->
             reasonLeft == reasonRight
 
@@ -293,6 +314,14 @@ equalDecoders d1 d2 =
         Null _ a, Null _ b ->
             unsafeRefEq a b
 
+        -- OneOf will work with whichever decoder is not empty, so we check for
+        -- that.
+        OneOf Empty leftRight, OneOf rightLeft Empty ->
+            equalDecoders leftRight rightLeft
+
+        OneOf leftLeft Empty, OneOf Empty rightRight ->
+            equalDecoders leftLeft rightRight
+
         OneOf leftLeft leftRight, OneOf rightLeft rightRight ->
             equalDecoders leftLeft rightLeft &&
             equalDecoders leftRight rightRight
@@ -325,12 +354,26 @@ instance functorDecoder :: Functor Decoder where
     -- | Works with `equalDecoders` so long as the supplied functions are
     -- | referentially equal.
     map func decoder =
-        Map $ coyoneda func decoder
+        case decoder of
+            Empty ->
+                Empty
+
+            Fail err ->
+                Fail err
+
+            _ ->
+                Map $ coyoneda func decoder
 
 
 instance altDecoder :: Alt Decoder where
     -- | Works with `equalDecoders`
-    alt = OneOf
+    alt Empty b = b
+    alt a Empty = a
+    alt a b = OneOf a b
+
+
+instance plusDecoder :: Plus Decoder where
+    empty = Empty
 
 
 -- This is the coyoneda strategy, but for Apply rather than Functor ... not
@@ -381,7 +424,15 @@ instance bindDecoder :: Bind Decoder where
     -- | Works with `equalDecoders` so long ast hte functions supplied are
     -- | referentially equal.
     bind decoder func =
-        Bind $ bindCoyoneda decoder func
+        case decoder of
+            Empty ->
+                Empty
+
+            Fail err ->
+                Fail err
+
+            _ ->
+                Bind $ bindCoyoneda decoder func
 
 
 instance monadDecoder :: Monad Decoder
@@ -495,8 +546,8 @@ infixl 4 field as :=
 -- |
 -- | Removed in Elm 0.18, in favour of `map`.
 -- |
--- | Works with `equalDecoers` so long as the functions supp;lied are
--- | referentially equal.
+-- | Works with `equalDecoers` so long as the function supplied in one case is
+-- | referentially equal to the function supplied in the other.
 object1 :: ∀ a value. (a -> value) -> Decoder a -> Decoder value
 object1 = map
 
@@ -514,9 +565,10 @@ object1 = map
 -- |
 -- | Removed in Elm 0.18, in favour of `map2`.
 -- |
--- | Works with `equalDecoders` so long as the function supp;lied is
--- | referntially equal to the other case, and teh decoders are also
--- | referntially equal. It may be possible to improve on this.
+-- | Works with `equalDecoders` so long as the function supplied in one case is
+-- | referntially equal to the function supplied in the other case, and the
+-- | decoders supplied in each case are also referntially equal. It may be
+-- | possible to improve on this.
 object2 :: ∀ a b value. (a -> b -> value) -> Decoder a -> Decoder b -> Decoder value
 object2 = lift2
 
@@ -537,9 +589,10 @@ object2 = lift2
 -- |
 -- | Removed in Elm 0.18, in favour of `map3`.
 -- |
--- | Works with `equalDecoders` so long as the function supp;lied is
--- | referntially equal to the other case, and teh decoders are also
--- | referntially equal. It may be possible to improve on this.
+-- | Works with `equalDecoders` so long as the function supplied in one case is
+-- | referntially equal to the function supplied in the other case, and the
+-- | decoders supplied in each case are also referntially equal. It may be
+-- | possible to improve on this.
 object3 :: ∀ a b c value. (a -> b -> c -> value) -> Decoder a -> Decoder b -> Decoder c -> Decoder value
 object3 = lift3
 
@@ -548,9 +601,10 @@ object3 = lift3
 -- |
 -- | Removed in Elm 0.18, in favour of `map4`.
 -- |
--- | Works with `equalDecoders` so long as the function supp;lied is
--- | referntially equal to the other case, and teh decoders are also
--- | referntially equal. It may be possible to improve on this.
+-- | Works with `equalDecoders` so long as the function supplied in one case is
+-- | referntially equal to the function supplied in the other case, and the
+-- | decoders supplied in each case are also referntially equal. It may be
+-- | possible to improve on this.
 object4 :: ∀ a b c d value. (a -> b -> c -> d -> value) -> Decoder a -> Decoder b -> Decoder c -> Decoder d -> Decoder value
 object4 = lift4
 
@@ -559,36 +613,40 @@ object4 = lift4
 -- |
 -- | Removed in Elm 0.18, in favour of `map5`.
 -- |
--- | Works with `equalDecoders` so long as the function supp;lied is
--- | referntially equal to the other case, and teh decoders are also
--- | referntially equal. It may be possible to improve on this.
+-- | Works with `equalDecoders` so long as the function supplied in one case is
+-- | referntially equal to the function supplied in the other case, and the
+-- | decoders supplied in each case are also referntially equal. It may be
+-- | possible to improve on this.
 object5 :: ∀ a b c d e value. (a -> b -> c -> d -> e -> value) -> Decoder a -> Decoder b -> Decoder c -> Decoder d -> Decoder e -> Decoder value
 object5 = lift5
 
 
 -- | Removed in Elm 0.18, in favour of `map6`.
 -- |
--- | Works with `equalDecoders` so long as the function supp;lied is
--- | referntially equal to the other case, and teh decoders are also
--- | referntially equal. It may be possible to improve on this.
+-- | Works with `equalDecoders` so long as the function supplied in one case is
+-- | referntially equal to the function supplied in the other case, and the
+-- | decoders supplied in each case are also referntially equal. It may be
+-- | possible to improve on this.
 object6 :: ∀ a b c d e f value. (a -> b -> c -> d -> e -> f -> value) -> Decoder a -> Decoder b -> Decoder c -> Decoder d -> Decoder e -> Decoder f -> Decoder value
 object6 = map6
 
 
 -- | Removed in Elm 0.18, in favour of `map7`.
 -- |
--- | Works with `equalDecoders` so long as the function supp;lied is
--- | referntially equal to the other case, and teh decoders are also
--- | referntially equal. It may be possible to improve on this.
+-- | Works with `equalDecoders` so long as the function supplied in one case is
+-- | referntially equal to the function supplied in the other case, and the
+-- | decoders supplied in each case are also referntially equal. It may be
+-- | possible to improve on this.
 object7 :: ∀ a b c d e f g value. (a -> b -> c -> d -> e -> f -> g -> value) -> Decoder a -> Decoder b -> Decoder c -> Decoder d -> Decoder e -> Decoder f -> Decoder g -> Decoder value
 object7 = map7
 
 
 -- | Removed in Elm 0.18, in favour of `map8`.
 -- |
--- | Works with `equalDecoders` so long as the function supp;lied is
--- | referntially equal to the other case, and teh decoders are also
--- | referntially equal. It may be possible to improve on this.
+-- | Works with `equalDecoders` so long as the function supplied in one case is
+-- | referntially equal to the function supplied in the other case, and the
+-- | decoders supplied in each case are also referntially equal. It may be
+-- | possible to improve on this.
 object8 :: ∀ a b c d e f g h value. (a -> b -> c -> d -> e -> f -> g -> h -> value) -> Decoder a -> Decoder b -> Decoder c -> Decoder d -> Decoder e -> Decoder f -> Decoder g -> Decoder h -> Decoder value
 object8 = map8
 
@@ -640,35 +698,6 @@ dict decoder =
             keyValuePairs decoder
     in
     map Dict.fromList decodePairs
-
-
--- | Try a bunch of different decoders. This can be useful if the JSON may come
--- | in a couple different formats. For example, say you want to read an array of
--- | numbers, but some of them are `null`.
--- |
--- |     import String
--- |
--- |     badInt : Decoder Int
--- |     badInt =
--- |       oneOf [ int, null 0 ]
--- |
--- |     -- decodeString (list badInt) "[1,2,null,4]" == Ok [1,2,0,4]
--- |
--- | Why would someone generate JSON like this? Questions like this are not good
--- | for your health. The point is that you can use `oneOf` to handle situations
--- | like this!
--- |
--- | You could also use `oneOf` to help version your data. Try the latest format,
--- | then a few older ones that you still support. You could use `andThen` to be
--- | even more particular if you wanted.
--- |
--- | The container has a polymorphic type to accommodate `List` or `Array`,
--- | among others.
--- |
--- | Works with `equalDecoders` to the extent that the supplied decoders do.
-oneOf :: ∀ f a. (Foldable f) => f (Decoder a) -> Decoder a
-oneOf =
-    foldl alt (Fail "Expected one of: ")
 
 
 -- | Given a function which reads a `Foreign`, make a decoder.

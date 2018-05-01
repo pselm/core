@@ -5,6 +5,7 @@ import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Console (CONSOLE)
 import Control.Monad.Eff.Exception (EXCEPTION)
 import Control.Monad.Eff.Random (RANDOM)
+import Control.Plus (class Plus)
 import Data.Foldable (traverse_)
 import Data.Foreign (toForeign)
 import Data.Generic (class Generic, gEq, gShow)
@@ -21,13 +22,14 @@ import Elm.Json.Decode as JD
 import Elm.Json.Encode as JE
 import Elm.Result (Result(..), toMaybe)
 import Math (sqrt)
-import Prelude (class Show, show, class Monad, class Bind, bind, class Eq, (==), class Functor, map, class Apply, apply, class Applicative, pure, flip, negate, discard, (<>), ($), (+), (<<<))
+import Prelude (class Applicative, class Apply, class Bind, class Eq, class Functor, class Monad, class Show, bind, discard, flip, map, negate, pure, show, ($), (+), (<>), (==))
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
 import Test.QuickCheck.Laws.Control.Alt (checkAlt)
 import Test.QuickCheck.Laws.Control.Applicative (checkApplicative)
 import Test.QuickCheck.Laws.Control.Apply (checkApply)
 import Test.QuickCheck.Laws.Control.Bind (checkBind)
 import Test.QuickCheck.Laws.Control.Monad (checkMonad)
+import Test.QuickCheck.Laws.Control.Plus (checkPlus)
 import Test.QuickCheck.Laws.Data.Functor (checkFunctor)
 import Test.Unit (TestSuite, Test, suite, test)
 import Test.Unit.Assert (assert, assertFalse, equal)
@@ -716,6 +718,7 @@ tests = suite "Json" do
             checkApplicative proxyDecoder
             checkBind proxyDecoder
             checkMonad proxyDecoder
+            checkPlus proxyDecoder
 
 
 -- We test the laws via a newtype, in order to avoid making spurious
@@ -723,29 +726,12 @@ tests = suite "Json" do
 -- do orphan instances).
 newtype DecoderLaws a = DecoderLaws (JD.Decoder a)
 
-
-instance functorDecoderLaws :: Functor DecoderLaws where
-    map func (DecoderLaws decoder) = DecoderLaws $ map func decoder
-
-
-instance altDecoderLaws :: Alt DecoderLaws where
-    alt (DecoderLaws left) (DecoderLaws right) = DecoderLaws $ alt left right
-
-
-instance applyDecoderLaws :: Apply DecoderLaws where
-    apply (DecoderLaws func) (DecoderLaws decoder) = DecoderLaws $ apply func decoder
-
-
-instance applicativeDecoderLaws :: Applicative DecoderLaws where
-    pure = DecoderLaws <<< pure
-
-
-instance bindDecoderLaws :: Bind DecoderLaws where
-    bind (DecoderLaws decoder) func =
-        DecoderLaws $ bind decoder
-            \a -> case func a of
-                DecoderLaws x -> x
-
+derive newtype instance functorDecoderLaws :: Functor DecoderLaws
+derive newtype instance altDecoderLaws :: Alt DecoderLaws
+derive newtype instance applyDecoderLaws :: Apply DecoderLaws
+derive newtype instance applicativeDecoderLaws :: Applicative DecoderLaws
+derive newtype instance bindDecoderLaws :: Bind DecoderLaws
+derive newtype instance plusDecoderLaws :: Plus DecoderLaws
 
 instance monadDecoderLaws :: Monad DecoderLaws
 
