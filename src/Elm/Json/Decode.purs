@@ -62,7 +62,8 @@ import Elm.Maybe (Maybe(..))
 import Elm.Result (Result(Err, Ok))
 import Prelude (class Applicative, class Apply, class Bind, class Eq, class Functor, class Monad, Unit, apply, bind, const, discard, eq, id, map, pure, show, unit, void, (#), ($), (&&), (<$>), (<<<), (<>), (==), (>>=), (>>>), (||))
 import Prelude (map) as Virtual
-import Unsafe.Reference (unsafeRefEq)
+import Unsafe.Coerce (unsafeCoerce)
+import Unsafe.Reference (reallyUnsafeRefEq, unsafeRefEq)
 
 
 -- | A value that knows how to decode JSON values.
@@ -195,6 +196,11 @@ decodeValue =
             id >>> coerceSymm proof >>> Ok
 
 
+-- | For cases where we have a witness that the two decoders are the same type.
+unsafeCoerceDecoder :: ∀ a b. Decoder a -> Decoder b
+unsafeCoerceDecoder = unsafeCoerce
+
+
 -- | Tries to compare two decoders for equality. Subject to false negatives,
 -- | but positives should be reliatble.
 -- |
@@ -204,7 +210,35 @@ equalDecoders :: ∀ a. Decoder a -> Decoder a -> Bool
 equalDecoders d1 d2 =
     unsafeRefEq d1 d2 || case d1, d2 of
         Ap coyoLeft, Ap coyoRight ->
-            false
+            coyoLeft # unApplyCoyoneda (\tagger1 decoder1 ->
+            coyoRight # unApplyCoyoneda (\tagger2 decoder2 ->
+                -- In this case, we've got decoders on both sides, and we don't
+                -- know what type we're coming from. So, the best we can do (at
+                -- least for now) is check referntial equality of each side.
+                -- If either side has referntial equality, then we know the
+                -- types match.
+                case reallyUnsafeRefEq tagger1 tagger2, reallyUnsafeRefEq decoder1 decoder2 of
+                    true, true ->
+                         -- If they are both referentially equal, then we're
+                         -- equal
+                         true
+
+                    false, false ->
+                        -- If neither are referntially equal, we don't have a
+                        -- witness to the fact that we're coming from the same
+                        -- type. So, at least for now, there's nothing we can do.
+                        false
+
+                    true, false ->
+                        -- If the taggers are equal, at least we have the same types,
+                        -- so we can try on the decoders.
+                        equalDecoders decoder1 (unsafeCoerceDecoder decoder2)
+
+                    false, true ->
+                        -- If the decoders are equal, we have the same type, so try
+                        -- on the taggers.
+                        equalDecoders tagger1 (unsafeCoerceDecoder tagger2)
+            ))
 
         Array _, Array _ ->
             true
@@ -213,7 +247,16 @@ equalDecoders d1 d2 =
             leftN == rightN
 
         Bind coyoLeft, Bind coyoRight ->
-            false
+            coyoLeft # unBindCoyoneda (\decoder1 func1 ->
+            coyoRight # unBindCoyoneda (\decoder2 func2 ->
+                if reallyUnsafeRefEq func1 func2 then
+                    -- The fact that func1 and func2 are referentially
+                    -- equal is our warrant for believing that decoder1 and
+                    -- decoder2 have the same type.
+                    equalDecoders decoder1 (unsafeCoerceDecoder decoder2)
+                else
+                    false
+            ))
 
         Fail reasonLeft, Fail reasonRight ->
             reasonLeft == reasonRight
@@ -231,7 +274,16 @@ equalDecoders d1 d2 =
             true
 
         Map coyoLeft, Map coyoRight ->
-            false
+            coyoLeft # unCoyoneda (\tagger1 decoder1 ->
+            coyoRight # unCoyoneda (\tagger2 decoder2 ->
+                if reallyUnsafeRefEq tagger1 tagger2 then
+                    -- The fact that tagger1 and tagger2 are referentially
+                    -- equal is our warrant for believing that decoder1 and
+                    -- decoder2 have the same type.
+                    equalDecoders decoder1 (unsafeCoerceDecoder decoder2)
+                else
+                    false
+            ))
 
         Null equals a, Null _ b ->
             unsafeRefEq a b ||
