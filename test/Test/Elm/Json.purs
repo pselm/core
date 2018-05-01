@@ -17,7 +17,7 @@ import Data.Sequence as Sequence
 import Data.Tuple (Tuple(..))
 import Elm.Basics (Float, (|>))
 import Elm.Dict as Dict
-import Elm.Json.Decode (Decoder, array, at, bool, dict, equalDecoders, fail, field, float, index, int, keyValuePairs, list, maybe, null, null_, nullable, object2, object3, oneOf, string, succeed, succeed_, unfoldable, value, (:=))
+import Elm.Json.Decode (Decoder, array, at, bool, customDecoder, dict, equalDecoders, fail, field, float, index, int, keyValuePairs, list, maybe, null, null_, nullable, object2, object3, oneOf, string, succeed, succeed_, tuple1, unfoldable, value, (:=))
 import Elm.Json.Decode as JD
 import Elm.Json.Encode as JE
 import Elm.Result (Result(..), toMaybe)
@@ -710,6 +710,20 @@ tests = suite "Json" do
            -- assert "equal" $ unfoldable (succeed 17) :: Decoder (Array Int) `equalDecoders` unfoldable (succeed 17)
            assertFalse "unequal" $ unfoldable (succeed 17) :: Decoder (Array Int) `equalDecoders` unfoldable (succeed 18)
 
+        test "tuple1" do
+            let func = \x -> x + 1
+            let func2 = \x -> x + 2
+            -- assert "equal" $ tuple1 func (succeed 1) `equalDecoders` tuple1 func (succeed 1)
+            assertFalse "unequal 1" $ tuple1 func (succeed 1) `equalDecoders` tuple1 func (succeed 2)
+            assertFalse "unequal 2" $ tuple1 func (succeed 1) `equalDecoders` tuple1 func2 (succeed 1)
+
+        test "customDecoder" do
+            let func = \x -> Ok x
+            let func2 = \x -> Err "error"
+            assert "equal" $ customDecoder (succeed 1) func `equalDecoders` customDecoder (succeed 1) func
+            assertFalse "unequal 1" $ customDecoder (succeed 1) func `equalDecoders` customDecoder (succeed 2) func
+            assertFalse "unequal 2" $ customDecoder (succeed 1) func `equalDecoders` customDecoder (succeed 1) func2
+
     test "laws\n" $
         liftEff do
             checkFunctor proxyDecoder
@@ -753,6 +767,10 @@ instance arbitraryDecoderLawsA :: (Arbitrary a) => Arbitrary (DecoderLaws a) whe
 -- compare decoders by running them on null data. Hopefully this is still
 -- testing something real, since the instances we're testing only depend on
 -- the *composition* of the results.
+--
+-- Testing with `equalDecoders` as our `eq` doesn't work ... I think because
+-- `equalDecoders` isn't really an `Eq` instance ... it's not reliable. So,
+-- this is the best we can do.
 instance eqDecoderLawsA :: (Eq a) => Eq (DecoderLaws a) where
     eq (DecoderLaws a) (DecoderLaws b) =
         JD.decodeValue a JE.null == JD.decodeValue b JE.null

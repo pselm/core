@@ -29,7 +29,7 @@ module Elm.Json.Decode
     ) where
 
 
-import Control.Alt (class Alt, alt, (<|>))
+import Control.Alt (class Alt, (<|>))
 import Control.Apply (lift2, lift3, lift4, lift5)
 import Control.Bind ((>=>))
 import Control.Monad.Except (runExcept)
@@ -39,7 +39,7 @@ import Data.Array as Array
 import Data.Coyoneda (Coyoneda, coyoneda, unCoyoneda)
 import Data.Either (Either(..))
 import Data.Exists (Exists, mkExists, runExists)
-import Data.Foldable (class Foldable, foldl, foldMap)
+import Data.Foldable (class Foldable, foldMap)
 import Data.Foldable (oneOf) as Virtual
 import Data.Foreign (Foreign, ForeignError(..), F, readArray, readString, readBoolean, readNumber, readInt, isNull, isUndefined, typeOf)
 import Data.Foreign as DF
@@ -881,21 +881,24 @@ value :: Decoder Value
 value = valueT
 
 
+fromResult :: ∀ a. Result String a -> Decoder a
+fromResult =
+    case _ of
+        Ok ok ->
+            succeed_ ok
+
+        Err err ->
+            fail err
+
+
 -- | Create a custom decoder that may do some fancy computation.
+-- |
+-- | `equalDecoders` will consider the resulting decoders equal if the input
+-- | decoders are equal, and the provided functions in each case are
+-- | referentially equal.
 customDecoder :: ∀ a b. Decoder a -> (a -> Result String b) -> Decoder b
 customDecoder decoder func =
-    -- This should work, but it may end up not playing well with `equalDecoder`
-    -- ... I might have to capture the decoder and func in the DSL. Because the
-    -- function I'm captured in the `Bind` is a lmbda, constructed fresh each
-    -- time, so it won't be referentially equal, even if it's the same func.
-    decoder >>=
-        \a ->
-            case func a of
-                Ok ok ->
-                    succeed_ ok
-
-                Err err ->
-                    fail err
+    func <$> decoder >>= fromResult
 
 
 -- | Sometimes you have JSON with recursive structure, like nested comments.
@@ -981,6 +984,8 @@ succeed_ = Succeed Nothing
 -- |           ]
 -- |
 -- | This function was removed in Elm 0.18.
+-- |
+-- | Does not work with `equalDecoders` yet, but this is probably fixable.
 tuple1 :: ∀ a value. (a -> value) -> Decoder a -> Decoder value
 tuple1 func d0 = do
     void $ arrayOfLengthT 1
@@ -1003,6 +1008,8 @@ tuple1 func d0 = do
 -- |     type Name = { first :: String, last :: String }
 -- |
 -- | This function was removed in Elm 0.18.
+-- |
+-- | Does not work with `equalDecoders` yet, but this is probably fixable.
 tuple2 :: ∀ a b value. (a -> b -> value) -> Decoder a -> Decoder b -> Decoder value
 tuple2 func d0 d1 = do
     void $ arrayOfLengthT 2
@@ -1016,6 +1023,8 @@ tuple2 func d0 d1 = do
 -- | Handle an array with exactly three elements.
 -- |
 -- | This function was removed in Elm 0.18.
+-- |
+-- | Does not work with `equalDecoders` yet, but this is probably fixable.
 tuple3 :: ∀ a b c value. (a -> b -> c -> value) -> Decoder a -> Decoder b -> Decoder c -> Decoder value
 tuple3 func d0 d1 d2 = do
     void $ arrayOfLengthT 3
@@ -1028,6 +1037,8 @@ tuple3 func d0 d1 d2 = do
 
 
 -- | This function was removed in Elm 0.18.
+-- |
+-- | Does not work with `equalDecoders` yet, but this is probably fixable.
 tuple4 :: ∀ a b c d value. (a -> b -> c -> d -> value) -> Decoder a -> Decoder b -> Decoder c -> Decoder d -> Decoder value
 tuple4 func d0 d1 d2 d3 = do
     void $ arrayOfLengthT 4
@@ -1041,6 +1052,8 @@ tuple4 func d0 d1 d2 d3 = do
 
 
 -- | This function was removed in Elm 0.18.
+-- |
+-- | Does not work with `equalDecoders` yet, but this is probably fixable.
 tuple5 :: ∀ a b c d e value. (a -> b -> c -> d -> e -> value) -> Decoder a -> Decoder b -> Decoder c -> Decoder d -> Decoder e -> Decoder value
 tuple5 func d0 d1 d2 d3 d4 = do
     void $ arrayOfLengthT 5
@@ -1055,6 +1068,8 @@ tuple5 func d0 d1 d2 d3 d4 = do
 
 
 -- | This function was removed in Elm 0.18.
+-- |
+-- | Does not work with `equalDecoders` yet, but this is probably fixable.
 tuple6 :: ∀ a b c d e f value. (a -> b -> c -> d -> e -> f -> value) -> Decoder a -> Decoder b -> Decoder c -> Decoder d -> Decoder e -> Decoder f -> Decoder value
 tuple6 func d0 d1 d2 d3 d4 d5 = do
     void $ arrayOfLengthT 6
@@ -1070,6 +1085,8 @@ tuple6 func d0 d1 d2 d3 d4 d5 = do
 
 
 -- | This function was removed in Elm 0.18.
+-- |
+-- | Does not work with `equalDecoders` yet, but this is probably fixable.
 tuple7 :: ∀ a b c d e f g value. (a -> b -> c -> d -> e -> f -> g -> value) -> Decoder a -> Decoder b -> Decoder c -> Decoder d -> Decoder e -> Decoder f -> Decoder g -> Decoder value
 tuple7 func d0 d1 d2 d3 d4 d5 d6 = do
     void $ arrayOfLengthT 7
@@ -1086,6 +1103,8 @@ tuple7 func d0 d1 d2 d3 d4 d5 d6 = do
 
 
 -- | This function was removed in Elm 0.18.
+-- |
+-- | Does not work with `equalDecoders` yet, but this is probably fixable.
 tuple8 :: ∀ a b c d e f g h value. (a -> b -> c -> d -> e -> f -> g -> h -> value) -> Decoder a -> Decoder b -> Decoder c -> Decoder d -> Decoder e -> Decoder f -> Decoder g -> Decoder h -> Decoder value
 tuple8 func d0 d1 d2 d3 d4 d5 d6 d7 = do
     void $ arrayOfLengthT 8
