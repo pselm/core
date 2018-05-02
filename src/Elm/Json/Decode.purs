@@ -354,6 +354,8 @@ instance functorDecoder :: Functor Decoder where
     -- | Works with `equalDecoders` so long as the supplied functions are
     -- | referentially equal.
     map func decoder =
+        -- We know what the answer will be up-front for certain mapping
+        -- operations, so we don't need to defer all of them.
         case decoder of
             Empty ->
                 Empty
@@ -367,6 +369,9 @@ instance functorDecoder :: Functor Decoder where
 
 instance altDecoder :: Alt Decoder where
     -- | Works with `equalDecoders`
+    --
+    -- We can apply the `Plus` laws immediately (but we also consider them in
+    -- `decodeValue` and `equalDecoders`, just in case).
     alt Empty b = b
     alt a Empty = a
     alt a b = OneOf a b
