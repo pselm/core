@@ -6,6 +6,7 @@ import Control.Monad.Eff.Console (CONSOLE)
 import Control.Monad.Eff.Exception (EXCEPTION)
 import Control.Monad.Eff.Random (RANDOM)
 import Control.Plus (class Plus)
+import Data.Array (toUnfoldable)
 import Data.Foldable (traverse_)
 import Data.Foreign (toForeign)
 import Data.Generic (class Generic, gEq, gShow)
@@ -449,6 +450,30 @@ tests = suite "Json" do
                 ==> Nothing
             ]
 
+    test "list" do
+        let decoder = list int
+        traverse_ (check decoder)
+            [ """ [ 7, 12, 13 ] """ ==> Just (7 : 12 : 13 : Nil)
+            , """ 7 """ ==> Nothing
+            , """ [ "12" ] """ ==> Nothing
+            ]
+
+    test "array" do
+        let decoder = array int
+        traverse_ (check decoder)
+            [ """ [ 7, 12, 13 ] """ ==> Just (toUnfoldable [7, 12, 13])
+            , """ 7 """ ==> Nothing
+            , """ [ "12" ] """ ==> Nothing
+            ]
+
+    test "unfoldable" do
+        let decoder = unfoldable int
+        traverse_ (check decoder)
+            [ """ [ 7, 12, 13 ] """ ==> Just [7, 12, 13]
+            , """ 7 """ ==> Nothing
+            , """ [ "12" ] """ ==> Nothing
+            ]
+
     test "maybe" do
         let
             decoder =
@@ -699,15 +724,15 @@ tests = suite "Json" do
             assert "equal" $ object3 makeJob decoder1 decoder2 decoder3 `equalDecoders` object3 makeJob decoder1 decoder2 decoder3
 
         test "list" do
-            -- assert "equal" $ list (succeed 17) `equalDecoders` list (succeed 17)
+            assert "equal" $ list (succeed 17) `equalDecoders` list (succeed 17)
             assertFalse "unequal" $ list (succeed 17) `equalDecoders` list (succeed 18)
 
         test "array" do
-            -- assert "equal" $ array (succeed 17) `equalDecoders` array (succeed 17)
+            assert "equal" $ array (succeed 17) `equalDecoders` array (succeed 17)
             assertFalse "unequal" $ array (succeed 17) `equalDecoders` array (succeed 18)
 
         test "unfoldable" do
-           -- assert "equal" $ unfoldable (succeed 17) :: Decoder (Array Int) `equalDecoders` unfoldable (succeed 17)
+           assert "equal" $ unfoldable (succeed 17) :: Decoder (Array Int) `equalDecoders` unfoldable (succeed 17)
            assertFalse "unequal" $ unfoldable (succeed 17) :: Decoder (Array Int) `equalDecoders` unfoldable (succeed 18)
 
         test "tuple1" do

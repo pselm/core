@@ -34,7 +34,6 @@ import Control.Apply (lift2, lift3, lift4, lift5)
 import Control.Bind ((>=>))
 import Control.Monad.Except (runExcept)
 import Control.Plus (class Plus)
-import Data.Array (uncons)
 import Data.Array as Array
 import Data.Coyoneda (Coyoneda, coyoneda, unCoyoneda)
 import Data.Either (Either(..))
@@ -62,7 +61,7 @@ import Elm.Json.Encode (Value) as Virtual
 import Elm.List (List, foldr)
 import Elm.Maybe (Maybe(..))
 import Elm.Result (Result(Err, Ok))
-import Prelude (class Applicative, class Apply, class Bind, class Eq, class Functor, class Monad, Unit, apply, bind, const, discard, eq, id, map, pure, show, unit, void, (#), ($), (&&), (<$>), (<<<), (<>), (==), (>>=), (>>>), (||))
+import Prelude (class Applicative, class Apply, class Bind, class Eq, class Functor, class Monad, Unit, apply, bind, const, discard, eq, id, map, pure, show, unit, void, (#), ($), (&&), (+), (<$>), (<<<), (<>), (==), (>>=), (>>>), (||))
 import Prelude (map) as Virtual
 import Unsafe.Coerce (unsafeCoerce)
 import Unsafe.Reference (reallyUnsafeRefEq, unsafeRefEq)
@@ -93,8 +92,29 @@ data Decoder a
     | Null (Maybe (a -> a -> Bool)) a
     | OneOf (Decoder a) (Decoder a)
     | Run (Decoder Foreign) (Decoder a)
+    | RunArray (ExistsRunArray a)
     | Succeed (Maybe (a -> a -> Bool)) a
     | Value (a ~ Foreign)
+
+
+-- Somewhat sinilar to the `Exists` strategy, but squashing and unsquashing a
+-- type constructor. I have a feeling that I'm missing something simple here
+-- ...  I suppose I'm working around the lack of polykinds?
+foreign import data ExistsRunArray :: Type -> Type
+
+mkExistsRunArray :: ∀ t a. RunArray t a -> ExistsRunArray (t a)
+mkExistsRunArray = unsafeCoerce
+
+runExistsRunArray :: ∀ r b. (∀ t a. RunArray t a -> r) -> ExistsRunArray b -> r
+runExistsRunArray = unsafeCoerce
+
+-- I probably also need to collect some Leibniz-like proof for the type (t a),
+-- but it's not clear to me how to arrange that.
+type RunArray t a =
+    { input :: Decoder (Array Foreign)
+    , tagger :: Decoder a
+    , unfoldr :: (Int -> Maybe (Tuple a Int)) -> Int -> t a
+    }
 
 
 -- The Foreign module uses `Except` to pass errors around, whereas we need
@@ -206,6 +226,20 @@ decodeValue =
 
         Run decodeForeign decoder ->
             (decodeValue decodeForeign) >=> (decodeValue decoder)
+
+        RunArray existsRunArray ->
+            existsRunArray # runExistsRunArray (\run ->
+                \val -> do
+                    decoded <-
+                        decodeValue run.input val
+                            >>= traverse (decodeValue run.tagger)
+                    -- Ideally, I should collect some Leibniz-like evidence
+                    -- I can use instead of the unsafeCoerce ...
+                    pure $ unsafeCoerce $
+                        run.unfoldr (\i ->
+                            (\a -> Tuple a (i + 1)) <$> Array.index decoded i
+                        ) 0
+            )
 
         Succeed _ a ->
             const $ Ok a
@@ -335,6 +369,17 @@ equalDecoders d1 d2 =
         Run leftLeft leftRight, Run rightLeft rightRight ->
             equalDecoders leftLeft rightLeft &&
             equalDecoders leftRight rightRight
+
+        RunArray l, RunArray r ->
+            l # runExistsRunArray (\left ->
+            r # runExistsRunArray (\right ->
+                -- In this case, if the `Decoder a` lines up, then all the
+                -- types have to line up, but I haven't figured out how to
+                -- prove that to the compiler.
+                equalDecoders left.input right.input &&
+                equalDecoders left.tagger (unsafeCoerceDecoder right.tagger) &&
+                reallyUnsafeRefEq left.unfoldr right.unfoldr
+            ))
 
         Succeed (Just equals) a, Succeed _ b ->
             unsafeRefEq a b || equals a b
@@ -782,7 +827,7 @@ bool = fromForeign readBoolean
 -- |     decodeString (list int) "[1,2,3]"       == Ok [1,2,3]
 -- |     decodeString (list bool) "[true,false]" == Ok [True,False]
 -- |
--- | Does not currently work with `equalDecoders`, but should be fixable.
+-- | Preserves equality-checking for the input with `equalDecoders`
 list :: ∀ a. Decoder a -> Decoder (List a)
 list = unfoldable
 
@@ -795,7 +840,7 @@ list = unfoldable
 -- | The return type is polymorphic to accommodate `Array` and `Elm.Array`,
 -- | among others.
 -- |
--- | Does not currently work with `equalDecoders`, but should be fixable.
+-- | Preserves equality-checking for the input with `equalDecoders`
 array :: ∀ a. Decoder a -> Decoder (ElmArray.Array a)
 array = unfoldable
 
@@ -810,13 +855,15 @@ array = unfoldable
 -- |
 -- | Note that this is not part of the Elm API.
 -- |
--- | Does not currently work with `equalDecoders`, but should be fixable.
+-- | Preserves equality-checking for the input with `equalDecoders`
 unfoldable :: ∀ f a. (Unfoldable f) => Decoder a -> Decoder (f a)
-unfoldable decoder = do
-    arr <- arrayT >>= traverse (\val -> Run (succeed_ val) decoder)
-    pure $ unfoldr
-        (\a -> map (\b -> Tuple b.head b.tail) (uncons a))
-        arr
+unfoldable decoder =
+    RunArray $
+        mkExistsRunArray
+            { input : arrayT
+            , tagger : decoder
+            , unfoldr : unfoldr
+            }
 
 
 -- | Decode a `null` value into some Elm value.
