@@ -305,26 +305,32 @@ equalDecoders d1 d2 =
                     false
             ))
 
-        Null (Just equals) a, Null _ b ->
-            unsafeRefEq a b || equals a b
+        Null leftEq leftVal, Null rightEq rightVal ->
+            -- Simplifies exhaustivity checking for the compiler
+            case leftEq, leftVal, rightEq, rightVal of
+                Just equals, a, _, b ->
+                    unsafeRefEq a b || equals a b
 
-        Null _ a, Null (Just equals) b ->
-            unsafeRefEq a b || equals a b
+                _, a, Just equals, b ->
+                    unsafeRefEq a b || equals a b
 
-        Null _ a, Null _ b ->
-            unsafeRefEq a b
+                _ , a, _, b ->
+                    unsafeRefEq a b
 
         -- OneOf will work with whichever decoder is not empty, so we check for
         -- that.
-        OneOf Empty leftRight, OneOf rightLeft Empty ->
-            equalDecoders leftRight rightLeft
+        OneOf left1 left2, OneOf right1 right2 ->
+            -- Simplifies exhaustivity checking for the compiler
+            case left1, left2, right1, right2 of
+                Empty, a, b, Empty ->
+                    equalDecoders a b
 
-        OneOf leftLeft Empty, OneOf Empty rightRight ->
-            equalDecoders leftLeft rightRight
+                a, Empty, Empty, b ->
+                    equalDecoders a b
 
-        OneOf leftLeft leftRight, OneOf rightLeft rightRight ->
-            equalDecoders leftLeft rightLeft &&
-            equalDecoders leftRight rightRight
+                l1, l2, r1, r2 ->
+                    equalDecoders l1 r1 &&
+                    equalDecoders l2 r2
 
         Run leftLeft leftRight, Run rightLeft rightRight ->
             equalDecoders leftLeft rightLeft &&
