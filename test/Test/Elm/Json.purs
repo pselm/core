@@ -1,51 +1,40 @@
 module Test.Elm.Json (tests) where
 
-import Test.Unit (TestSuite, Test, suite, test)
-import Test.Unit.Assert (equal)
-
-import Elm.Json.Encode as JE
-import Elm.Json.Decode as JD
-import Elm.Json.Decode ((:=))
-
-import Elm.Result (Result(..), toMaybe)
-import Elm.Basics (Float, (|>))
-import Elm.Dict as Dict
-
+import Control.Alt (class Alt, alt, (<|>))
+import Control.Monad.Eff.Class (liftEff)
+import Control.Monad.Eff.Console (CONSOLE)
+import Control.Monad.Eff.Exception (EXCEPTION)
+import Control.Monad.Eff.Random (RANDOM)
+import Control.Plus (class Plus)
+import Data.Array (toUnfoldable)
+import Data.Foldable (traverse_)
+import Data.Foreign (toForeign)
+import Data.Generic (class Generic, gEq, gShow)
 import Data.List (List(..), (:))
 import Data.List as List
-import Data.Foldable (traverse_)
+import Data.Maybe (Maybe(..))
 import Data.Sequence (Seq)
 import Data.Sequence as Sequence
 import Data.Tuple (Tuple(..))
-import Data.Maybe (Maybe(..))
-import Data.Generic (class Generic, gEq, gShow)
-
+import Elm.Basics (Float, (|>))
+import Elm.Dict as Dict
+import Elm.Json.Decode (Decoder, array, at, bool, customDecoder, dict, equalDecoders, fail, field, float, index, int, keyValuePairs, list, maybe, null, null_, nullable, object2, object3, oneOf, string, succeed, succeed_, tuple1, unfoldable, value, (:=))
+import Elm.Json.Decode as JD
+import Elm.Json.Encode as JE
+import Elm.Result (Result(..), toMaybe)
 import Math (sqrt)
-
-import Control.Alt (class Alt, alt, (<|>))
-import Control.Monad.Eff.Class (liftEff)
-import Control.Monad.Eff.Random (RANDOM)
-import Control.Monad.Eff.Exception (EXCEPTION)
-import Control.Monad.Eff.Console (CONSOLE)
-
+import Prelude (class Applicative, class Apply, class Bind, class Eq, class Functor, class Monad, class Show, bind, discard, flip, map, negate, pure, show, ($), (+), (<>), (==))
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
-import Test.QuickCheck.Laws.Data.Functor (checkFunctor)
 import Test.QuickCheck.Laws.Control.Alt (checkAlt)
-import Test.QuickCheck.Laws.Control.Apply (checkApply)
 import Test.QuickCheck.Laws.Control.Applicative (checkApplicative)
+import Test.QuickCheck.Laws.Control.Apply (checkApply)
 import Test.QuickCheck.Laws.Control.Bind (checkBind)
 import Test.QuickCheck.Laws.Control.Monad (checkMonad)
+import Test.QuickCheck.Laws.Control.Plus (checkPlus)
+import Test.QuickCheck.Laws.Data.Functor (checkFunctor)
+import Test.Unit (TestSuite, Test, suite, test)
+import Test.Unit.Assert (assert, assertFalse, equal)
 import Type.Proxy (Proxy2(..))
-
-import Prelude
-    ( class Show, show
-    , class Monad, class Bind, bind
-    , class Eq, (==)
-    , class Functor, map
-    , class Apply, apply
-    , class Applicative, pure
-    , flip, negate, discard, (<>), ($), (+), (<<<)
-    )
 
 
 infixl 9 equals as ===
@@ -461,6 +450,30 @@ tests = suite "Json" do
                 ==> Nothing
             ]
 
+    test "list" do
+        let decoder = list int
+        traverse_ (check decoder)
+            [ """ [ 7, 12, 13 ] """ ==> Just (7 : 12 : 13 : Nil)
+            , """ 7 """ ==> Nothing
+            , """ [ "12" ] """ ==> Nothing
+            ]
+
+    test "array" do
+        let decoder = array int
+        traverse_ (check decoder)
+            [ """ [ 7, 12, 13 ] """ ==> Just (toUnfoldable [7, 12, 13])
+            , """ 7 """ ==> Nothing
+            , """ [ "12" ] """ ==> Nothing
+            ]
+
+    test "unfoldable" do
+        let decoder = unfoldable int
+        traverse_ (check decoder)
+            [ """ [ 7, 12, 13 ] """ ==> Just [7, 12, 13]
+            , """ 7 """ ==> Nothing
+            , """ [ "12" ] """ ==> Nothing
+            ]
+
     test "maybe" do
         let
             decoder =
@@ -554,6 +567,188 @@ tests = suite "Json" do
             , "[17.5, 18]" ==> Nothing
             ]
 
+    suite "equalDecoders" do
+        test "succeed" do
+            -- Should test something that actually relies on its `Eq` instance
+            assert "equal" $ succeed 17 `equalDecoders` succeed 17
+            assertFalse "unequal" $ succeed 17 `equalDecoders` succeed 18
+            assertFalse "differnt" $ succeed 17 `equalDecoders` fail "problem"
+
+        test "succeed_" do
+            -- Should test something that actually relies on its `Eq` instance
+            assert "equal" $ succeed_ 17 `equalDecoders` succeed_ 17
+            assertFalse "unequal" $ succeed_ 17 `equalDecoders` succeed_ 18
+            assertFalse "differnt" $ succeed_ 17 `equalDecoders` fail "problem"
+
+        test "succeed & succeed_" do
+            assert "equal" $ succeed 17 `equalDecoders` succeed_ 17
+            assertFalse "unequal" $ succeed 17 `equalDecoders` succeed_ 18
+
+        test "succeed_ & succeed" do
+            assert "equal" $ succeed_ 17 `equalDecoders` succeed 17
+            assertFalse "unequal" $ succeed_ 17 `equalDecoders` succeed 18
+
+        test "null" do
+            -- Should test something that actually relies on its `Eq` instance
+            assert "equal" $ null 17 `equalDecoders` null 17
+            assertFalse "unequal" $ null 17 `equalDecoders` null 18
+            assertFalse "differnt" $ null 17 `equalDecoders` fail "problem"
+
+        test "null_" do
+            -- Should test something that actually relies on its `Eq` instance
+            assert "equal" $ null_ 17 `equalDecoders` null_ 17
+            assertFalse "unequal" $ null_ 17 `equalDecoders` null_ 18
+            assertFalse "differnt" $ null_ 17 `equalDecoders` fail "problem"
+
+        test "null & null_" do
+            assert "equal" $ null 17 `equalDecoders` null_ 17
+            assertFalse "unequal" $ null 17 `equalDecoders` null_ 18
+
+        test "null_ & null" do
+            assert "equal" $ null_ 17 `equalDecoders` null 17
+            assertFalse "unequal" $ null_ 17 `equalDecoders` null 18
+
+        test "fail" do
+            assert "equal" $ fail "message" `equalDecoders` fail "message"
+            assertFalse "unequal" $ fail "message" `equalDecoders` fail "other message"
+
+        test "lazy" do
+            let func = \_ -> succeed 17
+            assert "same" $ JD.lazy func `equalDecoders` JD.lazy func
+            -- assert "equal" $ JD.lazy (\_ -> succeed 17) `equalDecoders` JD.lazy (\_ -> succeed 17)
+            assertFalse "unequal" $ JD.lazy (\_ -> succeed 17) `equalDecoders` JD.lazy (\_ -> succeed 18)
+
+        test "value" do
+            assert "equal" $ value `equalDecoders` value
+            assertFalse "unequal" $ value `equalDecoders` succeed_ (toForeign 17)
+
+        test "maybe" do
+            assert "equal" $ maybe (succeed 17) `equalDecoders` maybe (succeed 17)
+            assertFalse "unequal" $ maybe (succeed 17) `equalDecoders` maybe (succeed 18)
+
+        test "nullable" do
+            assert "equal" $ nullable (succeed 17) `equalDecoders` nullable (succeed 17)
+            assertFalse "unequal" $ nullable (succeed 17) `equalDecoders` nullable (succeed 18)
+
+        test "bool" do
+            assert "equal" $ bool `equalDecoders` bool
+            assertFalse "unequal" $ bool `equalDecoders` succeed true
+
+        test "int" do
+            assert "equal" $ int `equalDecoders` int
+            assertFalse "unequal" $ int `equalDecoders` succeed 17
+
+        test "float" do
+            assert "equal" $ float `equalDecoders` float
+            assertFalse "unequal" $ float `equalDecoders` succeed 17.0
+
+        test "string" do
+            assert "equal" $ string `equalDecoders` string
+            assertFalse "unequal" $ string `equalDecoders` succeed "s"
+
+        test "oneOf" do
+            assert "equal 1" $ oneOf [ succeed 17, succeed 18 ] `equalDecoders` oneOf [ succeed 17, succeed 18 ]
+            assert "equal 2" $ oneOf ( succeed 17 : succeed 18 : Nil ) `equalDecoders` oneOf [ succeed 17, succeed 18 ]
+            assertFalse "unequal 1" $ oneOf [ succeed 17, succeed 18 ] `equalDecoders` oneOf [ succeed 17, succeed 19 ]
+            assertFalse "unequal 2" $ oneOf [ succeed 17, succeed 18 ] `equalDecoders` oneOf [ succeed 17, succeed 18, succeed 19 ]
+
+        test "keyValuePairs" do
+            -- assert "equal" $ keyValuePairs int :: Decoder (List (Tuple String Int)) `equalDecoders` keyValuePairs int
+            assertFalse "unequal" $ keyValuePairs int :: Decoder (List (Tuple String Int)) `equalDecoders` keyValuePairs (succeed 7)
+
+        test "dict" do
+            -- assert "equal" $ dict int `equalDecoders` dict int
+            assertFalse "unequal" $ dict int `equalDecoders` dict (succeed 7)
+
+        test "field" do
+            assert "equal" $ field "age" int `equalDecoders` field "age" int
+            assertFalse "unequal 1" $ field "age" int `equalDecoders` field "age" (succeed 7)
+            assertFalse "unequal 2" $ field "age" int `equalDecoders` field "weight" int
+
+        test "index" do
+            assert "equal" $ index 0 int `equalDecoders` index 0 int
+            assertFalse "unequal 1" $ index 0 int `equalDecoders` index 0 (succeed 7)
+            assertFalse "unequal 2" $ index 0 int `equalDecoders` index 1 int
+
+        test "at" do
+            assert "equal 1" $ at [ "data", "age" ] int `equalDecoders` at [ "data", "age" ] int
+            assert "equal 2" $ at ( "data" : "age" : Nil ) int `equalDecoders` at [ "data", "age" ] int
+            assert "equal 3" $ at [ "data", "age" ] int `equalDecoders` field "data" (field "age" int)
+            assertFalse "unequal 1" $ at [ "data", "age" ] int `equalDecoders` at [ "data", "weight" ] int
+            assertFalse "unequal 2" $ at [ "data", "age" ] int `equalDecoders` at [ "data", "age", "inyears" ] int
+            assertFalse "unequal 3" $ at [ "data", "age" ] int `equalDecoders` at [ "data", "age" ] (succeed 17)
+
+        test "map" do
+            let func = \x -> x + 1
+            let func2 = \x -> x + 2
+            assert "equal" $ map func (succeed 1) `equalDecoders` map func (succeed 1)
+            assertFalse "unequal 1" $ map func (succeed 1) `equalDecoders` map func (succeed 2)
+            assertFalse "unequal 2" $ map func (succeed 1) `equalDecoders` map func2 (succeed 1)
+
+        test "alt" do
+            assert "equal" $ alt (succeed 1) (succeed 2) `equalDecoders` alt (succeed 1) (succeed 2)
+            assertFalse "unequal" $ alt (succeed 1) (succeed 2) `equalDecoders` alt (succeed 1) (succeed 3)
+
+        test "bind" do
+            let func = \x -> succeed (x + 1)
+            let func2 = \x -> succeed (x + 2)
+            assert "equal" $ bind (succeed 1) func `equalDecoders` bind (succeed 1) func
+            assertFalse "unequal 1" $ bind (succeed 1) func `equalDecoders` bind (succeed 2) func
+            assertFalse "unequal 2" $ bind (succeed 1) func `equalDecoders` bind (succeed 1) func2
+
+        test "object2" do
+            let func = \x y -> Tuple x y
+
+            let decoderA1 = (field "name" string)
+            let decoderB1 = (field "age" int)
+            let decoderA2 = (field "name2" string)
+            let decoderB2 = (field "age2" int)
+
+            -- Separate production doesn't work in this case.
+            --
+            -- let decoder1 = JD.object2 Tuple ("name" := JD.string) ("age" := JD.int)
+            -- let decoder2 = JD.object2 Tuple ("name" := JD.string) ("age" := JD.int)
+            -- assert "equal" $ decoder1 `equalDecoders` decoder2
+
+            -- However, should work if the decoders and func are referentially equal
+            assert "equal" $ object2 Tuple decoderA1 decoderB1 `equalDecoders` object2 Tuple decoderA1 decoderB1
+            assertFalse "unequal 1" $ object2 Tuple decoderA1 decoderB1 `equalDecoders` object2 Tuple decoderA1 decoderB2
+            assertFalse "unequal 2" $ object2 Tuple decoderA1 decoderB1 `equalDecoders` object2 Tuple decoderA2 decoderB1
+            assertFalse "unequal 3" $ object2 Tuple decoderA1 decoderB1 `equalDecoders` object2 func decoderA1 decoderB1
+
+        test "object3" do
+           -- add a test once object2 works better
+            let decoder1 = field "name" string
+            let decoder2 = field "id" int
+            let decoder3 = field "completed" bool
+            assert "equal" $ object3 makeJob decoder1 decoder2 decoder3 `equalDecoders` object3 makeJob decoder1 decoder2 decoder3
+
+        test "list" do
+            assert "equal" $ list (succeed 17) `equalDecoders` list (succeed 17)
+            assertFalse "unequal" $ list (succeed 17) `equalDecoders` list (succeed 18)
+
+        test "array" do
+            assert "equal" $ array (succeed 17) `equalDecoders` array (succeed 17)
+            assertFalse "unequal" $ array (succeed 17) `equalDecoders` array (succeed 18)
+
+        test "unfoldable" do
+           assert "equal" $ unfoldable (succeed 17) :: Decoder (Array Int) `equalDecoders` unfoldable (succeed 17)
+           assertFalse "unequal" $ unfoldable (succeed 17) :: Decoder (Array Int) `equalDecoders` unfoldable (succeed 18)
+
+        test "tuple1" do
+            let func = \x -> x + 1
+            let func2 = \x -> x + 2
+            -- assert "equal" $ tuple1 func (succeed 1) `equalDecoders` tuple1 func (succeed 1)
+            assertFalse "unequal 1" $ tuple1 func (succeed 1) `equalDecoders` tuple1 func (succeed 2)
+            assertFalse "unequal 2" $ tuple1 func (succeed 1) `equalDecoders` tuple1 func2 (succeed 1)
+
+        test "customDecoder" do
+            let func = \x -> Ok x
+            let func2 = \x -> Err "error"
+            assert "equal" $ customDecoder (succeed 1) func `equalDecoders` customDecoder (succeed 1) func
+            assertFalse "unequal 1" $ customDecoder (succeed 1) func `equalDecoders` customDecoder (succeed 2) func
+            assertFalse "unequal 2" $ customDecoder (succeed 1) func `equalDecoders` customDecoder (succeed 1) func2
+
     test "laws\n" $
         liftEff do
             checkFunctor proxyDecoder
@@ -562,6 +757,7 @@ tests = suite "Json" do
             checkApplicative proxyDecoder
             checkBind proxyDecoder
             checkMonad proxyDecoder
+            checkPlus proxyDecoder
 
 
 -- We test the laws via a newtype, in order to avoid making spurious
@@ -569,29 +765,12 @@ tests = suite "Json" do
 -- do orphan instances).
 newtype DecoderLaws a = DecoderLaws (JD.Decoder a)
 
-
-instance functorDecoderLaws :: Functor DecoderLaws where
-    map func (DecoderLaws decoder) = DecoderLaws $ map func decoder
-
-
-instance altDecoderLaws :: Alt DecoderLaws where
-    alt (DecoderLaws left) (DecoderLaws right) = DecoderLaws $ alt left right
-
-
-instance applyDecoderLaws :: Apply DecoderLaws where
-    apply (DecoderLaws func) (DecoderLaws decoder) = DecoderLaws $ apply func decoder
-
-
-instance applicativeDecoderLaws :: Applicative DecoderLaws where
-    pure = DecoderLaws <<< pure
-
-
-instance bindDecoderLaws :: Bind DecoderLaws where
-    bind (DecoderLaws decoder) func =
-        DecoderLaws $ bind decoder
-            \a -> case func a of
-                DecoderLaws x -> x
-
+derive newtype instance functorDecoderLaws :: Functor DecoderLaws
+derive newtype instance altDecoderLaws :: Alt DecoderLaws
+derive newtype instance applyDecoderLaws :: Apply DecoderLaws
+derive newtype instance applicativeDecoderLaws :: Applicative DecoderLaws
+derive newtype instance bindDecoderLaws :: Bind DecoderLaws
+derive newtype instance plusDecoderLaws :: Plus DecoderLaws
 
 instance monadDecoderLaws :: Monad DecoderLaws
 
@@ -605,7 +784,7 @@ instance arbitraryDecoderLawsA :: (Arbitrary a) => Arbitrary (DecoderLaws a) whe
 
         pure $ DecoderLaws
             if a
-               then JD.succeed b
+               then JD.succeed_ b
                else JD.fail c
 
 
@@ -613,6 +792,10 @@ instance arbitraryDecoderLawsA :: (Arbitrary a) => Arbitrary (DecoderLaws a) whe
 -- compare decoders by running them on null data. Hopefully this is still
 -- testing something real, since the instances we're testing only depend on
 -- the *composition* of the results.
+--
+-- Testing with `equalDecoders` as our `eq` doesn't work ... I think because
+-- `equalDecoders` isn't really an `Eq` instance ... it's not reliable. So,
+-- this is the best we can do.
 instance eqDecoderLawsA :: (Eq a) => Eq (DecoderLaws a) where
     eq (DecoderLaws a) (DecoderLaws b) =
         JD.decodeValue a JE.null == JD.decodeValue b JE.null
