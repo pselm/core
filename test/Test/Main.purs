@@ -41,16 +41,16 @@ main :: Eff
     ) Unit
 main =
     runTest do
-       {- Array.tests
+        Array.tests
         Basics.tests
         BasicsElm.tests
         Bitwise.tests
         Char.tests
         Color.tests
         Date.tests
-        Dict.tests -}
+        Dict.tests
         Json.tests
-    {- List.tests
+        List.tests
         ListElm.tests
         Maybe.tests
         Random.tests
@@ -60,4 +60,4 @@ main =
         String.tests
         Time.tests
         Task.tests
-        Trampoline.tests -}
+        Trampoline.tests
