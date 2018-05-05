@@ -1,6 +1,6 @@
 
--- | Functions for working with characters. Character literals are enclosed in
--- | `'a'` pair of single quotes.
+-- | > Functions for working with characters. Character literals are enclosed in
+-- | > `'a'` pair of single quotes.
 -- |
 -- | Implemented using Purescript's [`Data.Char`](https://pursuit.purescript.org/packages/purescript-strings) module.
 
@@ -31,51 +31,51 @@ isBetween low high char =
                 toCode char
 
 
--- | True for upper case ASCII letters.
+-- | > True for upper case ASCII letters.
 isUpper :: Char -> Bool
 isUpper = isBetween 'A' 'Z'
 
 
--- | True for lower case ASCII letters.
+-- | > True for lower case ASCII letters.
 isLower :: Char -> Bool
 isLower = isBetween 'a' 'z'
 
 
--- | True for ASCII digits `[0-9]`.
+-- | > True for ASCII digits `[0-9]`.
 isDigit :: Char -> Bool
 isDigit = isBetween '0' '9'
 
 
--- | True for ASCII octal digits `[0-7]`.
+-- | > True for ASCII octal digits `[0-7]`.
 isOctDigit :: Char -> Bool
 isOctDigit = isBetween '0' '7'
 
 
--- | True for ASCII hexadecimal digits `[0-9a-fA-F]`.
+-- | > True for ASCII hexadecimal digits `[0-9a-fA-F]`.
 isHexDigit :: Char -> Bool
 isHexDigit char =
     isDigit char || isBetween 'a' 'f' char || isBetween 'A' 'F' char
 
 
--- | Convert to upper case, according to any locale-specific case mappings.
+-- | > Convert to upper case, according to any locale-specific case mappings.
 foreign import toLocaleUpper :: Char -> Char
 
 
--- | Convert to lower case, according to any locale-specific case mappings.
+-- | > Convert to lower case, according to any locale-specific case mappings.
 foreign import toLocaleLower :: Char -> Char
 
 
--- | Keyboard keys can be represented as integers. These are called *key codes*.
--- | You can use [`toCode`](#toCode) and [`fromCode`](#fromCode) to convert between
--- | key codes and characters.
+-- | > Keyboard keys can be represented as integers. These are called *key codes*.
+-- | > You can use [`toCode`](#toCode) and [`fromCode`](#fromCode) to convert between
+-- | > key codes and characters.
 type KeyCode = Int
 
 
--- | Convert to key code.
+-- | > Convert to key code.
 toCode :: Char -> KeyCode
 toCode = toCharCode
 
 
--- | Convert from key code.
+-- | > Convert from key code.
 fromCode :: KeyCode -> Char
 fromCode = fromCharCode

@@ -1,8 +1,8 @@
 
--- | Library for working with colors. Includes
--- | [RGB](https://en.wikipedia.org/wiki/RGB_color_model) and
--- | [HSL](http://en.wikipedia.org/wiki/HSL_and_HSV) creation, gradients, and
--- | built-in names.
+-- | > Library for working with colors. Includes
+-- | > [RGB](https://en.wikipedia.org/wiki/RGB_color_model) and
+-- | > [HSL](http://en.wikipedia.org/wiki/HSL_and_HSV) creation, gradients, and
+-- | > built-in names.
 -- |
 -- | The Purescript implementation is built on top of the purescript-colors module
 -- | and its `Color` type. So, you can also use functions from that module.
@@ -40,49 +40,49 @@ import Elm.List (List)
 import Math (pi)
 
 
--- | Create [HSL colors](http://en.wikipedia.org/wiki/HSL_and_HSV)
--- | with an alpha component for transparency.
+-- | > Create [HSL colors](http://en.wikipedia.org/wiki/HSL_and_HSV)
+-- | > with an alpha component for transparency.
 -- |
 -- | Note that the hue is expressed in radians
 hsla :: Float -> Float -> Float -> Float -> Color
 hsla h = Color.hsla $ h * 180.0 / pi
 
 
--- | Create [HSL colors](http://en.wikipedia.org/wiki/HSL_and_HSV). This gives
--- | you access to colors more like a color wheel, where all hues are arranged in a
--- | circle that you specify with standard Elm angles (radians).
--- |
--- |     red   = hsl (degrees   0) 1 0.5
--- |     green = hsl (degrees 120) 1 0.5
--- |     blue  = hsl (degrees 240) 1 0.5
--- |     pastelRed = hsl (degrees 0) 0.7 0.7
--- |
--- | To cycle through all colors, just cycle through degrees. The saturation level
--- | is how vibrant the color is, like a dial between grey and bright colors. The
--- | lightness level is a dial between white and black.
+-- | > Create [HSL colors](http://en.wikipedia.org/wiki/HSL_and_HSV). This gives
+-- | > you access to colors more like a color wheel, where all hues are arranged in a
+-- | > circle that you specify with standard Elm angles (radians).
+-- | >
+-- | >     red   = hsl (degrees   0) 1 0.5
+-- | >     green = hsl (degrees 120) 1 0.5
+-- | >     blue  = hsl (degrees 240) 1 0.5
+-- | >     pastelRed = hsl (degrees 0) 0.7 0.7
+-- | >
+-- | > To cycle through all colors, just cycle through degrees. The saturation level
+-- | > is how vibrant the color is, like a dial between grey and bright colors. The
+-- | > lightness level is a dial between white and black.
 -- |
 -- | Note that the hue is expressed in radians.
 hsl :: Float -> Float -> Float -> Color
 hsl h s l = hsla h s l 1.0
 
 
--- | Produce a gray based on the input. 0 is white, 1 is black.
+-- | > Produce a gray based on the input. 0 is white, 1 is black.
 grayscale :: Float -> Color
 grayscale = graytone
 
 
--- | Produce a gray based on the input. 0 is white, 1 is black.
+-- | > Produce a gray based on the input. 0 is white, 1 is black.
 greyscale :: Float -> Color
 greyscale = graytone
 
 
--- | Produce a &ldquo;complementary color&rdquo;. The two colors will
--- | accent each other. This is the same as rotating the hue by 180&deg;.
+-- | > Produce a &ldquo;complementary color&rdquo;. The two colors will
+-- | > accent each other. This is the same as rotating the hue by 180&deg;.
 complement :: Color -> Color
 complement = complementary
 
 
--- | Extract the components of a color in the HSL format.
+-- | > Extract the components of a color in the HSL format.
 -- |
 -- | Note that the hue is expressed in radians.
 toHsl :: Color -> { hue :: Float, saturation :: Float, lightness :: Float, alpha :: Float }
@@ -99,7 +99,7 @@ toHsl color =
         }
 
 
--- | Extract the components of a color in the RGB format.
+-- | > Extract the components of a color in the RGB format.
 toRgb :: Color -> { red :: Int, green :: Int, blue :: Int, alpha :: Float }
 toRgb color =
     let
@@ -114,7 +114,7 @@ toRgb color =
         }
 
 
--- | A CSS representation of the color in the form hsl(..) or hsla(...).
+-- | > A CSS representation of the color in the form hsl(..) or hsla(...).
 toCss :: Color -> String
 toCss = cssStringHSLA
 
@@ -139,10 +139,10 @@ instance eqGradient :: Eq Gradient where
     eq _ _ = false
 
 
--- | Create a linear gradient. Takes a start and end point and then a series of
--- | &ldquo;color stops&rdquo; that indicate how to interpolate between the start and
--- | end points. See [this example](http://elm-lang.org/examples/linear-gradient) for a
--- | more visual explanation.
+-- | > Create a linear gradient. Takes a start and end point and then a series of
+-- | > &ldquo;color stops&rdquo; that indicate how to interpolate between the start and
+-- | > end points. See [this example](http://elm-lang.org/examples/linear-gradient) for a
+-- | > more visual explanation.
 linear :: Tuple Float Float -> Tuple Float Float -> List (Tuple Float Color) -> Gradient
 linear (Tuple startX startY) (Tuple endX endY) =
     Linear
@@ -150,11 +150,11 @@ linear (Tuple startX startY) (Tuple endX endY) =
         { x: endX,   y: endY   }
 
 
--- | Create a radial gradient. First takes a start point and inner radius.  Then
--- | takes an end point and outer radius. It then takes a series of &ldquo;color
--- | stops&rdquo; that indicate how to interpolate between the inner and outer
--- | circles. See [this example](http://elm-lang.org/examples/radial-gradient) for a
--- | more visual explanation.
+-- | > Create a radial gradient. First takes a start point and inner radius.  Then
+-- | > takes an end point and outer radius. It then takes a series of &ldquo;color
+-- | > stops&rdquo; that indicate how to interpolate between the inner and outer
+-- | > circles. See [this example](http://elm-lang.org/examples/radial-gradient) for a
+-- | > more visual explanation.
 radial :: Tuple Float Float -> Float -> Tuple Float Float -> Float -> List (Tuple Float Color) -> Gradient
 radial (Tuple startX startY) radius (Tuple endX endY) =
     Radial
