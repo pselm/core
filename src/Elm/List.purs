@@ -211,6 +211,9 @@ unzip pairs =
 -- | > Places the given value between all members of the given list.
 -- | >
 -- | >     intersperse "on" ("turtles" : "turtles" : "turtles" : Nil) == ("turtles" : "on" : "turtles" : "on" : "turtles" : Nil)
+-- |
+-- | Similar to Purescript's `intercalate`, but `intercalate` also immediately
+-- | combines the result as a Monoid.
 intersperse :: ∀ a. a -> List a -> List a
 intersperse sep xs =
     case xs of
