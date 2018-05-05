@@ -35,7 +35,7 @@ module Elm.List
     , isEmpty, member
     , map2, map3, map4, map5
     , intersperse, scanl
-    , indexedMap, filterMap, partition, unzip
+    , filterMap, partition, unzip
     , sortBy, sortWith
     , range, (..)
     ) where
@@ -54,6 +54,7 @@ import Data.Foldable
     ) as Virtual
 
 import Elm.Foldable (foldl) as Virtual
+import Elm.FunctorWithIndex (indexedMap) as Virtual
 import Elm.Unfoldable (repeat) as Virtual
 
 import Prelude (map, append) as Virtual
@@ -62,7 +63,7 @@ import Prelude (map, append) as Virtual
 -- Internal
 
 import Data.List
-    ( List(..), elemIndex, length, (:)
+    ( List(..), elemIndex, (:)
     , zipWith, mapMaybe, toUnfoldable, fromFoldable
     )
 
@@ -76,7 +77,7 @@ import Data.Tuple (Tuple(..))
 import Data.Function (on)
 import Data.Bifunctor (lmap, rmap)
 import Control.Apply (lift3, lift4, lift5)
-import Prelude (class Eq, class Ord, (-), ($), compare, flip, (>))
+import Prelude (class Eq, class Ord, ($), compare, flip, (>))
 import Elm.Basics (Order, Bool)
 
 
@@ -98,18 +99,6 @@ member x xs =
     case elemIndex x xs of
          Just _ -> true
          Nothing -> false
-
-
--- | > Same as `map` but the function is also applied to the index of each
--- | > element (starting at zero).
--- | >
--- | >     indexedMap Tuple ("Tom" : "Sue" : "Bob" : Nil) == (Tuple 0 "Tom" : Tuple 1 "Sue" : Tuple 2 "Bob" : Nil)
-indexedMap :: ∀ a b. (Int -> a -> b) -> List a -> List b
-indexedMap func list =
-    zipWith func r list
-        where
-            r =
-                range 0 (length list - 1)
 
 
 -- | > Reduce a list from the left, building up all of the intermediate results into a list.
