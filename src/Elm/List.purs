@@ -32,7 +32,7 @@
 
 module Elm.List
     ( module Virtual
-    , cons, (:), isEmpty, member
+    , isEmpty, member
     , map2, map3, map4, map5
     , intersperse, scanl
     , indexedMap, filterMap, partition, unzip
@@ -46,6 +46,7 @@ module Elm.List
 import Data.List
     ( List(..), head, tail, filter, length, reverse
     , concat, concatMap, take, drop, sort, singleton
+    , (:)
     ) as Virtual
 
 import Data.Foldable
@@ -60,7 +61,7 @@ import Prelude (map, append) as Virtual
 -- Internal
 
 import Data.List
-    ( List(..), elemIndex, length
+    ( List(..), elemIndex, length, (:)
     , zipWith, mapMaybe, toUnfoldable, fromFoldable
     )
 
@@ -79,19 +80,9 @@ import Prelude (class Eq, class Ord, (-), ($), compare, flip, (>))
 import Elm.Basics (Order, Bool)
 
 
-infixr 5 cons as :
-
--- | Add an element to the front of a list.
--- |
--- |     cons 1 (2 : 3 : Nil] == (1 : 2 : 3 : Nil)
--- |     cons 1 Nil == (1 : Nil)
-cons :: ∀ a. a -> List a -> List a
-cons = List.Cons
-
-
--- | Determine if a list is empty.
--- |
--- |     isEmpty Nil == True
+-- | > Determine if a list is empty.
+-- | >
+-- | >     isEmpty Nil == True
 -- |
 -- | Equivalent to Purescript's `null`.
 isEmpty :: ∀ a. List a -> Bool
