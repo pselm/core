@@ -36,7 +36,7 @@ module Elm.List
     , map2, map3, map4, map5
     , intersperse, scanl
     , indexedMap, filterMap, partition, unzip
-    , repeat, sortBy, sortWith
+    , sortBy, sortWith
     , range, (..)
     ) where
 
@@ -54,6 +54,7 @@ import Data.Foldable
     ) as Virtual
 
 import Elm.Foldable (foldl) as Virtual
+import Elm.Unfoldable (repeat) as Virtual
 
 import Prelude (map, append) as Virtual
 
@@ -71,7 +72,6 @@ import Data.Traversable as Traversable
 import Elm.Maybe (Maybe(..))
 import Data.Foldable (foldr)
 import Data.Newtype (unwrap)
-import Data.Unfoldable (replicate)
 import Data.Tuple (Tuple(..))
 import Data.Function (on)
 import Data.Bifunctor (lmap, rmap)
@@ -237,15 +237,6 @@ intersperse sep xs =
 
             in
                 hd : spersed
-
-
--- | > Create a list with *n* copies of a value:
--- | >
--- | >     repeat 3 0 == (0 : 0 : 0 : Nil)
--- | >
--- | > Equivalent to Purescript's `replicate`.
-repeat :: ∀ a. Int -> a -> List a
-repeat = replicate
 
 
 -- | > Sort values by a derived property.

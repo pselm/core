@@ -105,9 +105,9 @@ tests = suite "Array" do
         assertEqual "large indexed map" (DA.range 0 (32768 - 1)) (Array.toList <| mapArray <| Array.initialize 32768 identity)
 
         assertEqual "foldl 1" (fromFoldable [3,2,1]) (Array.foldl (:) Nil (Array.fromList [1,2,3]))
-        assertEqual "foldl 2" 33 (Array.foldl (+) 0 (Array.repeat 33 1))
+        assertEqual "foldl 2" 33 (Array.foldl (+) 0 ((Array.repeat 33 1) :: Array.Array Int))
 
-        assertEqual "foldr 1" 15 (Array.foldr (+) 0 (Array.repeat 3 5))
+        assertEqual "foldr 1" 15 (Array.foldr (+) 0 ((Array.repeat 3 5) :: Array.Array Int ))
         assertEqual "foldr 2" (fromFoldable [1,2,3]) (Array.foldr (:) Nil (Array.fromList [1,2,3]))
         assertEqual "foldr 3" 53 (Array.foldr (-) 54 (Array.fromList [10,11]))
 

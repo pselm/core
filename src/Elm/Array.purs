@@ -17,7 +17,7 @@
 module Elm.Array
     ( module Virtual
     , Array, fromList, toList, toIndexedList
-    , repeat, push, get, set
+    , push, get, set
     , slice, indexedMap, initialize
     ) where
 
@@ -28,6 +28,7 @@ import Data.Sequence (filter, empty, length) as Virtual
 import Data.Foldable (foldr) as Virtual
 import Prelude (append, map) as Virtual
 import Elm.Foldable (foldl) as Virtual
+import Elm.Unfoldable (repeat) as Virtual
 
 -- Internal
 
@@ -52,7 +53,7 @@ import Data.Monoid (class Monoid, mempty)
 import Prelude
     ( class Functor, (<$>)
     , class Applicative, pure
-    , ($), (-), const, flip, (>=), (<=), (+), (<<<), (<>)
+    , ($), (-), flip, (>=), (<=), (+), (<<<), (<>)
     )
 
 -- | The `Array` type is synonym for `Data.Sequence.Seq`.
@@ -72,17 +73,6 @@ initialize len func =
        else
             func <$>
                fromFoldable (DA.range 0 (len - 1))
-
-
--- | > Creates an array with a given length, filled with a default element.
--- | >
--- | >     repeat 5 0     == fromList [0,0,0,0,0]
--- | >     repeat 3 "cat" == fromList ["cat","cat","cat"]
--- | >
--- | > Notice that `repeat 3 x` is the same as `initialize 3 (always x)`.
-repeat :: ∀ a. Int -> a -> Array a
-repeat n e =
-    initialize n (const e)
 
 
 -- | > Create an array from a list.
