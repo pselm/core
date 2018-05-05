@@ -58,7 +58,7 @@ import Data.Foreign (Foreign, ForeignError(..), F, readArray, readString, readBo
 import Data.Foreign as DF
 import Data.Foreign.Index (readIndex, readProp)
 import Data.Foreign.JSON (parseJSON)
-import Data.Leibniz (type (~), coerceSymm)
+import Data.Leibniz (type (~), coerceSymm, symm)
 import Data.Monoid (class Monoid)
 import Data.Traversable (traverse)
 import Data.Tuple (Tuple(..))
@@ -159,29 +159,19 @@ data Decoder a
     | Null (Maybe (a -> a -> Bool)) a
     | OneOf (Decoder a) (Decoder a)
     | Run (Decoder Foreign) (Decoder a)
-    | RunArray (ExistsRunArray a)
+    | RunArray (∀ r. (∀ f x. (a ~ f x) -> RunArray f x -> r) -> r)
     | Succeed (Maybe (a -> a -> Bool)) a
     | Value (a ~ Foreign)
 
-
--- Somewhat sinilar to the `Exists` strategy, but squashing and unsquashing a
--- type constructor. I have a feeling that I'm missing something simple here.
-foreign import data ExistsRunArray :: Type -> Type
-
-mkExistsRunArray :: ∀ t a. RunArray t a -> ExistsRunArray (t a)
-mkExistsRunArray = unsafeCoerce
-
-runExistsRunArray :: ∀ r b. (∀ t a. RunArray t a -> r) -> ExistsRunArray b -> r
-runExistsRunArray = unsafeCoerce
 
 -- I probably also need to collect some Leibniz-like proof for the type (t a),
 -- but it's not clear to me how to arrange that. That is, I need to squash the
 -- type to work with `Decoder`, but I'd ideally like to recover some evidence
 -- of it inside `decodeValue` and `equalDecoders`.
-type RunArray t a =
+type RunArray f x =
     { input :: Decoder (Array Foreign)
-    , tagger :: Decoder a
-    , unfoldr :: (Int -> Maybe (Tuple a Int)) -> Int -> t a
+    , tagger :: Decoder x
+    , unfoldr :: (Int -> Maybe (Tuple x Int)) -> Int -> f x
     }
 
 
@@ -299,20 +289,17 @@ decodeValue =
         Run decodeForeign decoder ->
             (decodeValue decodeForeign) >=> (decodeValue decoder)
 
-        RunArray existsRunArray ->
-            existsRunArray # runExistsRunArray (\run ->
+        RunArray runArray ->
+            runArray \proof run ->
                 \val -> do
                     decoded <-
                         decodeValue run.input val
                             >>= traverse (decodeValue run.tagger)
 
-                    -- Ideally, I should collect some Leibniz-like evidence
-                    -- I can use instead of the unsafeCoerce ...
-                    pure $ unsafeCoerce $
+                    pure $ coerceSymm proof $
                         run.unfoldr (\i ->
                             (\a -> Tuple a (i + 1)) <$> Array.index decoded i
                         ) 0
-            )
 
         Succeed _ a ->
             const $ Ok a
@@ -326,6 +313,22 @@ decodeValue =
 -- | more foolproof.
 unsafeCoerceDecoder :: ∀ a b. Decoder a -> Decoder b
 unsafeCoerceDecoder = unsafeCoerce
+
+
+-- | This is for a case where I think I've got good evidence, but
+-- | `lowerLeibniz` doesn't do quite what I need. What I've got below (where I
+-- | use this) is:
+-- |
+-- | (f0 x1) ~ (f2 x3)
+-- |
+-- | However, what I need to coerce is a `Decoder x1` to a `Decoder x3`.  So,
+-- | you'd think I need something like `lowerLeibniz`. But, that wants a
+-- | unified `f` on each side. But I don't entirely see why. If I can prove
+-- | that `f a ~ g b`, then doesn't it follow that `a ~ b`?  How could it be
+-- | otherwise? But Haskell's Leibniz package also requires a `f a ~ f b`, so
+-- | perhaps I'm missing something.
+coerceDecoder :: ∀ f g a b. (f a ~ g b) -> Decoder a -> Decoder b
+coerceDecoder _ = unsafeCoerce
 
 
 -- | `equalDecoders` attempts to compare two decoders for equality. It is
@@ -556,15 +559,19 @@ equalDecoders d1 d2 =
             equalDecoders leftRight rightRight
 
         RunArray l, RunArray r ->
-            l # runExistsRunArray (\left ->
-            r # runExistsRunArray (\right ->
-                -- In this case, if the `Decoder a` lines up, then all the
-                -- types have to line up, but I haven't figured out how to
-                -- prove that to the compiler.
-                equalDecoders left.input right.input &&
-                equalDecoders left.tagger (unsafeCoerceDecoder right.tagger) &&
-                reallyUnsafeRefEq left.unfoldr right.unfoldr
-            ))
+            l \leftProof left ->
+                r \rightProof right ->
+                    let
+                        leftRightProof =
+                            symm leftProof >>> rightProof
+                            -- I know that the left side is equal to `a`, and
+                            -- the right side is equal to `a`, so I can
+                            -- generate a proof that the left side is equal to
+                            -- the right side.
+                    in
+                        equalDecoders left.input right.input &&
+                        equalDecoders (coerceDecoder leftRightProof left.tagger) right.tagger &&
+                        reallyUnsafeRefEq left.unfoldr right.unfoldr
 
         Succeed (Just equals) a, Succeed _ b ->
             unsafeRefEq a b || equals a b
@@ -1034,15 +1041,15 @@ array = unfoldable
 -- | Note that this is not part of the Elm API.
 -- |
 -- | Preserves equality-checking for the input with `equalDecoders`
-unfoldable :: ∀ f a. (Unfoldable f) => Decoder a -> Decoder (f a)
+unfoldable :: ∀ f a. Unfoldable f => Decoder a -> Decoder (f a)
 unfoldable decoder =
-    RunArray $
-        mkExistsRunArray
-            { input : arrayT
-            , tagger : decoder
-            , unfoldr : unfoldr
-            }
-
+    RunArray
+        \func ->
+            func id
+                { input : arrayT
+                , tagger : decoder
+                , unfoldr : unfoldr
+                }
 
 -- | > Decode a `null` value into some Elm value.
 -- | >
