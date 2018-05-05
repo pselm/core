@@ -1,6 +1,6 @@
 
--- | A library for manipulating lists of values. Every value in a
--- | list must have the same type.
+-- | > A library for manipulating lists of values. Every value in a
+-- | > list must have the same type.
 -- |
 -- | Implemented in terms of Purescript's `Data.List`, so you can also
 -- | use functions from `Data.List` on a `List`.
@@ -98,10 +98,10 @@ isEmpty :: ∀ a. List a -> Bool
 isEmpty = List.null
 
 
--- | Figure out whether a list contains a value.
--- |
--- |     member 9 (1 : 2 : 3 : 4 : Nil) == False
--- |     member 4 (1 : 2 : 3 : 4 : Nil) == True
+-- | > Figure out whether a list contains a value.
+-- | >
+-- | >     member 9 (1 : 2 : 3 : 4 : Nil) == False
+-- | >     member 4 (1 : 2 : 3 : 4 : Nil) == True
 member :: ∀ a. (Eq a) => a -> List a -> Bool
 member x xs =
     case elemIndex x xs of
@@ -109,10 +109,10 @@ member x xs =
          Nothing -> false
 
 
--- | Same as `map` but the function is also applied to the index of each
--- | element (starting at zero).
--- |
--- |     indexedMap Tuple ("Tom" : "Sue" : "Bob" : Nil) == (Tuple 0 "Tom" : Tuple 1 "Sue" : Tuple 2 "Bob" : Nil)
+-- | > Same as `map` but the function is also applied to the index of each
+-- | > element (starting at zero).
+-- | >
+-- | >     indexedMap Tuple ("Tom" : "Sue" : "Bob" : Nil) == (Tuple 0 "Tom" : Tuple 1 "Sue" : Tuple 2 "Bob" : Nil)
 indexedMap :: ∀ a b. (Int -> a -> b) -> List a -> List b
 indexedMap func list =
     zipWith func r list
@@ -121,9 +121,9 @@ indexedMap func list =
                 range 0 (length list - 1)
 
 
--- | Reduce a list from the left, building up all of the intermediate results into a list.
--- |
--- |     scanl (+) 0 (1 : 2 : 3 : 4 : Nil) == (0 : 1 : 3 : 6 : 10 : Nil)
+-- | > Reduce a list from the left, building up all of the intermediate results into a list.
+-- | >
+-- | >     scanl (+) 0 (1 : 2 : 3 : 4 : Nil) == (0 : 1 : 3 : 6 : 10 : Nil)
 -- |
 -- | This is like Purescript's `scanl`, except that the function you provide in the first
 -- | parameter is flipped, and the second parameter is included in the resulting list.
@@ -132,28 +132,28 @@ scanl func memo list =
     memo : Traversable.scanl (flip func) memo list
 
 
--- | Apply a function that may succeed to all values in the list, but only keep
--- | the successes.
--- |
--- |     filterMap isTeen [3, 15, 12, 18, 24] == [15, 18]
--- |
--- |     isTeen :: Int -> Maybe Int
--- |     isTeen n =
--- |         if 13 <= n && n <= 19
--- |             then Just n
--- |             else Nothing
+-- | > Apply a function that may succeed to all values in the list, but only keep
+-- | > the successes.
+-- | >
+-- | >     filterMap isTeen [3, 15, 12, 18, 24] == [15, 18]
+-- | >
+-- | >     isTeen :: Int -> Maybe Int
+-- | >     isTeen n =
+-- | >         if 13 <= n && n <= 19
+-- | >             then Just n
+-- | >             else Nothing
 -- |
 -- | Equivalent to Purescript's `mapMaybe`.
 filterMap :: ∀ a b. (a -> Maybe b) -> List a -> List b
 filterMap = mapMaybe
 
 
--- | Partition a list based on a predicate. The first list contains all values
--- | that satisfy the predicate, and the second list contains all the value that do
--- | not.
--- |
--- |     partition (\x -> x < 3) (0..5) == Tuple (0 : 1 : 2 : Nil) (3 : 4 : 5 : Nil)
--- |     partition isEven        (0..5) == Tuple (0 : 2 : 4 : Nil) (1 : 3 : 5 : Nil)
+-- | > Partition a list based on a predicate. The first list contains all values
+-- | > that satisfy the predicate, and the second list contains all the value that do
+-- | > not.
+-- | >
+-- | >     partition (\x -> x < 3) (0..5) == Tuple (0 : 1 : 2 : Nil) (3 : 4 : 5 : Nil)
+-- | >     partition isEven        (0..5) == Tuple (0 : 2 : 4 : Nil) (1 : 3 : 5 : Nil)
 partition :: ∀ a. (a -> Bool) -> List a -> Tuple (List a) (List a)
 partition pred =
     foldr step (Tuple Nil Nil)
@@ -163,16 +163,16 @@ partition pred =
             (if pred x then lmap else rmap) (Cons x)
 
 
--- | Combine two lists, combining them with the given function.
--- | If one list is longer, the extra elements are dropped.
--- |
--- |     map2 (+) (1 : 2 : 3 : Nil) (1 : 2 : 3 : 4 : Nil) == (2 : 4 : 6 : Nil)
--- |
--- |     map2 Tuple (1 : 2 : 3 : Nil) ('a' : 'b' : Nil) == (Tuple 1 'a' : Tuple 2 'b' : Nil)
--- |
--- |     pairs :: List a -> List b -> List (Tuple a b)
--- |     pairs lefts rights =
--- |         map2 Tuple lefts rights
+-- | > Combine two lists, combining them with the given function.
+-- | > If one list is longer, the extra elements are dropped.
+-- | >
+-- | >     map2 (+) (1 : 2 : 3 : Nil) (1 : 2 : 3 : 4 : Nil) == (2 : 4 : 6 : Nil)
+-- | >
+-- | >     map2 Tuple (1 : 2 : 3 : Nil) ('a' : 'b' : Nil) == (Tuple 1 'a' : Tuple 2 'b' : Nil)
+-- | >
+-- | >     pairs :: List a -> List b -> List (Tuple a b)
+-- | >     pairs lefts rights =
+-- | >         map2 Tuple lefts rights
 -- |
 -- | Equivalent to Purescript's `zipWith`.
 map2 :: ∀ a b result. (a -> b -> result) -> List a -> List b -> List result
@@ -215,9 +215,9 @@ map5 func list1 list2 list3 list4 list5 =
         (ZipList $ toUnfoldable list5)
 
 
--- | Decompose a list of tuples into a tuple of lists.
--- |
--- |     unzip (Tuple 0 True : Tuple 17 False :  Tuple 1337 True : Nil) == Tuple (0 : 17 : 1337 : Nil) (True : False : True : Nil)
+-- | > Decompose a list of tuples into a tuple of lists.
+-- | >
+-- | >     unzip (Tuple 0 True : Tuple 17 False :  Tuple 1337 True : Nil) == Tuple (0 : 17 : 1337 : Nil) (True : False : True : Nil)
 unzip :: ∀ a b. List (Tuple a b) -> Tuple (List a) (List b)
 unzip pairs =
     let
@@ -228,9 +228,9 @@ unzip pairs =
         foldr step (Tuple Nil Nil) pairs
 
 
--- | Places the given value between all members of the given list.
--- |
--- |     intersperse "on" ("turtles" : "turtles" : "turtles" : Nil) == ("turtles" : "on" : "turtles" : "on" : "turtles" : Nil)
+-- | > Places the given value between all members of the given list.
+-- | >
+-- | >     intersperse "on" ("turtles" : "turtles" : "turtles" : Nil) == ("turtles" : "on" : "turtles" : "on" : "turtles" : Nil)
 intersperse :: ∀ a. a -> List a -> List a
 intersperse sep xs =
     case xs of
@@ -248,25 +248,25 @@ intersperse sep xs =
                 hd : spersed
 
 
--- | Create a list with *n* copies of a value:
--- |
--- |     repeat 3 0 == (0 : 0 : 0 : Nil)
--- |
--- | Equivalent to Purescript's `replicate`.
+-- | > Create a list with *n* copies of a value:
+-- | >
+-- | >     repeat 3 0 == (0 : 0 : 0 : Nil)
+-- | >
+-- | > Equivalent to Purescript's `replicate`.
 repeat :: ∀ a. Int -> a -> List a
 repeat = replicate
 
 
--- | Sort values by a derived property.
--- |
--- |     alice = { name: "Alice", height: 1.62 }
--- |     bob   = { name: "Bob"  , height: 1.85 }
--- |     chuck = { name: "Chuck", height: 1.76 }
--- |
--- |     sortBy _.name   (chuck : alice : bob : Nil) == (alice : bob : chuck : Nil)
--- |     sortBy _.height (chuck : alice : bob : Nil) == (alice : chuck : bob : Nil)
--- |
--- |     sortBy String.length ("mouse" : "cat" : Nil) == ("cat" : "mouse" : Nil)
+-- | > Sort values by a derived property.
+-- | >
+-- | >     alice = { name: "Alice", height: 1.62 }
+-- | >     bob   = { name: "Bob"  , height: 1.85 }
+-- | >     chuck = { name: "Chuck", height: 1.76 }
+-- | >
+-- | >     sortBy _.name   (chuck : alice : bob : Nil) == (alice : bob : chuck : Nil)
+-- | >     sortBy _.height (chuck : alice : bob : Nil) == (alice : chuck : bob : Nil)
+-- | >
+-- | >     sortBy String.length ("mouse" : "cat" : Nil) == ("cat" : "mouse" : Nil)
 -- |
 -- | Note that this is not the same as Purescript's `sortBy`, which is
 -- | like Elm's `sortWith`.
@@ -275,18 +275,18 @@ sortBy func =
     List.sortBy (compare `on` func)
 
 
--- | Sort values with a custom comparison function.
--- |
--- |     sortWith flippedComparison (1..5) == (5 : 4 : 3 : 2 : 1 : Nil)
--- |
--- |     flippedComparison a b =
--- |         case compare a b of
--- |           LT -> GT
--- |           EQ -> EQ
--- |           GT -> LT
--- |
--- | This is also the most general sort function, allowing you
--- | to define any other: `sort == sortWith compare`
+-- | > Sort values with a custom comparison function.
+-- | >
+-- | >     sortWith flippedComparison (1..5) == (5 : 4 : 3 : 2 : 1 : Nil)
+-- | >
+-- | >     flippedComparison a b =
+-- | >         case compare a b of
+-- | >           LT -> GT
+-- | >           EQ -> EQ
+-- | >           GT -> LT
+-- | >
+-- | > This is also the most general sort function, allowing you
+-- | > to define any other: `sort == sortWith compare`
 -- |
 -- | Equivalent to Purescript's `sortBy`.
 sortWith :: ∀ a. (a -> a -> Order) -> List a -> List a
@@ -296,12 +296,12 @@ sortWith = List.sortBy
 -- | This operator was removed in Elm 0.18.
 infixl 4 range as ..
 
--- | Create a list of numbers, every element increasing by one.
--- | You give the lowest and highest number that should be in the list.
--- |
--- |     range 3 6 == [3, 4, 5, 6]
--- |     range 3 3 == [3]
--- |     range 6 3 == []
+-- | > Create a list of numbers, every element increasing by one.
+-- | > You give the lowest and highest number that should be in the list.
+-- | >
+-- | >     range 3 6 == [3, 4, 5, 6]
+-- | >     range 3 3 == [3]
+-- | >     range 6 3 == []
 -- |
 -- | Like Purescript's `range`, except that the Elm version produces an empty list
 -- | if the first parameter is greater than the second.
