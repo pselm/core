@@ -58,7 +58,7 @@ import Data.Foreign (Foreign, ForeignError(..), F, readArray, readString, readBo
 import Data.Foreign as DF
 import Data.Foreign.Index (readIndex, readProp)
 import Data.Foreign.JSON (parseJSON)
-import Data.Leibniz (type (~), coerceSymm, symm)
+import Data.Leibniz (type (~), Leibniz(..), coerce, coerceSymm, liftLeibniz, symm)
 import Data.Monoid (class Monoid)
 import Data.Traversable (traverse)
 import Data.Tuple (Tuple(..))
@@ -173,6 +173,42 @@ type RunArray f x =
     , tagger :: Decoder x
     , unfoldr :: (Int -> Maybe (Tuple x Int)) -> Int -> f x
     }
+
+
+-- | This is for a case where I think I've got good Leibniz evidence, but
+-- | `lowerLeibniz` doesn't do quite what I need. What I've got is:
+-- |
+-- |     f0 x1 ~ f2 x3
+-- |
+-- | However, what I need is:
+-- |
+-- |     x1 ~ x3
+-- |
+-- | So, this is like `lowerLeibniz`, but `lowerLeibniz` requires a match
+-- | between the `f0` and the `f2`. But I don't entirely see why. If I can prove
+-- | that `f a ~ g b`, then doesn't it follow that `a ~ b`?  How could it be
+-- | otherwise?
+-- |
+-- | Haskell's [Leibniz package][leibniz] also requires a `f a ~ f b`, so
+-- | perhaps I'm missing something.
+-- |
+-- | [leibniz]: https://hackage.haskell.org/package/eq-4.2/docs/Data-Eq-Type.html
+-- |
+-- | However, the GADT version of this in [`Data.Type.Equality`][gadt] has an `inner`
+-- | function that does what I need. (As well as the equivalent `outer`).
+-- |
+-- | [gadt]: https://hackage.haskell.org/package/base-4.10.1.0/docs/Data-Type-Equality.html
+-- |
+-- | So, I should suggest these for `Data.Leibniz` and see what people think.
+inner :: ∀ f g a b. (f a ~ g b) -> (a ~ b)
+inner _ = Leibniz unsafeCoerce
+
+
+-- | Like `inner`, but to witness the equality of the container types. The
+-- | Haskell version uses polykinds -- without polykinds, we lift over an
+-- | arbitrary `c` type.
+outer :: ∀ f g a b c. (f a ~ g b) -> (f c ~ g c)
+outer _ = Leibniz unsafeCoerce
 
 
 -- The Foreign module uses `Except` to pass errors around, whereas we need
@@ -313,22 +349,6 @@ decodeValue =
 -- | more foolproof.
 unsafeCoerceDecoder :: ∀ a b. Decoder a -> Decoder b
 unsafeCoerceDecoder = unsafeCoerce
-
-
--- | This is for a case where I think I've got good evidence, but
--- | `lowerLeibniz` doesn't do quite what I need. What I've got below (where I
--- | use this) is:
--- |
--- | (f0 x1) ~ (f2 x3)
--- |
--- | However, what I need to coerce is a `Decoder x1` to a `Decoder x3`.  So,
--- | you'd think I need something like `lowerLeibniz`. But, that wants a
--- | unified `f` on each side. But I don't entirely see why. If I can prove
--- | that `f a ~ g b`, then doesn't it follow that `a ~ b`?  How could it be
--- | otherwise? But Haskell's Leibniz package also requires a `f a ~ f b`, so
--- | perhaps I'm missing something.
-coerceDecoder :: ∀ f g a b. (f a ~ g b) -> Decoder a -> Decoder b
-coerceDecoder _ = unsafeCoerce
 
 
 -- | `equalDecoders` attempts to compare two decoders for equality. It is
@@ -562,15 +582,16 @@ equalDecoders d1 d2 =
             l \leftProof left ->
                 r \rightProof right ->
                     let
-                        leftRightProof =
-                            symm leftProof >>> rightProof
-                            -- I know that the left side is equal to `a`, and
-                            -- the right side is equal to `a`, so I can
-                            -- generate a proof that the left side is equal to
-                            -- the right side.
+                        -- leftProof and rightProof both refer to `a`, so we
+                        -- need to compose them to get a proof as between
+                        -- leftProof and rightProof. And, then we need to
+                        -- manipulate that a bit to get a proof for our inner
+                        -- decoders.
+                        taggerEq =
+                            liftLeibniz $ inner $ symm leftProof >>> rightProof
                     in
                         equalDecoders left.input right.input &&
-                        equalDecoders (coerceDecoder leftRightProof left.tagger) right.tagger &&
+                        equalDecoders (coerce taggerEq left.tagger) right.tagger &&
                         reallyUnsafeRefEq left.unfoldr right.unfoldr
 
         Succeed (Just equals) a, Succeed _ b ->
