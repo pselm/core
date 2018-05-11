@@ -39,7 +39,7 @@ module Elm.Json.Decode
     , keyValuePairs, dict
     , nullable, maybe, fail, succeed, succeed_
     , value, customDecoder, lazy
-    , equalDecoders
+    , equalDecoders, equalDecoders_
     ) where
 
 
@@ -58,7 +58,7 @@ import Data.Foreign (Foreign, ForeignError(..), F, readArray, readString, readBo
 import Data.Foreign as DF
 import Data.Foreign.Index (readIndex, readProp)
 import Data.Foreign.JSON (parseJSON)
-import Data.Leibniz (type (~), Leibniz(..), coerce, coerceSymm, liftLeibniz, symm)
+import Data.Leibniz (type (~), Leibniz(Leibniz), coerce, coerceSymm, symm)
 import Data.Monoid (class Monoid)
 import Data.Traversable (traverse)
 import Data.Tuple (Tuple(..))
@@ -75,10 +75,10 @@ import Elm.Json.Encode (Value) as Virtual
 import Elm.List (List, foldr)
 import Elm.Maybe (Maybe(..))
 import Elm.Result (Result(Err, Ok))
-import Prelude (class Applicative, class Apply, class Bind, class Eq, class Functor, class Monad, Unit, apply, bind, const, discard, eq, id, map, pure, show, unit, void, (#), ($), (&&), (+), (<$>), (<<<), (<>), (==), (>>=), (>>>), (||))
+import Prelude (class Applicative, class Apply, class Bind, class Eq, class Functor, class Monad, Unit, apply, bind, const, discard, eq, id, map, pure, show, unit, void, (#), ($), (&&), (+), (<#>), (<$>), (<<<), (<>), (==), (>>=), (>>>), (||))
 import Prelude (map) as Virtual
 import Unsafe.Coerce (unsafeCoerce)
-import Unsafe.Reference (reallyUnsafeRefEq, unsafeRefEq)
+import Unsafe.Reference (reallyUnsafeRefEq)
 
 
 -- | > A value that knows how to decode JSON values.
@@ -344,13 +344,6 @@ decodeValue =
             id >>> coerceSymm proof >>> Ok
 
 
--- | For cases where we have a witness that the two decoders are the same type.
--- | Ideally, I should formalize the witness and provide it here, to make this
--- | more foolproof.
-unsafeCoerceDecoder :: ∀ a b. Decoder a -> Decoder b
-unsafeCoerceDecoder = unsafeCoerce
-
-
 -- | `equalDecoders` attempts to compare two decoders for equality. It is
 -- | subject to false negatives, but positives should be reliable. (For this
 -- | reason, we don't provide an `Eq` instance for `Decoder` ... this is a
@@ -462,8 +455,22 @@ unsafeCoerceDecoder = unsafeCoerce
 -- |
 -- |   e.g. `keyValuePairs`, `dict`, and `tuple1` through `tuple8`
 equalDecoders :: ∀ a. Decoder a -> Decoder a -> Bool
-equalDecoders d1 d2 =
-    unsafeRefEq d1 d2 || case d1, d2 of
+equalDecoders = equalDecodersImpl (Just id)
+
+
+-- | Like `equalDecoders`, but doesn't rely on the decoders being of the same
+-- | type. If you know the decoders are of the same type, `equalDecoders` can
+-- | do a somewhat better job of determining equality.
+equalDecoders_ :: ∀ a b. Decoder a -> Decoder b -> Bool
+equalDecoders_ = equalDecodersImpl Nothing
+
+
+-- | We can do slightly different things depending on whethr we'd got evidence
+-- | that the two decoders are of the same type. So, the first parameter
+-- | indicates whether we've got that evidence or not.
+equalDecodersImpl :: ∀ a b. Maybe (a ~ b) -> Decoder a -> Decoder b -> Bool
+equalDecodersImpl proof d1 d2 =
+    reallyUnsafeRefEq d1 d2 || case d1, d2 of
         Ap coyoLeft, Ap coyoRight ->
             coyoLeft # unApplyCoyoneda (\tagger1 decoder1 ->
             coyoRight # unApplyCoyoneda (\tagger2 decoder2 ->
@@ -485,18 +492,21 @@ equalDecoders d1 d2 =
                     false, false ->
                         -- If neither are referntially equal, we don't have a
                         -- witness to the fact that we're coming from the same
-                        -- type. So, at least for now, there's nothing we can do.
-                        false
+                        -- type. So, we can continue, but we can't provide any
+                        -- proof.
+                        equalDecodersImpl Nothing tagger1 tagger2 &&
+                        equalDecodersImpl Nothing decoder1 decoder2
 
                     true, false ->
-                        -- If the taggers are equal, at least we have the same types,
-                        -- so we can try on the decoders.
-                        equalDecoders decoder1 (unsafeCoerceDecoder decoder2)
+                        -- If the taggers are equal, at least we have the same
+                        -- types, so we can try on the decoders. I think I have
+                        -- to fake the evidence.
+                        equalDecodersImpl (Just $ Leibniz unsafeCoerce) decoder1 decoder2
 
                     false, true ->
-                        -- If the decoders are equal, we have the same type, so try
-                        -- on the taggers.
-                        equalDecoders tagger1 (unsafeCoerceDecoder tagger2)
+                        -- If the decoders are equal, we have the same type, so
+                        -- try on the taggers. I think I have to fake the evidence.
+                        equalDecodersImpl (Just $ Leibniz unsafeCoerce) tagger1 tagger2
             ))
 
         Array _, Array _ ->
@@ -511,8 +521,9 @@ equalDecoders d1 d2 =
                 if reallyUnsafeRefEq func1 func2 then
                     -- The fact that func1 and func2 are referentially
                     -- equal is our warrant for believing that decoder1 and
-                    -- decoder2 have the same type.
-                    equalDecoders decoder1 (unsafeCoerceDecoder decoder2)
+                    -- decoder2 have the same type. But I don't think this maps
+                    -- to Leibniz very well, so we manufacture the evidence.
+                    equalDecodersImpl (Just $ Leibniz unsafeCoerce) decoder1 decoder2
                 else
                     false
             ))
@@ -527,7 +538,7 @@ equalDecoders d1 d2 =
             keyLeft == keyRight
 
         FromForeign funcLeft, FromForeign funcRight ->
-            unsafeRefEq funcLeft funcRight
+            reallyUnsafeRefEq funcLeft funcRight
 
         Index _ indexLeft, Index _ indexRight ->
             indexLeft == indexRight
@@ -542,22 +553,24 @@ equalDecoders d1 d2 =
                     -- The fact that tagger1 and tagger2 are referentially
                     -- equal is our warrant for believing that decoder1 and
                     -- decoder2 have the same type.
-                    equalDecoders decoder1 (unsafeCoerceDecoder decoder2)
+                    equalDecodersImpl (Just $ Leibniz unsafeCoerce) decoder1 decoder2
                 else
                     false
             ))
 
         Null leftEq leftVal, Null rightEq rightVal ->
-            -- Simplifies exhaustivity checking for the compiler
-            case leftEq, leftVal, rightEq, rightVal of
-                Just equals, a, _, b ->
-                    unsafeRefEq a b || equals a b
+            case proof, leftEq, leftVal, rightEq, rightVal of
+                Just p, Just equals, a, _, b ->
+                    -- Same type, and an equals, so we can use it
+                    reallyUnsafeRefEq a b || equals a (coerceSymm p b)
 
-                _, a, Just equals, b ->
-                    unsafeRefEq a b || equals a b
+                Just p, _, a, Just equals, b ->
+                    -- Same type, and other equals, so use it
+                    reallyUnsafeRefEq a b || equals (coerce p a) b
 
-                _ , a, _, b ->
-                    unsafeRefEq a b
+                _ , _ , a, _, b ->
+                    -- Either not the same type, or no ewuals
+                    reallyUnsafeRefEq a b
 
         -- OneOf will work with whichever decoder is not empty, so we check for
         -- that.
@@ -565,43 +578,58 @@ equalDecoders d1 d2 =
             -- Simplifies exhaustivity checking for the compiler
             case left1, left2, right1, right2 of
                 Empty, a, b, Empty ->
-                    equalDecoders a b
+                    equalDecodersImpl proof a b
 
                 a, Empty, Empty, b ->
-                    equalDecoders a b
+                    equalDecodersImpl proof a b
 
                 l1, l2, r1, r2 ->
-                    equalDecoders l1 r1 &&
-                    equalDecoders l2 r2
+                    equalDecodersImpl proof l1 r1 &&
+                    equalDecodersImpl proof l2 r2
 
         Run leftLeft leftRight, Run rightLeft rightRight ->
-            equalDecoders leftLeft rightLeft &&
-            equalDecoders leftRight rightRight
+            equalDecodersImpl (Just id) leftLeft rightLeft &&
+            equalDecodersImpl proof leftRight rightRight
 
         RunArray l, RunArray r ->
+            -- This one is kind of fun.
+            --
+            -- Our `leftProof` proves that `a ~ f1 x1` on the left side.
+            -- Our `rightProof` proves that `b ~ f2 x2` on the right side.
+            -- Our `proof`, if we have it, proves that `a ~ b`.
+            --
+            -- What we need is proof that  `x ~ y`. To do that, we need to use
+            -- our `proof` to show that `f1 x1 ~ f2 x2` (which, of course, only
+            -- works if we have our `proof`). Then, we can use a custom `inner`
+            -- function to prove `x1 ~ x2` ... it's like `lowerLeibniz`, but
+            -- doesn't require the type constructors to be the same. (Which,
+            -- logically, doesn't seem necessary).
             l \leftProof left ->
-                r \rightProof right ->
-                    let
-                        -- leftProof and rightProof both refer to `a`, so we
-                        -- need to compose them to get a proof as between
-                        -- leftProof and rightProof. And, then we need to
-                        -- manipulate that a bit to get a proof for our inner
-                        -- decoders.
-                        taggerEq =
-                            liftLeibniz $ inner $ symm leftProof >>> rightProof
-                    in
-                        equalDecoders left.input right.input &&
-                        equalDecoders (coerce taggerEq left.tagger) right.tagger &&
-                        reallyUnsafeRefEq left.unfoldr right.unfoldr
+            r \rightProof right ->
+                let
+                    taggerProof =
+                        proof <#> \p ->
+                            inner $ symm leftProof >>> p >>> rightProof
+                in
+                    -- left.input and right.input are necessarily the same type,
+                    -- so we can trivially provide the proof.
+                    equalDecodersImpl (Just id) left.input right.input &&
+                    equalDecodersImpl taggerProof left.tagger right.tagger &&
+                    reallyUnsafeRefEq left.unfoldr right.unfoldr
 
-        Succeed (Just equals) a, Succeed _ b ->
-            unsafeRefEq a b || equals a b
+        Succeed leftEq leftVal, Succeed rightEq rightVal ->
+            case proof, leftEq, leftVal, rightEq, rightVal of
+                Just p, Just equals, a, _, b ->
+                    -- Same types, and an equals
+                    reallyUnsafeRefEq a b || equals a (coerceSymm p b)
 
-        Succeed _ a, Succeed (Just equals) b ->
-            unsafeRefEq a b || equals a b
+                Just p, _, a, Just equals, b ->
+                    -- Same types and the other equals
+                    reallyUnsafeRefEq a b || equals (coerce p a) b
 
-        Succeed _ a, Succeed _ b ->
-            unsafeRefEq a b
+                _, _, a, _, b ->
+                    -- Not the same types, or no ewuals
+                    reallyUnsafeRefEq a b
 
         Value _, Value _ ->
             true
