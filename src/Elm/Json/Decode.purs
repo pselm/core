@@ -106,15 +106,9 @@ import Unsafe.Reference (reallyUnsafeRefEq)
 -- | will be equal to another, and should interact with `<|>` and `oneOf` in
 -- | the correct ways).
 -- |
--- | The `Apply` instance preserves equality detection if at least one of the
--- | arguments is referentially equal in each case. This isn't entirely optimal
--- | for *repeated* applications of `<*>`, which is how `map2`, `map3`, `map4`
--- | etc. are implemented (and are indirectly a prominent idiom in Elm code,
--- | such as in `Json.Decode.Pipeline`).  The problem is that each of the
--- | decoders you supply must be referentially equal in each case, which would
--- | be awkward to arrange. The equivalent functions in Elm can do a better job
--- | of detecting equality in this case, so there is some room for improvement
--- | here.
+-- | The `Apply` instance preserves equality detection. Thus, the results of
+-- } using `<*>` and `map2` through `map8` should work with `equalDecoders`
+-- | (to the extent that the inputs did).
 -- |
 -- | The `Applicative` instance isn't able to insist on an `Eq` constraint for
 -- | the value you supply to `pure`. Thus, `equalDecoders` will be limited to
@@ -130,9 +124,7 @@ import Unsafe.Reference (reallyUnsafeRefEq)
 -- | `andThen` will preserve equality.
 --
 -- We collect some evidence about what the `a` is, in cases where it's not
--- fully polymorphic. (We should do something like this with `RunArray`, but
--- I'm not entirely sure how to do it when the `a` is still partly
--- polymorphic).
+-- fully polymorphic.
 --
 -- The `Run` constructor is probably an example of something more general that
 -- I'm not seeing yet.
@@ -164,10 +156,9 @@ data Decoder a
     | Value (a ~ Foreign)
 
 
--- I probably also need to collect some Leibniz-like proof for the type (t a),
--- but it's not clear to me how to arrange that. That is, I need to squash the
--- type to work with `Decoder`, but I'd ideally like to recover some evidence
--- of it inside `decodeValue` and `equalDecoders`.
+-- For doing further work on arrays, we collect some input, a decoder, and
+-- an `unfoldr` function, so we can produce any collection type that has
+-- an `Unfoldable` instance.
 type RunArray f x =
     { input :: Decoder (Array Foreign)
     , tagger :: Decoder x
@@ -424,16 +415,6 @@ decodeValue =
 -- |
 -- |   e.g. `alt`, `<|>`, `oneOf`, `field`, `at`, `index`, `field`, `list`, `array`,
 -- |        `unfoldable`, `nullable`, `maybe`
--- |
--- |   However, there are a few exceptions, where at least one of the supplied
--- |   decoders must be referentially equal in each case. This mainly affects
--- |   the `Apply` instance, so the `<*>` operator and the `andMap` function.
--- |
--- |   Because of the way `map2`, `map3` etc. are implemented, this leads to an
--- |   even more undesirable behaviour for them -- all of the decoders you
--- |   supply must be referentially equal in each case. I believe Elm does
--- |   better in preserving equality detection here, so it is an area where we
--- |   have room for improvement.
 -- |
 -- | - If you supply values as an argument, then `equalDecoders` works best if
 -- |   you use functions that require an `Eq` instance. In those cases, we can
@@ -854,8 +835,7 @@ object1 = map
 -- |
 -- | Works with `equalDecoders` so long as the function supplied in one case is
 -- | referntially equal to the function supplied in the other case, and the
--- | decoders supplied in each case are also referntially equal. It may be
--- | possible to improve on this.
+-- | provided decoders preserve equality.
 object2 :: ∀ a b value. (a -> b -> value) -> Decoder a -> Decoder b -> Decoder value
 object2 = lift2
 
@@ -878,8 +858,7 @@ object2 = lift2
 -- |
 -- | Works with `equalDecoders` so long as the function supplied in one case is
 -- | referntially equal to the function supplied in the other case, and the
--- | decoders supplied in each case are also referntially equal. It may be
--- | possible to improve on this.
+-- | provided decoders preserve equality.
 object3 :: ∀ a b c value. (a -> b -> c -> value) -> Decoder a -> Decoder b -> Decoder c -> Decoder value
 object3 = lift3
 
@@ -890,8 +869,7 @@ object3 = lift3
 -- |
 -- | Works with `equalDecoders` so long as the function supplied in one case is
 -- | referntially equal to the function supplied in the other case, and the
--- | decoders supplied in each case are also referntially equal. It may be
--- | possible to improve on this.
+-- | provided decoders preserve equality.
 object4 :: ∀ a b c d value. (a -> b -> c -> d -> value) -> Decoder a -> Decoder b -> Decoder c -> Decoder d -> Decoder value
 object4 = lift4
 
@@ -902,8 +880,7 @@ object4 = lift4
 -- |
 -- | Works with `equalDecoders` so long as the function supplied in one case is
 -- | referntially equal to the function supplied in the other case, and the
--- | decoders supplied in each case are also referntially equal. It may be
--- | possible to improve on this.
+-- | provided decoders preserve equality.
 object5 :: ∀ a b c d e value. (a -> b -> c -> d -> e -> value) -> Decoder a -> Decoder b -> Decoder c -> Decoder d -> Decoder e -> Decoder value
 object5 = lift5
 
@@ -912,8 +889,7 @@ object5 = lift5
 -- |
 -- | Works with `equalDecoders` so long as the function supplied in one case is
 -- | referntially equal to the function supplied in the other case, and the
--- | decoders supplied in each case are also referntially equal. It may be
--- | possible to improve on this.
+-- | provided decoders preserve equality.
 object6 :: ∀ a b c d e f value. (a -> b -> c -> d -> e -> f -> value) -> Decoder a -> Decoder b -> Decoder c -> Decoder d -> Decoder e -> Decoder f -> Decoder value
 object6 = map6
 
@@ -922,8 +898,7 @@ object6 = map6
 -- |
 -- | Works with `equalDecoders` so long as the function supplied in one case is
 -- | referntially equal to the function supplied in the other case, and the
--- | decoders supplied in each case are also referntially equal. It may be
--- | possible to improve on this.
+-- | provided decoders preserve equality.
 object7 :: ∀ a b c d e f g value. (a -> b -> c -> d -> e -> f -> g -> value) -> Decoder a -> Decoder b -> Decoder c -> Decoder d -> Decoder e -> Decoder f -> Decoder g -> Decoder value
 object7 = map7
 
@@ -932,8 +907,7 @@ object7 = map7
 -- |
 -- | Works with `equalDecoders` so long as the function supplied in one case is
 -- | referntially equal to the function supplied in the other case, and the
--- | decoders supplied in each case are also referntially equal. It may be
--- | possible to improve on this.
+-- | provided decoders preserve equality.
 object8 :: ∀ a b c d e f g h value. (a -> b -> c -> d -> e -> f -> g -> h -> value) -> Decoder a -> Decoder b -> Decoder c -> Decoder d -> Decoder e -> Decoder f -> Decoder g -> Decoder h -> Decoder value
 object8 = map8
 

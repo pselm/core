@@ -704,11 +704,9 @@ tests = suite "Json" do
             let decoderA2 = (field "name2" string)
             let decoderB2 = (field "age2" int)
 
-            -- Separate production doesn't work in this case.
-            --
-            -- let decoder1 = JD.object2 Tuple ("name" := JD.string) ("age" := JD.int)
-            -- let decoder2 = JD.object2 Tuple ("name" := JD.string) ("age" := JD.int)
-            -- assert "equal" $ decoder1 `equalDecoders` decoder2
+            let decoder1 = JD.object2 Tuple ("name" := JD.string) ("age" := JD.int)
+            let decoder2 = JD.object2 Tuple ("name" := JD.string) ("age" := JD.int)
+            assert "equal" $ decoder1 `equalDecoders` decoder2
 
             -- However, should work if the decoders and func are referentially equal
             assert "equal" $ object2 Tuple decoderA1 decoderB1 `equalDecoders` object2 Tuple decoderA1 decoderB1
@@ -717,11 +715,15 @@ tests = suite "Json" do
             assertFalse "unequal 3" $ object2 Tuple decoderA1 decoderB1 `equalDecoders` object2 func decoderA1 decoderB1
 
         test "object3" do
-           -- add a test once object2 works better
             let decoder1 = field "name" string
             let decoder2 = field "id" int
             let decoder3 = field "completed" bool
             assert "equal" $ object3 makeJob decoder1 decoder2 decoder3 `equalDecoders` object3 makeJob decoder1 decoder2 decoder3
+
+            -- try separate production
+            let decoderA = object3 makeJob (field "name" string) (field "id" int) (field "completed" bool)
+            let decoderB = object3 makeJob (field "name" string) (field "id" int) (field "completed" bool)
+            assert "separate" $ decoderA `equalDecoders` decoderB
 
         test "list" do
             assert "equal" $ list (succeed 17) `equalDecoders` list (succeed 17)
