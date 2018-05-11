@@ -549,6 +549,15 @@ equalDecodersImpl proof d1 d2 =
                     -- Same type, and other equals, so use it
                     reallyUnsafeRefEq a b || equals (coerce p a) b
 
+                _, Just aEquals, a, Just bEquals, b ->
+                    -- If we have an equals function on both sides, and they
+                    -- are equal, then clearly we can use it, even if we have
+                    -- no other evidence.
+                    if reallyUnsafeRefEq aEquals bEquals then
+                        reallyUnsafeRefEq a b || aEquals a (unsafeCoerce b)
+                    else
+                        reallyUnsafeRefEq a b
+
                 _ , _ , a, _, b ->
                     -- Either not the same type, or no ewuals
                     reallyUnsafeRefEq a b
@@ -607,6 +616,15 @@ equalDecodersImpl proof d1 d2 =
                 Just p, _, a, Just equals, b ->
                     -- Same types and the other equals
                     reallyUnsafeRefEq a b || equals (coerce p a) b
+
+                _, Just aEquals, a, Just bEquals, b ->
+                    -- If we have an equals function on both sides, and they
+                    -- are equal, then clearly we can use it, even if we have
+                    -- no other evidence.
+                    if reallyUnsafeRefEq aEquals bEquals then
+                        reallyUnsafeRefEq a b || aEquals a (unsafeCoerce b)
+                    else
+                        reallyUnsafeRefEq a b
 
                 _, _, a, _, b ->
                     -- Not the same types, or no ewuals
