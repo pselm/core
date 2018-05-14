@@ -39,7 +39,7 @@ module Elm.Json.Decode
     , keyValuePairs, dict
     , nullable, maybe, fail, succeed, succeed_
     , value, customDecoder, lazy
-    , equalDecoders, equalDecoders_
+    , equalDecoders, equalDecoders_, equalDecodersL
     ) where
 
 
@@ -436,21 +436,21 @@ decodeValue =
 -- |
 -- |   e.g. `keyValuePairs`, `dict`, and `tuple1` through `tuple8`
 equalDecoders :: ∀ a. Decoder a -> Decoder a -> Bool
-equalDecoders = equalDecodersImpl (Just id)
+equalDecoders = equalDecodersL (Just id)
 
 
 -- | Like `equalDecoders`, but doesn't rely on the decoders being of the same
 -- | type. If you know the decoders are of the same type, `equalDecoders` can
 -- | do a somewhat better job of determining equality.
 equalDecoders_ :: ∀ a b. Decoder a -> Decoder b -> Bool
-equalDecoders_ = equalDecodersImpl Nothing
+equalDecoders_ = equalDecodersL Nothing
 
 
 -- | We can do slightly different things depending on whethr we'd got evidence
 -- | that the two decoders are of the same type. So, the first parameter
 -- | indicates whether we've got that evidence or not.
-equalDecodersImpl :: ∀ a b. Maybe (a ~ b) -> Decoder a -> Decoder b -> Bool
-equalDecodersImpl proof d1 d2 =
+equalDecodersL :: ∀ a b. Maybe (a ~ b) -> Decoder a -> Decoder b -> Bool
+equalDecodersL proof d1 d2 =
     reallyUnsafeRefEq d1 d2 || case d1, d2 of
         Ap coyoLeft, Ap coyoRight ->
             coyoLeft # unApplyCoyoneda (\tagger1 decoder1 ->
