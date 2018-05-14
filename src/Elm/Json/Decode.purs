@@ -147,13 +147,13 @@ data Decoder a
     | FromForeign (Foreign -> F a)
     | Index (a ~ Foreign) Int
     | Keys (a ~ Array String)
-    | Map (Coyoneda Decoder a)
+    | Map (Coyoneda Decoder a)  -- Map (i -> a) (Decoder i)
     | Null (Maybe (a -> a -> Bool)) a
     | OneOf (Decoder a) (Decoder a)
     | Run (Decoder Foreign) (Decoder a)
-    | RunArray (∀ r. (∀ f x. (a ~ f x) -> RunArray f x -> r) -> r)
+    | RunArray (∀ r. (∀ f x. (a ~ f x) -> RunArray f x -> r) -> r)  -- a ~ f x
     | Succeed (Maybe (a -> a -> Bool)) a
-    | Value (a ~ Foreign)
+    | Value (a ~ Value)
 
 
 -- For doing further work on arrays, we collect some input, a decoder, and
@@ -475,19 +475,19 @@ equalDecodersL proof d1 d2 =
                         -- witness to the fact that we're coming from the same
                         -- type. So, we can continue, but we can't provide any
                         -- proof.
-                        equalDecodersImpl Nothing tagger1 tagger2 &&
-                        equalDecodersImpl Nothing decoder1 decoder2
+                        equalDecodersL Nothing tagger1 tagger2 &&
+                        equalDecodersL Nothing decoder1 decoder2
 
                     true, false ->
                         -- If the taggers are equal, at least we have the same
                         -- types, so we can try on the decoders. I think I have
                         -- to fake the evidence.
-                        equalDecodersImpl (Just $ Leibniz unsafeCoerce) decoder1 decoder2
+                        equalDecodersL (Just $ Leibniz unsafeCoerce) decoder1 decoder2
 
                     false, true ->
                         -- If the decoders are equal, we have the same type, so
                         -- try on the taggers. I think I have to fake the evidence.
-                        equalDecodersImpl (Just $ Leibniz unsafeCoerce) tagger1 tagger2
+                        equalDecodersL (Just $ Leibniz unsafeCoerce) tagger1 tagger2
             ))
 
         Array _, Array _ ->
@@ -504,7 +504,7 @@ equalDecodersL proof d1 d2 =
                     -- equal is our warrant for believing that decoder1 and
                     -- decoder2 have the same type. But I don't think this maps
                     -- to Leibniz very well, so we manufacture the evidence.
-                    equalDecodersImpl (Just $ Leibniz unsafeCoerce) decoder1 decoder2
+                    equalDecodersL (Just $ Leibniz unsafeCoerce) decoder1 decoder2
                 else
                     false
             ))
@@ -534,7 +534,7 @@ equalDecodersL proof d1 d2 =
                     -- The fact that tagger1 and tagger2 are referentially
                     -- equal is our warrant for believing that decoder1 and
                     -- decoder2 have the same type.
-                    equalDecodersImpl (Just $ Leibniz unsafeCoerce) decoder1 decoder2
+                    equalDecodersL (Just $ Leibniz unsafeCoerce) decoder1 decoder2
                 else
                     false
             ))
@@ -568,18 +568,18 @@ equalDecodersL proof d1 d2 =
             -- Simplifies exhaustivity checking for the compiler
             case left1, left2, right1, right2 of
                 Empty, a, b, Empty ->
-                    equalDecodersImpl proof a b
+                    equalDecodersL proof a b
 
                 a, Empty, Empty, b ->
-                    equalDecodersImpl proof a b
+                    equalDecodersL proof a b
 
                 l1, l2, r1, r2 ->
-                    equalDecodersImpl proof l1 r1 &&
-                    equalDecodersImpl proof l2 r2
+                    equalDecodersL proof l1 r1 &&
+                    equalDecodersL proof l2 r2
 
         Run leftLeft leftRight, Run rightLeft rightRight ->
-            equalDecodersImpl (Just id) leftLeft rightLeft &&
-            equalDecodersImpl proof leftRight rightRight
+            equalDecodersL (Just id) leftLeft rightLeft &&
+            equalDecodersL proof leftRight rightRight
 
         RunArray l, RunArray r ->
             -- This one is kind of fun.
@@ -603,8 +603,8 @@ equalDecodersL proof d1 d2 =
                 in
                     -- left.input and right.input are necessarily the same type,
                     -- so we can trivially provide the proof.
-                    equalDecodersImpl (Just id) left.input right.input &&
-                    equalDecodersImpl taggerProof left.tagger right.tagger &&
+                    equalDecodersL (Just id) left.input right.input &&
+                    equalDecodersL taggerProof left.tagger right.tagger &&
                     reallyUnsafeRefEq left.unfoldr right.unfoldr
 
         Succeed leftEq leftVal, Succeed rightEq rightVal ->
@@ -740,9 +740,6 @@ indexT = Index id
 
 keysT :: Decoder (Array String)
 keysT = Keys id
-
-valueT :: Decoder Value
-valueT = Value id
 
 
 -- | > Parse the given string into a JSON value and then run the `Decoder` on it.
@@ -1082,13 +1079,13 @@ array = unfoldable
 -- | Note that this is not part of the Elm API.
 -- |
 -- | Preserves equality-checking for the input with `equalDecoders`
-unfoldable :: ∀ f a. Unfoldable f => Decoder a -> Decoder (f a)
+unfoldable :: ∀ f a. Unfoldable f => Decoder a -> Decoder (f a) 
 unfoldable decoder =
     RunArray
         \func ->
             func id
-                { input : arrayT
-                , tagger : decoder
+                { input : Array id  -- Decoder (Array Value)
+                , tagger : decoder  
                 , unfoldr : unfoldr
                 }
 
@@ -1161,8 +1158,8 @@ maybe decoder =
 -- | > about its structure.
 -- |
 -- | Works with `equalDecoders`
-value :: Decoder Value
-value = valueT
+value :: Decoder Value 
+value = Value id
 
 
 fromResult :: ∀ a. Result String a -> Decoder a
