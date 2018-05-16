@@ -16,11 +16,12 @@ import Control.Monad.Aff.Class (liftAff)
 import Control.Monad.Except.Trans (ExceptT, runExceptT)
 import Control.Monad.IO (INFINITY, IO)
 import Data.Either (either)
+import Data.Foldable (for_)
 import Data.List (List(..), (:))
 import Data.List (null) as List
-import Data.Maybe (fromMaybe)
+import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Monoid (class Monoid, mempty)
-import Data.Newtype (unwrap, wrap)
+import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.StrMap (StrMap)
 import Data.StrMap as StrMap
 import Data.Traversable (for)
@@ -48,7 +49,10 @@ newtype Program flags model msg = Program
     { init :: flags -> Tuple model (Cmd msg)
     , update :: msg -> model -> Tuple model (Cmd msg)
     , subscriptions :: model -> Sub msg
+    , view :: Maybe (model -> IO Unit)
     }
+
+derive instance newtypeProgram :: Newtype (Program flags model msg) _
 
 
 -- | > Create a [headless][] program. This is great if you want to use Elm as the
@@ -88,8 +92,14 @@ programWithFlags :: ∀ flags model msg.
     , subscriptions :: model -> Sub msg
     }
     -> Program flags model msg
-programWithFlags =
+programWithFlags config =
+    -- I seem to have forgotten the syntax for adding a field to a record
     Program
+        { init : config.init
+        , update : config.update
+        , subscriptions : config.subscriptions
+        , view : Nothing
+        }
 
 
 -- TASKS and PROCESSES
@@ -465,9 +475,6 @@ runProgram flags (Program p) = do
             let (Tuple model cmds) = p.init flags
             let subs = p.subscriptions model
 
-            -- Eventually, we'll need something here to do our initial view ...
-            -- but I'll wait for that until the basics are done.
-
             -- So, we've got some effects ... we'll need to do something with
             -- them!  Now, we're going to have exactly this sort of thing in
             -- our update loop, so we may as well write a function for it. It
@@ -492,14 +499,14 @@ runProgram flags (Program p) = do
             -- in here.  (It's possibly that this is misconceived).
             (Tuple model managers) <- state
 
+            -- If someone wants to listen to our model, tell them about it.
+            for_ p.view \v -> v model
+
             -- This blocks until a `putVar` to our mailbox
             msg <- liftAff $ takeVar mailbox
 
             let (Tuple newModel cmds) = p.update msg model
             let subs = p.subscriptions newModel
-
-            -- Eventually, we'll need to do something with a `view` at this
-            -- stage.
 
             -- We can re-use this one!
             newManagers <-
