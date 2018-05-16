@@ -49,7 +49,7 @@ newtype Program flags model msg = Program
     { init :: flags -> Tuple model (Cmd msg)
     , update :: msg -> model -> Tuple model (Cmd msg)
     , subscriptions :: model -> Sub msg
-    , view :: Maybe (IO (AVar model))
+    , view :: Maybe (AVar msg -> IO (AVar model))
     }
 
 derive instance newtypeProgram :: Newtype (Program flags model msg) _
@@ -468,7 +468,7 @@ runProgram flags (Program p) = do
 
     -- Setup the AVar listening to the models, if that's what we're doing.
     view <-
-        sequence p.view
+        sequence $ (\v -> v mailbox) <$> p.view
 
     -- We could do this immediately, rather than constructing an IO to do it,
     -- but I think that would leave the initial model in scope for the whole
