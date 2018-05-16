@@ -24,11 +24,11 @@ import Data.Monoid (class Monoid, mempty)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.StrMap (StrMap)
 import Data.StrMap as StrMap
-import Data.Traversable (for)
+import Data.Traversable (for, sequence)
 import Data.TraversableWithIndex (forWithIndex)
 import Data.Tuple (Tuple(..))
 import Elm.Basics (Never)
-import Prelude (class Functor, class Semigroup, Unit, absurd, append, bind, const, discard, id, map, pure, unit, void, ($), (&&), (<$>), (<>), (>>>))
+import Prelude (class Functor, class Semigroup, Unit, absurd, append, bind, const, discard, id, map, pure, unit, void, ($), (&&), (<$>), (<<<), (<>), (>>>))
 import Unsafe.Coerce (unsafeCoerce)
 
 
@@ -49,7 +49,7 @@ newtype Program flags model msg = Program
     { init :: flags -> Tuple model (Cmd msg)
     , update :: msg -> model -> Tuple model (Cmd msg)
     , subscriptions :: model -> Sub msg
-    , view :: Maybe (model -> IO Unit)
+    , view :: Maybe (IO (AVar model))
     }
 
 derive instance newtypeProgram :: Newtype (Program flags model msg) _
@@ -466,6 +466,10 @@ runProgram flags (Program p) = do
     mailbox <-
         liftAff makeEmptyVar
 
+    -- Setup the AVar listening to the models, if that's what we're doing.
+    view <-
+        sequence p.view
+
     -- We could do this immediately, rather than constructing an IO to do it,
     -- but I think that would leave the initial model in scope for the whole
     -- program, which isn't ideal. So, we'll define an IO that produces the
@@ -500,7 +504,7 @@ runProgram flags (Program p) = do
             (Tuple model managers) <- state
 
             -- If someone wants to listen to our model, tell them about it.
-            for_ p.view \v -> v model
+            for_ view $ liftAff <<< forkAff <<< putVar model
 
             -- This blocks until a `putVar` to our mailbox
             msg <- liftAff $ takeVar mailbox
