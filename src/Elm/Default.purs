@@ -13,9 +13,11 @@ module Elm.Default
 
 import Data.Maybe (Maybe (Just, Nothing)) as Virtual
 import Data.List (List, (:)) as Virtual
+import Data.Tuple (Tuple(..)) as Virtual
+import Data.Tuple.Nested (type (/\), (/\)) as Virtual
 import Elm.Basics
 import Elm.Platform (Program) as Virtual
-import Elm.Platform.Cmd (Cmd) as Virtual
+import Elm.Platform.Cmd (Cmd, (!)) as Virtual
 import Elm.Platform.Sub (Sub) as Virtual
 import Elm.Result (Result (Ok, Err)) as Virtual
 
