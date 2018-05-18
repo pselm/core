@@ -1,11 +1,11 @@
 {
-  "name": "purescript-elm-compat",
-  "homepage": "https://github.com/rgrempel/purescript-elm-compat",
+  "name": "pselm-core",
+  "homepage": "https://github.com/pselm/core",
   "authors": [
     "Ryan Rempel <rgrempel@gmail.com>"
   ],
-  "description": "Basic Elm modules in Purescript",
-  "license": "MIT",
+  "description": "Elm's `core` library in Purescript",
+  "license": "BSD3",
   "keywords": [
     "purescript"
   ],
@@ -23,12 +23,15 @@
     "purescript-colors": "^4.3.0",
     "purescript-datetime": "^3.0.0",
     "purescript-debug": "^3.0.0",
-    "purescript-foldable-traversable": "^3.0.0",
-    "purescript-foreign": "^4.0.0",
+    "purescript-either": "^3.2.0",
+    "purescript-foldable-traversable": "^3.6.1",
+    "purescript-foreign": "^4.0.1",
     "purescript-foreign-generic": "^5.0.0",
     "purescript-int-53": "^3.0.0",
-    "purescript-integers": "^3.0.0",
+    "purescript-integers": "^3.2.0",
+    "purescript-io": "^5.0.0",
     "purescript-js-date": "^5.2.0",
+    "purescript-leibniz": "^4.1.0",
     "purescript-lists": "^4.0.0",
     "purescript-maybe": "^3.0.0",
     "purescript-now": "^3.0.0",
@@ -38,8 +41,6 @@
     "purescript-sequences": "^1.0.0",
     "purescript-sets": "^3.0.0",
     "purescript-strings": "^3.0.0",
-    "purescript-io": "^5.0.0",
-    "purescript-leibniz": "^4.1.0",
     "purescript-unsafe-reference": "^2.0.0"
   },
   "devDependencies": {
