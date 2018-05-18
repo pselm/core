@@ -1,4 +1,3 @@
-[![Dependency Status](https://www.versioneye.com/user/projects/5701e80bfcd19a00415afff5/badge.svg?style=flat)](https://www.versioneye.com/user/projects/5701e80bfcd19a00415afff5)
 [![Build Status](https://travis-ci.org/pselm/core.svg?branch=master)](https://travis-ci.org/pselm/core)
 
 # Elm's `core` library in Purescript
