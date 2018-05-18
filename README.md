@@ -42,12 +42,15 @@ the documentation for the module.
 | [Elm.Color]        | Color         | purescript-colors    |
 | [Elm.Date]         | Data.JSDate   | purescript-js-date   |
 | [Elm.Debug]        | Debug.Trace   | purescript-debug     |
+| [Elm.Default]      |               |                      |
 | [Elm.Dict]         | Data.Map      | purescript-maps      |
 | [Elm.Foldable]     | Data.Foldable | purescript-foldable-traversable |
+| [Elm.FunctorWithIndex] | Data.FunctorWithIndex | purescript-foldable-traversable |
 | [Elm.Json.Decode]  | Data.Foreign  | purescript-foreign   |
 | [Elm.Json.Encode]  | Data.Foreign  | purescript-foreign   |
 | [Elm.List]         | Data.List     | purescript-lists     |
 | [Elm.Maybe]        | Data.Maybe    | purescript-maybe     |
+| [Elm.Monoid]       | Data.Monoid   | purescript-monoid    |
 | [Elm.Platform]     |               |                      |
 | [Elm.Platform.Cmd] |               |                      |
 | [Elm.Platform.Sub] |               |                      |
@@ -72,12 +75,15 @@ the documentation for the module.
 [Elm.Color]: generated-docs/Elm/Color.md
 [Elm.Date]: generated-docs/Elm/Date.md
 [Elm.Debug]: generated-docs/Elm/Debug.md
+[Elm.Default]: generated-docs/Elm/Default.md
 [Elm.Dict]: generated-docs/Elm/Dict.md
 [Elm.Foldable]: generated-docs/Elm/Foldable.md
+[Elm.FunctorWithIndex]: generated-docs/Elm/FunctorWithIndex.md
 [Elm.Json.Decode]: generated-docs/Elm/Json/Decode.md
 [Elm.Json.Encode]: generated-docs/Elm/Json/Encode.md
 [Elm.List]: generated-docs/Elm/List.md
 [Elm.Maybe]: generated-docs/Elm/Maybe.md
+[Elm.Monoid]: generated-docs/Elm/Monoid.md
 [Elm.Platform]: generated-docs/Elm/Platform.md
 [Elm.Platform.Cmd]: generated-docs/Elm/Platform/Cmd.md
 [Elm.Platform.Sub]: generated-docs/Elm/Platform/Sub.md
