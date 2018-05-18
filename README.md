@@ -1,10 +1,9 @@
-[![Latest release](http://img.shields.io/bower/v/purescript-elm-compat.svg)](https://github.com/rgrempel/purescript-elm-compat/releases)
 [![Dependency Status](https://www.versioneye.com/user/projects/5701e80bfcd19a00415afff5/badge.svg?style=flat)](https://www.versioneye.com/user/projects/5701e80bfcd19a00415afff5)
 [![Build Status](https://travis-ci.org/rgrempel/purescript-elm-compat.svg?branch=master)](https://travis-ci.org/rgrempel/purescript-elm-compat)
 
-# purescript-elm-compat
+# Elm's `core` library in Purescript
 
-This package is the first fruits of an effort aimed at people who know
+This package is part of an effort aimed at people who know
 [Elm](http://elm-lang.org) well and wish to give
 [Purescript](http://purescript.org) a try. The idea is to make it as easy
 as possible to take Elm code (and Elm knowledge) and use it in Purescript.
@@ -19,11 +18,6 @@ the Elm API as closely as possible. Thus, this package is unlikely to
 be of interest to people who do not know Elm -- there is already a
 more direct way to do everything this package does.
 
-The [larger project](https://github.com/rgrempel/purescript-elm), still
-in progress, will deal with the Elm architecture (e.g. commands, subscriptions, etc.).
-However, I thought that this package might already be of some help
-to someone.
-
 ## Compatibility
 
 The modules are based on Elm 0.18, or version 5.1.1 of the Elm core libraries.
@@ -34,55 +28,83 @@ things are documented as having been removed in Elm.
 
 Here is a quick list of the modules in this package, and their Purescript analogues,
 if any. In many cases, the implementation is a thin wrapper over the Purescript analog,
-but some cases required more work, or a separate implementation.
+but some cases required more work, or a separate implementation. The links are to
+the documentation for the module.
 
-| Module          | Like          | From                 |
-| --------------- | ------------- | ---------------------|
-| Elm.Apply       | Control.Apply | purescript-prelude   |
-| Elm.Array       | Data.Sequence | purescript-sequences |
-| Elm.Basics      | Prelude       | purescript-prelude   |
-| Elm.Bind        | Control.Bind  | purescript-prelude   |
-| Elm.Bitwise     | Data.Int.Bits | purescript-integers  |
-| Elm.Char        | Data.Char     | purescript-strings   |
-| Elm.Color       | Color         | purescript-colors    |
-| Elm.Date        | Data.JSDate   | purescript-js-date   |
-| Elm.Debug       | Debug.Trace   | purescript-debug     |
-| Elm.Dict        | Data.Map      | purescript-maps      |
-| Elm.Foldable    | Data.Foldable | purescript-foldable-traversable |
-| Elm.Json.Decode | Data.Foreign  | purescript-foreign   |
-| Elm.Json.Encode | Data.Foreign  | purescript-foreign   |
-| Elm.List        | Data.List     | purescript-lists     |
-| Elm.Maybe       | Data.Maybe    | purescript-maybe     |
-| Elm.Platform    |               |                      |
-| Elm.Platform.Cmd |              |                      |
-| Elm.Platform.Sub |              |                      |
-| Elm.Process     | Control.Monad.Aff  | purescript-aff      |                      |
-| Elm.Random      | Test.QuickCheck.Arbitrary | purescript-quickcheck |
-| Elm.Regex       | Data.String.Regex  | purescript-strings  |
-| Elm.Result      | Data.Either        | purescript-either   |
-| Elm.Set         | Data.Set           | purescript-sets     |
-| Elm.String      | Data.String        | purescript-strings  |
-| Elm.Task        | Conrol.Monad.IO    | purescript-io       |
-| Elm.Time        | Data.Time.Duration | purescript-datetime |
-| Elm.Trampoline  | Control.Monad.Trampoline | purescript-free |
-| Elm.Transform2D | Graphics.Canvas | purescript-canvas |
-| Elm.Tuple       | Data.Tuple      | purescript-tuples |
+| Module             | Like          | From                 |
+| ------------------ | ------------- | ---------------------|
+| [Elm.Apply]        | Control.Apply | purescript-prelude   |
+| [Elm.Array]        | Data.Sequence | purescript-sequences |
+| [Elm.Basics]       | Prelude       | purescript-prelude   |
+| [Elm.Bind]         | Control.Bind  | purescript-prelude   |
+| [Elm.Bitwise]      | Data.Int.Bits | purescript-integers  |
+| [Elm.Char]         | Data.Char     | purescript-strings   |
+| [Elm.Color]        | Color         | purescript-colors    |
+| [Elm.Date]         | Data.JSDate   | purescript-js-date   |
+| [Elm.Debug]        | Debug.Trace   | purescript-debug     |
+| [Elm.Dict]         | Data.Map      | purescript-maps      |
+| [Elm.Foldable]     | Data.Foldable | purescript-foldable-traversable |
+| [Elm.Json.Decode]  | Data.Foreign  | purescript-foreign   |
+| [Elm.Json.Encode]  | Data.Foreign  | purescript-foreign   |
+| [Elm.List]         | Data.List     | purescript-lists     |
+| [Elm.Maybe]        | Data.Maybe    | purescript-maybe     |
+| [Elm.Platform]     |               |                      |
+| [Elm.Platform.Cmd] |               |                      |
+| [Elm.Platform.Sub] |               |                      |
+| [Elm.Process]      | Control.Monad.Aff  | purescript-aff        |                      |
+| [Elm.Random]       | Test.QuickCheck.Arbitrary | purescript-quickcheck |
+| [Elm.Regex]        | Data.String.Regex  | purescript-strings    |
+| [Elm.Result]       | Data.Either        | purescript-either     |
+| [Elm.Set]          | Data.Set           | purescript-sets       |
+| [Elm.String]       | Data.String        | purescript-strings    |
+| [Elm.Task]         | Conrol.Monad.IO    | purescript-io         |
+| [Elm.Time]         | Data.Time.Duration | purescript-datetime   |
+| [Elm.Trampoline]   | Control.Monad.Trampoline | purescript-free |
+| [Elm.Transform2D]  | Graphics.Canvas    | purescript-canvas     |
+| [Elm.Tuple]        | Data.Tuple         | purescript-tuples     |
+
+[Elm.Apply]: generated-docs/Elm/Apply.md
+[Elm.Array]: generated-docs/Elm/Array.md
+[Elm.Basics]: generated-docs/Elm/Basics.md
+[Elm.Bind]: generated-docs/Elm/Bind.md
+[Elm.Bitwise]: generated-docs/Elm/Bitwise.md
+[Elm.Char]: generated-docs/Elm/Char.md
+[Elm.Color]: generated-docs/Elm/Color.md
+[Elm.Date]: generated-docs/Elm/Date.md
+[Elm.Debug]: generated-docs/Elm/Debug.md
+[Elm.Dict]: generated-docs/Elm/Dict.md
+[Elm.Foldable]: generated-docs/Elm/Foldable.md
+[Elm.Json.Decode]: generated-docs/Elm/Json/Decode.md
+[Elm.Json.Encode]: generated-docs/Elm/Json/Encode.md
+[Elm.List]: generated-docs/Elm/List.md
+[Elm.Maybe]: generated-docs/Elm/Maybe.md
+[Elm.Platform]: generated-docs/Elm/Platform.md
+[Elm.Platform.Cmd]: generated-docs/Elm/Platform/Cmd.md
+[Elm.Platform.Sub]: generated-docs/Elm/Platform/Sub.md
+[Elm.Process]: generated-docs/Elm/Process.md
+[Elm.Random]: generated-docs/Elm/Random.md
+[Elm.Regex]: generated-docs/Elm/Regex.md
+[Elm.Result]: generated-docs/Elm/Result.md
+[Elm.Set]: generated-docs/Elm/Set.md
+[Elm.String]: generated-docs/Elm/String.md
+[Elm.Task]: generated-docs/Elm/Task.md
+[Elm.Time]: generated-docs/Elm/Time.md
+[Elm.Trampoline]: generated-docs/Elm/Trampoline.md
+[Elm.Transform2D]: generated-docs/Elm/Transform2D.md
+[Elm.Tuple]: generated-docs/Elm/Tuple.md
 
 ## Installation
 
-Try `bower install purescript-elm-compat`
+Try `bower install pselm/core`
 
 ## Development
 
 Try something like:
 
-    git clone https://github.com/rgrempel/purescript-elm-compat
+    git clone https://github.com/pselm/core
     npm install
     npm test
 
 ## API
 
-Documentation for the API can be found on
-[Pursuit](https://pursuit.purescript.org/packages/purescript-elm-compat).
-Or, if you are already looking at Pursuit, then below ...
-
+See the table above for links to the documentation for each module.
