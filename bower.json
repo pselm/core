@@ -13,6 +13,8 @@
     "**/.*",
     "node_modules",
     "bower_components",
+    "examples",
+    "generated-docs",
     "output"
   ],
   "dependencies": {
