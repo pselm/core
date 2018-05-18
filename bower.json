@@ -47,6 +47,6 @@
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/rgrempel/purescript-elm-compat.git"
+    "url": "git://github.com/pselm/core.git"
   }
 }
