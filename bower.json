@@ -1,14 +1,8 @@
 {
   "name": "pselm-core",
   "homepage": "https://github.com/pselm/core",
-  "authors": [
-    "Ryan Rempel <rgrempel@gmail.com>"
-  ],
-  "description": "Elm's `core` library in Purescript",
+  "description": "Purescript implementation of Elm's `core` library",
   "license": "BSD3",
-  "keywords": [
-    "purescript"
-  ],
   "ignore": [
     "**/.*",
     "node_modules",
@@ -30,7 +24,7 @@
     "purescript-int-53": "^3.0.0",
     "purescript-integers": "^3.2.0",
     "purescript-io": "^5.0.0",
-    "purescript-js-date": "^5.2.0",
+    "purescript-js-date": "4 - 5",
     "purescript-leibniz": "^4.1.0",
     "purescript-lists": "^4.0.0",
     "purescript-maybe": "^3.0.0",
