@@ -1,5 +1,5 @@
 {
-  "name": "pselm-core",
+  "name": "purescript-pselm-core",
   "homepage": "https://github.com/pselm/core",
   "description": "Purescript implementation of Elm's `core` library",
   "license": "BSD3",
