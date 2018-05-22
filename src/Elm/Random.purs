@@ -47,7 +47,7 @@ import Elm.Task as Task
 import Elm.Time as Time
 import Prelude (class Applicative, class Apply, class Bind, class Functor, class Ord, class Semigroup, Unit, negate, one, pure, zero, ($), (*), (+), (-), (/), (<), (<>), (==))
 import Prelude (map) as Virtual
-import Type.Prelude (Proxy)
+import Type.Proxy (Proxy)
 
 
 -- | > Create a generator that produces boolean values. The following example

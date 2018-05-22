@@ -25,6 +25,7 @@
     "purescript-integers": "^3.2.0",
     "purescript-io": "^5.0.0",
     "purescript-js-date": "4 - 5",
+    "purescript-js-timers": "^3.0.0",
     "purescript-leibniz": "^4.1.0",
     "purescript-lists": "^4.0.0",
     "purescript-maybe": "^3.0.0",

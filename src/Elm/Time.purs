@@ -37,7 +37,7 @@ import Elm.Process (kill, spawn)
 import Elm.Task (makeTask, toIO)
 import Elm.Task as Task
 import Prelude (class Functor, Unit, bind, flip, id, pure, unit, ($), (/), (<$>), (<<<))
-import Type.Prelude (Proxy)
+import Type.Proxy (Proxy)
 
 
 -- | Type alias to make it clearer when you are working with time values.
