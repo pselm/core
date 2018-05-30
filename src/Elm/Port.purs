@@ -32,12 +32,20 @@
 -- | to a decoder or encoder is pretty easy.
 
 module Elm.Port
-    ( class PortEncoder, decoder
-    , class PortDecoder, encoder  
+    ( class PortEncoder, decoder, defaultDecoder
+    , class PortDecoder, encoder, defaultEncoder
     ) where
 
-import Elm.Json.Decode (Decoder)
+import Data.Foreign (Foreign)
+import Data.Foreign.Class (class Decode, class Encode, decode)
+import Data.Foreign.Class (encode) as Data.Foreign.Class
+import Data.List (List)
+import Data.Maybe (Maybe, maybe)
+import Elm.Json.Decode (Decoder, fromForeign, succeed)
+import Elm.Json.Decode (list, maybe) as Json.Decode
 import Elm.Json.Encode (Value)
+import Elm.Json.Encode (array, list, null) as Json.Encode
+import Prelude (Unit, const, map, unit, ($), (<<<))
 
 
 -- | A class for types which can be decoded when arriving via a `port` or at
@@ -55,6 +63,20 @@ class PortDecoder a where
     decoder :: Decoder a
 
 
+-- | For types that have a `Decode` instance, you can create an equivalent
+-- | `PortDecoder` instance in this way (this one is provided for you):
+-- |
+-- |     instance stringPortDecoder :: PortDecoder String where
+-- |         decoder = defaultDecoder
+-- |
+-- | We can't make this totally automatic because, even with instance chains,
+-- | it would lead to overlapping instances in cases where we want to do
+-- | something different than the representation that `Decode` assumes. But, we
+-- | can make it easy!
+defaultDecoder :: ∀ a. Decode a => Decoder a
+defaultDecoder = fromForeign decode
+
+
 -- | A class for types which can be encoded to send to Javascript via ports.
 -- |
 -- | Instances are provided for all the types that Elm can handle via ports,
@@ -67,3 +89,82 @@ class PortDecoder a where
 -- | instance if you like.
 class PortEncoder a where
     encoder :: a -> Value
+
+
+-- | For types that have an `Encode` instance, you can create an equivalent
+-- | `PortEncoder` instance in this way (this one is provided for you):
+-- |
+-- |     instance stringPortEncoder :: PortEncoder String where
+-- |         encoder = defaultEncoder
+-- |
+-- | We can't make this totally automatic because, even with instance chains,
+-- | it would lead to overlapping instances in cases where we want to do
+-- | something different than the representation that `Encode` provides. But,
+-- | we can make it easy!
+defaultEncoder :: ∀ a. Encode a => a -> Value
+defaultEncoder = Data.Foreign.Class.encode
+
+
+-- I suppose we could check for a `{}` representation, but it seems reasonable
+-- to always succeed.
+instance unitPortDecoder :: PortDecoder Unit where
+    decoder = succeed unit
+
+-- TODO: Check what Elm does for this! I think it probably encodes as an
+-- empty array, since Elm conceives of this as a Tuple0.
+instance unitPortEncoder :: PortEncoder Unit where
+    encoder = const $ Json.Encode.array []
+
+
+instance booleanPortDecoder :: PortDecoder Boolean where
+    decoder = defaultDecoder
+
+instance booleanPortEncoder :: PortEncoder Boolean where
+    encoder = defaultEncoder
+
+
+instance stringPortDecoder :: PortDecoder String where
+    decoder = defaultDecoder
+
+instance stringPortEncoder :: PortEncoder String where
+    encoder = defaultEncoder
+
+
+instance intPortDecoder :: PortDecoder Int where
+    decoder = defaultDecoder
+
+instance intPortEncoder :: PortEncoder Int where
+    encoder = defaultEncoder
+
+
+instance numberPortDecoder :: PortDecoder Number where
+    decoder = defaultDecoder
+
+instance numberPortEncoder :: PortEncoder Number where
+    encoder = defaultEncoder
+
+
+instance listPortDecoder :: PortDecoder a => PortDecoder (List a) where
+    decoder = Json.Decode.list decoder
+
+instance listPortEncoder :: PortEncoder a => PortEncoder (List a) where
+    encoder = Json.Encode.list <<< map encoder
+
+
+-- TODO: Instances for tuples
+
+-- TODO: Once we switch to 0.12, instances for Records.
+
+
+instance maybePortDecoder :: PortDecoder a => PortDecoder (Maybe a) where
+    decoder = Json.Decode.maybe decoder
+
+instance maybePortEncoder :: PortEncoder a => PortEncoder (Maybe a) where
+    encoder = maybe Json.Encode.null encoder
+
+
+instance foreignPortDecoder :: PortDecoder Foreign where
+    decoder = defaultDecoder
+
+instance foreignPortEncoder :: PortEncoder Foreign where
+    encoder = defaultEncoder
