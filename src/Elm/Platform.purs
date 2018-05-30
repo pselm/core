@@ -732,21 +732,3 @@ dispatchEffects appMailbox (Cmd cmds) (Sub subs) managers =
 
         -- Finally, return the new manager state.
         pure managersWithSubs
-
-
-{- Here's a list of how Elm auto-decodes ... I may need to tweak what
-purescript-foreign-generic does in order to match this exactly ...
-
-    Booleans and Strings – both exist in Elm and JS!
-    Numbers – Elm ints and floats correspond to JS numbers
-    Lists – correspond to JS arrays
-    Arrays – correspond to JS arrays
-    Tuples – correspond to fixed-length, mixed-type JS arrays
-    Records – correspond to JavaScript objects
-    Maybes – Nothing and Just 42 correspond to null and 42 in JS
-    Json – Json.Encode.Value corresponds to arbitrary JSON
-
-Records will also need newtypes to be used as flags, sadly -- at least,
-I don't think there is any way around that.
-
--}
