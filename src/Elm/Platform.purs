@@ -1,7 +1,7 @@
 
 module Elm.Platform
   ( Program, program, programWithFlags
-  , runProgram
+  , runProgram, runProgram_, exportProgram
   , Task, ProcessId
   , Router, sendToApp, sendToSelf
   , Manager
@@ -13,8 +13,11 @@ module Elm.Platform
 import Control.Monad.Aff (Fiber, forkAff)
 import Control.Monad.Aff.AVar (AVar, makeEmptyVar, putVar, takeVar)
 import Control.Monad.Aff.Class (liftAff)
+import Control.Monad.Eff.Class (liftEff)
+import Control.Monad.Eff.Exception (throw)
 import Control.Monad.Except.Trans (ExceptT, runExceptT)
-import Control.Monad.IO (INFINITY, IO)
+import Control.Monad.IO (INFINITY, IO, launchIO)
+import Control.Monad.IOSync (IOSync)
 import Data.Either (either)
 import Data.Foldable (for_)
 import Data.List (List(..), (:))
@@ -28,6 +31,9 @@ import Data.Traversable (for, sequence)
 import Data.TraversableWithIndex (forWithIndex)
 import Data.Tuple (Tuple(..))
 import Elm.Basics (Never)
+import Elm.Json.Encode (Value)
+import Elm.Port (class PortDecoder, fromPort)
+import Elm.Result (Result(..))
 import Prelude (class Functor, class Semigroup, Unit, absurd, append, bind, const, discard, id, map, pure, unit, void, ($), (&&), (<$>), (<<<), (<>), (>>>))
 import Unsafe.Coerce (unsafeCoerce)
 
@@ -66,13 +72,15 @@ derive instance newtypeProgram :: Newtype (Program flags model msg) _
 -- | > ```javascript
 -- | > var app = Elm.MyThing.worker();
 -- | > ```
-program :: ∀ flags model msg.
+program :: ∀ model msg.
     { init :: Tuple model (Cmd msg)
     , update :: msg -> model -> Tuple model (Cmd msg)
     , subscriptions :: model -> Sub msg
     }
-    -> Program flags model msg
+    -> Program Unit model msg
 program config =
+    -- TODO: See if I can make this a `Program Never` ... it complicates
+    -- some other things, but should be possible with sufficient ingenuity.
     programWithFlags $
         config { init = const config.init }
 
@@ -520,10 +528,61 @@ runProgram flags (Program p) = do
             -- model and managers.
             loop $ pure $ Tuple newModel newManagers
 
-    -- I wonder whether we need to "spawn" this? I guess we'll see ... it may
-    -- be fine to just execute the loop in the main process -- it's not like
-    -- we have anything else to do.
-    void $ loop initApp
+    -- We fork the event loop because we'll need to return something to help
+    -- setup ports at some stage. That is, the Elm app doesn't really run to
+    -- completion ... it just waits for things to happen.
+    void $ wrap $ forkAff $ unwrap $ loop initApp
+
+
+-- | Like `runProgram`, but instead of taking the `flags` literally, takes a
+-- | Javascript value that we'll try to turn into the `flags`. We'll throw an
+-- | exception if we fail.
+runProgram_ :: ∀ flags model msg. PortDecoder flags => Value -> Program flags model msg -> IO Unit
+runProgram_ value =
+    case fromPort value of
+        Err err ->
+            const $ liftEff $ throw err
+
+        Ok flags ->
+            runProgram flags
+
+
+-- | Exports your program in the way that the Elm runtime does it, so that you
+-- | can run it from Javascript via `Elm.NameYouSupply.embed` or `.fullscreen`
+-- | or `.worker`.
+-- |
+-- | The first parameter is the `NameYouSupply`. For Elm, this is automatically
+-- | the name of the module with `main` in it, but here you have to supply a
+-- | name yourself.
+-- |
+-- | So if you say:
+-- |
+-- |     exportProgram "MyProgram" <|
+-- |         program {init, update, subscriptions}
+-- |
+-- | ... then you can start it from Javascript in the usual Elmish way:
+-- |
+-- |     var app = Elm.MyProgram.worker(flags);
+-- |
+-- | It's probably a good idea to use your module name. Note tha the `Elm` namespace
+-- | is flat, so if you say `exportProgram "Example.Simple" ...`, you'll access
+-- | it from Javascript as `var app = Elm['Example.Simple'].worker()` ... that is,
+-- | the `.` doesn't introduce a new object -- it's just a name.
+-- |
+-- | If the flags you supply aren't succesfully decoded by their `PortDecoder`,
+-- | an exception will be thrown.
+-- |
+-- | You can also call `Elm.NameYouSupply.fullscreen(flags)` or `Elm.NameYouSupply.embed(node, flags)`
+exportProgram :: ∀ flags model msg. PortDecoder flags => String -> Program flags model msg -> IOSync Unit
+exportProgram namespace prog =
+    let
+        worker value =
+            launchIO $ runProgram_ value prog
+    in
+        exportProgramImpl namespace worker
+
+
+foreign import exportProgramImpl :: String -> (Value -> IOSync Unit) -> IOSync Unit
 
 
 -- There are some parallels between cmds and subs below ... should probably

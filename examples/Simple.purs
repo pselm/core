@@ -3,19 +3,18 @@ module Examples.Simple where
 
 import Elm.Default
 
-import Control.Monad.Aff (launchAff_)
 import Control.Monad.Aff.Class (liftAff)
 import Control.Monad.Aff.Console (logShow)
 import Control.Monad.Eff (Eff)
-import Control.Monad.IO (INFINITY, runIO)
-import Data.Tuple.Nested ((/\))
-import Elm.Platform (program, runProgram)
+import Control.Monad.IO (INFINITY)
+import Control.Monad.IOSync (runIOSync)
+import Elm.Platform (exportProgram, program)
 import Elm.Platform.Cmd as Cmd
 import Elm.Task (Task)
 import Elm.Task (perform) as Task
 import Elm.Time (Time)
 import Elm.Time (every) as Elm.Time
-import Prelude (class Show, Unit, unit, discard, ($), (<<<))
+import Prelude (class Show, Unit, ($), (<<<))
 
 
 type Model =
@@ -61,9 +60,7 @@ log :: ∀ x a. Show a => a -> Task x Unit
 log = liftAff <<< logShow
 
 
-main :: Eff (infinity :: INFINITY ) Unit
+main :: Eff (infinity :: INFINITY) Unit
 main =
-    launchAff_ $ runIO do
-        liftAff $ logShow "About to launch Elm program!"
-        runProgram unit $
-            program {init, update, subscriptions}
+    runIOSync $ exportProgram "Examples.Simple" $
+        program {init, update, subscriptions}
