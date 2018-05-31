@@ -34,6 +34,7 @@
 module Elm.Port
     ( class PortEncoder, decoder, defaultDecoder
     , class PortDecoder, encoder, defaultEncoder
+    , fromPort, toPort
     ) where
 
 import Data.Foreign (Foreign)
@@ -41,10 +42,11 @@ import Data.Foreign.Class (class Decode, class Encode, decode)
 import Data.Foreign.Class (encode) as Data.Foreign.Class
 import Data.List (List)
 import Data.Maybe (Maybe, maybe)
-import Elm.Json.Decode (Decoder, fromForeign, succeed)
+import Elm.Json.Decode (Decoder, decodeValue, fromForeign, succeed)
 import Elm.Json.Decode (list, maybe) as Json.Decode
 import Elm.Json.Encode (Value)
 import Elm.Json.Encode (array, list, null) as Json.Encode
+import Elm.Result (Result)
 import Prelude (Unit, const, map, unit, ($), (<<<))
 
 
@@ -77,6 +79,11 @@ defaultDecoder :: ∀ a. Decode a => Decoder a
 defaultDecoder = fromForeign decode
 
 
+-- | Decode a value coming from a port, or flags.
+fromPort :: ∀ a. PortDecoder a => Value -> Result String a
+fromPort = decodeValue decoder
+
+
 -- | A class for types which can be encoded to send to Javascript via ports.
 -- |
 -- | Instances are provided for all the types that Elm can handle via ports,
@@ -103,6 +110,11 @@ class PortEncoder a where
 -- | we can make it easy!
 defaultEncoder :: ∀ a. Encode a => a -> Value
 defaultEncoder = Data.Foreign.Class.encode
+
+
+-- | Encode a value to send out a port.
+toPort :: ∀ a. PortEncoder a => a -> Value
+toPort = encoder
 
 
 -- I suppose we could check for a `{}` representation, but it seems reasonable
