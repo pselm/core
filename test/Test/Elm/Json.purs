@@ -668,11 +668,11 @@ tests = suite "Json" do
             assertFalse "unequal 2" $ oneOf [ succeed 17, succeed 18 ] `equalDecoders` oneOf [ succeed 17, succeed 18, succeed 19 ]
 
         test "keyValuePairs" do
-            -- assert "equal" $ keyValuePairs int :: Decoder (List (Tuple String Int)) `equalDecoders` keyValuePairs int
+            assert "equal" $ keyValuePairs int :: Decoder (List (Tuple String Int)) `equalDecoders` keyValuePairs int
             assertFalse "unequal" $ keyValuePairs int :: Decoder (List (Tuple String Int)) `equalDecoders` keyValuePairs (succeed 7)
 
         test "dict" do
-            -- assert "equal" $ dict int `equalDecoders` dict int
+            assert "equal" $ dict int `equalDecoders` dict int
             assertFalse "unequal" $ dict int `equalDecoders` dict (succeed 7)
 
         test "field" do

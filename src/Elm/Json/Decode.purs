@@ -52,16 +52,16 @@ import Data.Array as Array
 import Data.Coyoneda (Coyoneda, coyoneda, unCoyoneda)
 import Data.Either (Either(..))
 import Data.Exists (Exists, mkExists, runExists)
-import Data.Foldable (class Foldable, foldMap)
+import Data.Foldable (class Foldable)
 import Data.Foldable (oneOf) as Virtual
 import Data.Foreign (Foreign, ForeignError(..), F, readArray, readString, readBoolean, readNumber, readInt, isNull, isUndefined, typeOf)
 import Data.Foreign as DF
 import Data.Foreign.Index (readIndex, readProp)
 import Data.Foreign.JSON (parseJSON)
-import Data.Leibniz (type (~), Leibniz(Leibniz), coerce, coerceSymm, symm)
-import Data.Monoid (class Monoid)
+import Data.Leibniz (type (~), Leibniz(Leibniz), coerce, coerceSymm, lowerLeibniz2of2, symm)
 import Data.Traversable (traverse)
 import Data.Tuple (Tuple(..))
+import Data.Tuple.Nested (type (/\))
 import Data.Unfoldable (class Unfoldable, unfoldr)
 import Elm.Apply (andMap, map2, map3, map4, map5, map6, map7, map8) as Virtual
 import Elm.Apply (map6, map7, map8)
@@ -146,12 +146,12 @@ data Decoder a
     | Field (a ~ Foreign) String
     | FromForeign (Foreign -> F a)
     | Index (a ~ Foreign) Int
-    | Keys (a ~ Array String)
-    | Map (Coyoneda Decoder a)  -- Map (i -> a) (Decoder i)
+    | KeyValuePairs (∀ r. (∀ f x. Unfoldable f => (a ~ f (String /\ x)) -> Decoder x -> Unfoldr f (String /\ x) -> r) -> r)
+    | Map (Coyoneda Decoder a)
     | Null (Maybe (a -> a -> Bool)) a
     | OneOf (Decoder a) (Decoder a)
     | Run (Decoder Foreign) (Decoder a)
-    | RunArray (∀ r. (∀ f x. (a ~ f x) -> RunArray f x -> r) -> r)  -- a ~ f x
+    | RunArray (∀ r. (∀ f x. (a ~ f x) -> RunArray f x -> r) -> r)
     | Succeed (Maybe (a -> a -> Bool)) a
     | Value (a ~ Value)
 
@@ -162,8 +162,11 @@ data Decoder a
 type RunArray f x =
     { input :: Decoder (Array Foreign)
     , tagger :: Decoder x
-    , unfoldr :: (Int -> Maybe (Tuple x Int)) -> Int -> f x
+    , unfoldr :: Unfoldr f x
     }
+
+type Unfoldr f x =
+    (Int -> Maybe (x /\ Int)) -> Int -> f x
 
 
 -- | This is for a case where I think I've got good Leibniz evidence, but
@@ -193,13 +196,6 @@ type RunArray f x =
 -- | So, I should suggest these for `Data.Leibniz` and see what people think.
 inner :: ∀ f g a b. (f a ~ g b) -> (a ~ b)
 inner _ = Leibniz unsafeCoerce
-
-
--- | Like `inner`, but to witness the equality of the container types. The
--- | Haskell version uses polykinds -- without polykinds, we lift over an
--- | arbitrary `c` type.
-outer :: ∀ f g a b c. (f a ~ g b) -> (f c ~ g c)
-outer _ = Leibniz unsafeCoerce
 
 
 -- The Foreign module uses `Except` to pass errors around, whereas we need
@@ -278,8 +274,12 @@ decodeValue =
         Index proof i ->
             readIndex i >>> toResult >>> map (coerceSymm proof)
 
-        Keys proof ->
-            keys >>> map (coerceSymm proof)
+        KeyValuePairs func ->
+            func \proof decoder _ val ->
+                keys val
+                    >>= (traverse (\key -> Tuple key <$> decodeValue (field key decoder) val))
+                    <#> Array.toUnfoldable
+                    <#> coerceSymm proof
 
         Map coyo ->
             coyo # unCoyoneda
@@ -317,16 +317,15 @@ decodeValue =
             (decodeValue decodeForeign) >=> (decodeValue decoder)
 
         RunArray runArray ->
-            runArray \proof run ->
-                \val -> do
-                    decoded <-
-                        decodeValue run.input val
-                            >>= traverse (decodeValue run.tagger)
+            runArray \proof run val -> do
+                decoded <-
+                    decodeValue run.input val
+                        >>= traverse (decodeValue run.tagger)
 
-                    pure $ coerceSymm proof $
-                        run.unfoldr (\i ->
-                            (\a -> Tuple a (i + 1)) <$> Array.index decoded i
-                        ) 0
+                pure $ coerceSymm proof $
+                    run.unfoldr (\i ->
+                        (\a -> Tuple a (i + 1)) <$> Array.index decoded i
+                    ) 0
 
         Succeed _ a ->
             const $ Ok a
@@ -414,7 +413,7 @@ decodeValue =
 -- |   work as well with `equalDecoders` as the decoders you supply.
 -- |
 -- |   e.g. `alt`, `<|>`, `oneOf`, `field`, `at`, `index`, `field`, `list`, `array`,
--- |        `unfoldable`, `nullable`, `maybe`
+-- |        `unfoldable`, `nullable`, `maybe`, `keyValuePairs`, `dict`
 -- |
 -- | - If you supply values as an argument, then `equalDecoders` works best if
 -- |   you use functions that require an `Eq` instance. In those cases, we can
@@ -429,12 +428,6 @@ decodeValue =
 -- |   newtype-related conveniences), so it is only a mild nuisance. (Elm
 -- |   instead has a magic `==` that works with bare record types, though not
 -- |   without its own difficulties -- there is no free lunch here).
--- |
--- | - There are some functions which currently destroy the ability to detect
--- |   equality (unless you keep a stable reference to the result), but which
--- |   should be fixable.
--- |
--- |   e.g. `keyValuePairs`, `dict`
 equalDecoders :: ∀ a. Decoder a -> Decoder a -> Bool
 equalDecoders = equalDecodersL (Just id)
 
@@ -524,8 +517,17 @@ equalDecodersL proof d1 d2 =
         Index _ indexLeft, Index _ indexRight ->
             indexLeft == indexRight
 
-        Keys _, Keys _ ->
-            true
+        KeyValuePairs l, KeyValuePairs r ->
+            l \leftProof leftDecoder leftUnfoldr ->
+            r \rightProof rightDecoder rightUnfoldr ->
+                let
+                    taggerProof =
+                        proof <#> \p ->
+                            lowerLeibniz2of2 $ inner $
+                                symm leftProof >>> p >>> rightProof
+                in
+                    equalDecodersL taggerProof leftDecoder rightDecoder &&
+                    reallyUnsafeRefEq leftUnfoldr rightUnfoldr
 
         Map coyoLeft, Map coyoRight ->
             coyoLeft # unCoyoneda (\tagger1 decoder1 ->
@@ -738,9 +740,6 @@ fieldT = Field id
 indexT :: Int -> Decoder Foreign
 indexT = Index id
 
-keysT :: Decoder (Array String)
-keysT = Keys id
-
 
 -- | > Parse the given string into a JSON value and then run the `Decoder` on it.
 -- | > This will fail if the string is not well-formed JSON or if the `Decoder`
@@ -934,16 +933,12 @@ object8 = map8
 -- |
 -- | The container for the return type is polymorphic in order to accommodate `List` or `Array`, among others.
 -- |
--- | Does not work with `equalDecoders` yet, but this should be fixable.
-keyValuePairs :: ∀ f a. Monoid (f (Tuple String a)) => Applicative f => Decoder a -> Decoder (f (Tuple String a))
-keyValuePairs decoder = do
-    arr <-
-        keysT >>= traverse
-            (\key -> do
-                prop <- field key decoder
-                pure $ Tuple key prop
-            )
-    pure $ foldMap pure arr
+-- | Preserves euality for `equalDecoders`.
+keyValuePairs :: ∀ f a. Unfoldable f => Decoder a -> Decoder (f (String /\ a))
+keyValuePairs decoder =
+    KeyValuePairs
+        \func ->
+            func id decoder unfoldr
 
 
 -- | Get an array of the keys defined on a foreign value.
@@ -965,7 +960,7 @@ foreign import unsafeKeys :: Foreign -> Array String
 -- | >     decodeString (dict int) "{ \"alice\": 42, \"bob\": 99 }"
 -- | >       == Dict.fromList [("alice", 42), ("bob", 99)]
 -- |
--- | Does not work with `equalDecoders` yet, but should be fixable.
+-- | Preserves euality for `equalDecoders`.
 dict :: ∀ a. Decoder a -> Decoder (Dict String a)
 dict decoder =
     let
@@ -973,7 +968,13 @@ dict decoder =
         decodePairs =
             keyValuePairs decoder
     in
-    map Dict.fromList decodePairs
+        listToDict <$> decodePairs
+
+
+-- To give this a stable reference, for equality testing
+listToDict :: ∀ a. List (Tuple String a) -> Dict String a
+listToDict l =
+    Dict.fromList l
 
 
 -- | Given a function which reads a `Foreign`, make a decoder.
