@@ -75,7 +75,7 @@ import Elm.Json.Encode (Value) as Virtual
 import Elm.List (List, foldr)
 import Elm.Maybe (Maybe(..))
 import Elm.Result (Result(Err, Ok))
-import Prelude (class Applicative, class Apply, class Bind, class Eq, class Functor, class Monad, Unit, apply, bind, const, discard, eq, id, map, pure, show, unit, void, (#), ($), (&&), (+), (<#>), (<$>), (<<<), (<>), (==), (>>=), (>>>), (||))
+import Prelude (class Applicative, class Apply, class Bind, class Eq, class Functor, class Monad, Unit, apply, bind, const, eq, id, map, pure, show, unit, (#), ($), (&&), (+), (<#>), (<$>), (<*), (<*>), (<<<), (<>), (==), (>>=), (>>>), (||))
 import Prelude (map) as Virtual
 import Unsafe.Coerce (unsafeCoerce)
 import Unsafe.Reference (reallyUnsafeRefEq)
@@ -434,7 +434,7 @@ decodeValue =
 -- |   equality (unless you keep a stable reference to the result), but which
 -- |   should be fixable.
 -- |
--- |   e.g. `keyValuePairs`, `dict`, and `tuple1` through `tuple8`
+-- |   e.g. `keyValuePairs`, `dict`
 equalDecoders :: ∀ a. Decoder a -> Decoder a -> Bool
 equalDecoders = equalDecodersL (Just id)
 
@@ -1079,13 +1079,13 @@ array = unfoldable
 -- | Note that this is not part of the Elm API.
 -- |
 -- | Preserves equality-checking for the input with `equalDecoders`
-unfoldable :: ∀ f a. Unfoldable f => Decoder a -> Decoder (f a) 
+unfoldable :: ∀ f a. Unfoldable f => Decoder a -> Decoder (f a)
 unfoldable decoder =
     RunArray
         \func ->
             func id
                 { input : Array id  -- Decoder (Array Value)
-                , tagger : decoder  
+                , tagger : decoder
                 , unfoldr : unfoldr
                 }
 
@@ -1158,7 +1158,7 @@ maybe decoder =
 -- | > about its structure.
 -- |
 -- | Works with `equalDecoders`
-value :: Decoder Value 
+value :: Decoder Value
 value = Value id
 
 
@@ -1268,11 +1268,13 @@ succeed_ = Succeed Nothing
 -- |
 -- | This function was removed in Elm 0.18.
 -- |
--- | Does not work with `equalDecoders` yet, but this is probably fixable.
+-- | Preserves equality for `equalDecoders`, so long as the supplied function
+-- | has a stable reference.
 tuple1 :: ∀ a value. (a -> value) -> Decoder a -> Decoder value
-tuple1 func d0 = do
-    void $ arrayOfLengthT 1
-    func <$> index 0 d0
+tuple1 func d0 =
+    func
+        <$> index 0 d0
+        <* arrayOfLengthT 1
 
 
 -- | > Handle an array with exactly two elements. Useful for points and simple
@@ -1292,113 +1294,106 @@ tuple1 func d0 = do
 -- |
 -- | This function was removed in Elm 0.18.
 -- |
--- | Does not work with `equalDecoders` yet, but this is probably fixable.
+-- | Preserves equality for `equalDecoders`, so long as the supplied function
+-- | has a stable reference.
 tuple2 :: ∀ a b value. (a -> b -> value) -> Decoder a -> Decoder b -> Decoder value
-tuple2 func d0 d1 = do
-    void $ arrayOfLengthT 2
-
-    v0 <- index 0 d0
-    v1 <- index 1 d1
-
-    pure $ func v0 v1
+tuple2 func d0 d1 =
+    func
+        <$> index 0 d0
+        <*> index 1 d1
+        <* arrayOfLengthT 2
 
 
 -- | > Handle an array with exactly three elements.
 -- |
 -- | This function was removed in Elm 0.18.
 -- |
--- | Does not work with `equalDecoders` yet, but this is probably fixable.
+-- | Preserves equality for `equalDecoders`, so long as the supplied function
+-- | has a stable reference.
 tuple3 :: ∀ a b c value. (a -> b -> c -> value) -> Decoder a -> Decoder b -> Decoder c -> Decoder value
-tuple3 func d0 d1 d2 = do
-    void $ arrayOfLengthT 3
-
-    v0 <- index 0 d0
-    v1 <- index 1 d1
-    v2 <- index 2 d2
-
-    pure $ func v0 v1 v2
+tuple3 func d0 d1 d2 =
+    func
+        <$> index 0 d0
+        <*> index 1 d1
+        <*> index 2 d2
+        <* arrayOfLengthT 3
 
 
 -- | This function was removed in Elm 0.18.
 -- |
--- | Does not work with `equalDecoders` yet, but this is probably fixable.
+-- | Preserves equality for `equalDecoders`, so long as the supplied function
+-- | has a stable reference.
 tuple4 :: ∀ a b c d value. (a -> b -> c -> d -> value) -> Decoder a -> Decoder b -> Decoder c -> Decoder d -> Decoder value
-tuple4 func d0 d1 d2 d3 = do
-    void $ arrayOfLengthT 4
-
-    v0 <- index 0 d0
-    v1 <- index 1 d1
-    v2 <- index 2 d2
-    v3 <- index 3 d3
-
-    pure $ func v0 v1 v2 v3
+tuple4 func d0 d1 d2 d3 =
+    func
+        <$> index 0 d0
+        <*> index 1 d1
+        <*> index 2 d2
+        <*> index 3 d3
+        <* arrayOfLengthT 4
 
 
 -- | This function was removed in Elm 0.18.
 -- |
--- | Does not work with `equalDecoders` yet, but this is probably fixable.
+-- | Preserves equality for `equalDecoders`, so long as the supplied function
+-- | has a stable reference.
 tuple5 :: ∀ a b c d e value. (a -> b -> c -> d -> e -> value) -> Decoder a -> Decoder b -> Decoder c -> Decoder d -> Decoder e -> Decoder value
-tuple5 func d0 d1 d2 d3 d4 = do
-    void $ arrayOfLengthT 5
-
-    v0 <- index 0 d0
-    v1 <- index 1 d1
-    v2 <- index 2 d2
-    v3 <- index 3 d3
-    v4 <- index 4 d4
-
-    pure $ func v0 v1 v2 v3 v4
+tuple5 func d0 d1 d2 d3 d4 =
+    func
+        <$> index 0 d0
+        <*> index 1 d1
+        <*> index 2 d2
+        <*> index 3 d3
+        <*> index 4 d4
+        <* arrayOfLengthT 5
 
 
 -- | This function was removed in Elm 0.18.
 -- |
--- | Does not work with `equalDecoders` yet, but this is probably fixable.
+-- | Preserves equality for `equalDecoders`, so long as the supplied function
+-- | has a stable reference.
 tuple6 :: ∀ a b c d e f value. (a -> b -> c -> d -> e -> f -> value) -> Decoder a -> Decoder b -> Decoder c -> Decoder d -> Decoder e -> Decoder f -> Decoder value
-tuple6 func d0 d1 d2 d3 d4 d5 = do
-    void $ arrayOfLengthT 6
-
-    v0 <- index 0 d0
-    v1 <- index 1 d1
-    v2 <- index 2 d2
-    v3 <- index 3 d3
-    v4 <- index 4 d4
-    v5 <- index 5 d5
-
-    pure $ func v0 v1 v2 v3 v4 v5
+tuple6 func d0 d1 d2 d3 d4 d5 =
+    func
+        <$> index 0 d0
+        <*> index 1 d1
+        <*> index 2 d2
+        <*> index 3 d3
+        <*> index 4 d4
+        <*> index 5 d5
+        <* arrayOfLengthT 6
 
 
 -- | This function was removed in Elm 0.18.
 -- |
--- | Does not work with `equalDecoders` yet, but this is probably fixable.
+-- | Preserves equality for `equalDecoders`, so long as the supplied function
+-- | has a stable reference.
 tuple7 :: ∀ a b c d e f g value. (a -> b -> c -> d -> e -> f -> g -> value) -> Decoder a -> Decoder b -> Decoder c -> Decoder d -> Decoder e -> Decoder f -> Decoder g -> Decoder value
-tuple7 func d0 d1 d2 d3 d4 d5 d6 = do
-    void $ arrayOfLengthT 7
-
-    v0 <- index 0 d0
-    v1 <- index 1 d1
-    v2 <- index 2 d2
-    v3 <- index 3 d3
-    v4 <- index 4 d4
-    v5 <- index 5 d5
-    v6 <- index 6 d6
-
-    pure $ func v0 v1 v2 v3 v4 v5 v6
+tuple7 func d0 d1 d2 d3 d4 d5 d6 =
+    func
+        <$> index 0 d0
+        <*> index 1 d1
+        <*> index 2 d2
+        <*> index 3 d3
+        <*> index 4 d4
+        <*> index 5 d5
+        <*> index 6 d6
+        <* arrayOfLengthT 7
 
 
 -- | This function was removed in Elm 0.18.
 -- |
--- | Does not work with `equalDecoders` yet, but this is probably fixable.
+-- | Preserves equality for `equalDecoders`, so long as the supplied function
+-- | has a stable reference.
 tuple8 :: ∀ a b c d e f g h value. (a -> b -> c -> d -> e -> f -> g -> h -> value) -> Decoder a -> Decoder b -> Decoder c -> Decoder d -> Decoder e -> Decoder f -> Decoder g -> Decoder h -> Decoder value
-tuple8 func d0 d1 d2 d3 d4 d5 d6 d7 = do
-    void $ arrayOfLengthT 8
-
-    v0 <- index 0 d0
-    v1 <- index 1 d1
-    v2 <- index 2 d2
-    v3 <- index 3 d3
-    v4 <- index 4 d4
-    v5 <- index 5 d5
-    v6 <- index 6 d6
-    v7 <- index 7 d7
-
-    pure $ func v0 v1 v2 v3 v4 v5 v6 v7
+tuple8 func d0 d1 d2 d3 d4 d5 d6 d7 =
+    func
+        <$> index 0 d0
+        <*> index 1 d1
+        <*> index 2 d2
+        <*> index 3 d3
+        <*> index 4 d4
+        <*> index 5 d5
+        <*> index 6 d6
+        <*> index 7 d7
+        <* arrayOfLengthT 8

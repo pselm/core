@@ -18,12 +18,12 @@ import Data.Sequence as Sequence
 import Data.Tuple (Tuple(..))
 import Elm.Basics (Float, (|>))
 import Elm.Dict as Dict
-import Elm.Json.Decode (Decoder, array, at, bool, customDecoder, dict, equalDecoders, fail, field, float, index, int, keyValuePairs, list, maybe, null, null_, nullable, object2, object3, oneOf, string, succeed, succeed_, tuple1, unfoldable, value, (:=))
+import Elm.Json.Decode (Decoder, array, at, bool, customDecoder, dict, equalDecoders, fail, field, float, index, int, keyValuePairs, list, maybe, null, null_, nullable, object2, object3, oneOf, string, succeed, succeed_, tuple1, tuple2, tuple3, unfoldable, value, (:=))
 import Elm.Json.Decode as JD
 import Elm.Json.Encode as JE
 import Elm.Result (Result(..), toMaybe)
 import Math (sqrt)
-import Prelude (class Applicative, class Apply, class Bind, class Eq, class Functor, class Monad, class Show, bind, discard, flip, map, negate, pure, show, ($), (+), (<>), (==))
+import Prelude (class Applicative, class Apply, class Bind, class Eq, class Functor, class Monad, class Show, bind, discard, flip, map, negate, pure, show, ($), (+), (-), (<>), (==))
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
 import Test.QuickCheck.Laws.Control.Alt (checkAlt)
 import Test.QuickCheck.Laws.Control.Applicative (checkApplicative)
@@ -562,11 +562,26 @@ tests = suite "Json" do
         traverse_ (check decoder)
             [ "[17]" ==> Nothing
             , "[17, 18]" ==> Just 35
+            , "[17, 18, 19]" ==> Nothing
             , "[]" ==> Nothing
             , "{}" ==> Nothing
             , "[17.5, 18]" ==> Nothing
             ]
 
+    test "tuple3" do
+        let
+            decoder =
+                JD.tuple3 (\a b c -> a + b + c) JD.int JD.int JD.int
+
+        traverse_ (check decoder)
+            [ "[17]" ==> Nothing
+            , "[17, 18]" ==> Nothing
+            , "[17, 20, 30]" ==> Just 67
+            , "[17, 20, 30, 32]" ==> Nothing
+            , "[]" ==> Nothing
+            , "{}" ==> Nothing
+            , "[17.5, 18, 22]" ==> Nothing
+            ]
     suite "equalDecoders" do
         test "succeed" do
             -- Should test something that actually relies on its `Eq` instance
@@ -740,9 +755,23 @@ tests = suite "Json" do
         test "tuple1" do
             let func = \x -> x + 1
             let func2 = \x -> x + 2
-            -- assert "equal" $ tuple1 func (succeed 1) `equalDecoders` tuple1 func (succeed 1)
+            assert "equal" $ tuple1 func (succeed 1) `equalDecoders` tuple1 func (succeed 1)
             assertFalse "unequal 1" $ tuple1 func (succeed 1) `equalDecoders` tuple1 func (succeed 2)
             assertFalse "unequal 2" $ tuple1 func (succeed 1) `equalDecoders` tuple1 func2 (succeed 1)
+
+        test "tuple2" do
+            let func = \a b -> a + b
+            let func2 = \a b -> a - b
+            assert "equal" $ tuple2 func (succeed 1) (succeed 2) `equalDecoders` tuple2 func (succeed 1) (succeed 2)
+            assertFalse "unequal 1" $ tuple2 func (succeed 1) (succeed 2) `equalDecoders` tuple2 func (succeed 2) (succeed 2)
+            assertFalse "unequal 2" $ tuple2 func (succeed 1) (succeed 2) `equalDecoders` tuple2 func2 (succeed 1) (succeed 2)
+
+        test "tuple3" do
+            let func = \a b c -> a + b + c
+            let func2 = \a b c -> a - b - c
+            assert "equal" $ tuple3 func (succeed 1) (succeed 2) (succeed 3) `equalDecoders` tuple3 func (succeed 1) (succeed 2) (succeed 3)
+            assertFalse "unequal 1" $ tuple3 func (succeed 1) (succeed 2) (succeed 3) `equalDecoders` tuple3 func (succeed 2) (succeed 2) (succeed 3)
+            assertFalse "unequal 2" $ tuple3 func (succeed 1) (succeed 2) (succeed 3) `equalDecoders` tuple3 func2 (succeed 1) (succeed 2) (succeed 3)
 
         test "customDecoder" do
             let func = \x -> Ok x
