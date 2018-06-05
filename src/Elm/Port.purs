@@ -37,13 +37,15 @@ module Elm.Port
     , fromPort, toPort
     ) where
 
-import Data.Foreign (Foreign)
+import Data.Foreign (Foreign, toForeign)
 import Data.Foreign.Class (class Decode, class Encode, decode)
 import Data.Foreign.Class (encode) as Data.Foreign.Class
 import Data.List (List)
 import Data.Maybe (Maybe, maybe)
+import Data.Sequence (Seq)
+import Data.Tuple.Nested (type (/\), (/\))
 import Elm.Json.Decode (Decoder, decodeValue, fromForeign, succeed)
-import Elm.Json.Decode (list, maybe) as Json.Decode
+import Elm.Json.Decode (array, list, maybe, unfoldable) as Json.Decode
 import Elm.Json.Encode (Value)
 import Elm.Json.Encode (array, list, null) as Json.Encode
 import Elm.Result (Result)
@@ -163,7 +165,35 @@ instance listPortEncoder :: PortEncoder a => PortEncoder (List a) where
     encoder = Json.Encode.list <<< map encoder
 
 
--- TODO: Instances for tuples
+instance seqPortDecoder :: PortDecoder a => PortDecoder (Seq a) where
+    decoder = Json.Decode.array decoder
+
+instance seqPortEncoder :: PortEncoder a => PortEncoder (Seq a) where
+    encoder = toForeign <<< map encoder
+
+
+instance arrayDecoder :: PortDecoder a => PortDecoder (Array a) where
+    decoder = Json.Decode.unfoldable decoder
+
+instance arrayEncoder :: PortEncoder a => PortEncoder (Array a) where
+    encoder = toForeign <<< map encoder
+
+
+instance tuple2PortEncoder :: (PortEncoder a, PortEncoder b) => PortEncoder (a /\ b) where
+    encoder (a /\ b) =
+        Json.Encode.array
+            [ encoder a
+            , encoder b
+            ]
+
+instance tuple3PortEncoder :: (PortEncoder a, PortEncoder b, PortEncoder c) => PortEncoder (a /\ b /\ c) where
+    encoder (a /\ b /\ c) =
+        Json.Encode.array
+            [ encoder a
+            , encoder b
+            , encoder c
+            ]
+
 
 -- TODO: Once we switch to 0.12, instances for Records.
 

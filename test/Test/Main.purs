@@ -19,6 +19,7 @@ import Test.Elm.Json as Json
 import Test.Elm.List as List
 import Test.Elm.ListElm as ListElm
 import Test.Elm.Maybe as Maybe
+import Test.Elm.Port as Port
 import Test.Elm.Random as Random
 import Test.Elm.Regex as Regex
 import Test.Elm.Result as Result
@@ -53,6 +54,7 @@ main =
         List.tests
         ListElm.tests
         Maybe.tests
+        Port.tests
         Random.tests
         Regex.tests
         Result.tests
