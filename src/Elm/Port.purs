@@ -43,9 +43,10 @@ import Data.Foreign.Class (encode) as Data.Foreign.Class
 import Data.List (List)
 import Data.Maybe (Maybe, maybe)
 import Data.Sequence (Seq)
+import Data.Tuple (Tuple(..))
 import Data.Tuple.Nested (type (/\), (/\))
 import Elm.Json.Decode (Decoder, decodeValue, fromForeign, succeed)
-import Elm.Json.Decode (array, list, maybe, unfoldable) as Json.Decode
+import Elm.Json.Decode (array, list, maybe, tuple2, tuple3, tuple4, tuple5, tuple6, tuple7, tuple8, unfoldable) as Json.Decode
 import Elm.Json.Encode (Value)
 import Elm.Json.Encode (array, list, null) as Json.Encode
 import Elm.Result (Result)
@@ -179,20 +180,108 @@ instance arrayEncoder :: PortEncoder a => PortEncoder (Array a) where
     encoder = toForeign <<< map encoder
 
 
-instance tuple2PortEncoder :: (PortEncoder a, PortEncoder b) => PortEncoder (a /\ b) where
-    encoder (a /\ b) =
+-- There must be a more general way to do tuples, but I'm not seeing it yet.
+-- For now, we're relying on overlapping instances, so the lexical ordering
+-- is important. In Purscript 0.12, we'll be able to use instance chains.
+
+instance tupleABCDEFGHPortEncoder :: (PortEncoder a, PortEncoder b, PortEncoder c, PortEncoder d, PortEncoder e, PortEncoder f, PortEncoder g, PortEncoder h) => PortEncoder (a /\ b /\ c /\ d /\ e /\ f /\ g /\ h) where
+    encoder (a /\ b /\ c /\ d /\ e /\ f /\ g /\ h) =
         Json.Encode.array
             [ encoder a
             , encoder b
+            , encoder c
+            , encoder d
+            , encoder e
+            , encoder f
+            , encoder g
+            , encoder h
             ]
 
-instance tuple3PortEncoder :: (PortEncoder a, PortEncoder b, PortEncoder c) => PortEncoder (a /\ b /\ c) where
+instance tupleABCDEFGPortEncoder :: (PortEncoder a, PortEncoder b, PortEncoder c, PortEncoder d, PortEncoder e, PortEncoder f, PortEncoder g) => PortEncoder (a /\ b /\ c /\ d /\ e /\ f /\ g) where
+    encoder (a /\ b /\ c /\ d /\ e /\ f /\ g) =
+        Json.Encode.array
+            [ encoder a
+            , encoder b
+            , encoder c
+            , encoder d
+            , encoder e
+            , encoder f
+            , encoder g
+            ]
+
+instance tupleABCDEFPortEncoder :: (PortEncoder a, PortEncoder b, PortEncoder c, PortEncoder d, PortEncoder e, PortEncoder f) => PortEncoder (a /\ b /\ c /\ d /\ e /\ f) where
+    encoder (a /\ b /\ c /\ d /\ e /\ f) =
+        Json.Encode.array
+            [ encoder a
+            , encoder b
+            , encoder c
+            , encoder d
+            , encoder e
+            , encoder f
+            ]
+
+instance tupleABCDEPortEncoder :: (PortEncoder a, PortEncoder b, PortEncoder c, PortEncoder d, PortEncoder e) => PortEncoder (a /\ b /\ c /\ d /\ e) where
+    encoder (a /\ b /\ c /\ d /\ e) =
+        Json.Encode.array
+            [ encoder a
+            , encoder b
+            , encoder c
+            , encoder d
+            , encoder e
+            ]
+
+instance tupleABCDPortEncoder :: (PortEncoder a, PortEncoder b, PortEncoder c, PortEncoder d) => PortEncoder (a /\ b /\ c /\ d) where
+    encoder (a /\ b /\ c /\ d) =
+        Json.Encode.array
+            [ encoder a
+            , encoder b
+            , encoder c
+            , encoder d
+            ]
+
+instance tupleABCPortEncoder :: (PortEncoder a, PortEncoder b, PortEncoder c) => PortEncoder (a /\ b /\ c) where
     encoder (a /\ b /\ c) =
         Json.Encode.array
             [ encoder a
             , encoder b
             , encoder c
             ]
+
+instance tupleABPortEncoder :: (PortEncoder a, PortEncoder b) => PortEncoder (a /\ b) where
+    encoder (a /\ b) =
+        Json.Encode.array
+            [ encoder a
+            , encoder b
+            ]
+
+
+instance tupleABCDEFGHPortDecoder :: (PortDecoder a, PortDecoder b, PortDecoder c, PortDecoder d, PortDecoder e, PortDecoder f, PortDecoder g, PortDecoder h) => PortDecoder (a /\ b /\ c /\ d /\ e /\ f /\ g /\ h) where
+    decoder =
+        Json.Decode.tuple8 (\a b c d e f g h -> a /\ b /\ c /\ d /\ e /\ f /\ g /\ h) decoder decoder decoder decoder decoder decoder decoder decoder
+
+instance tupleABCDEFGPortDecoder :: (PortDecoder a, PortDecoder b, PortDecoder c, PortDecoder d, PortDecoder e, PortDecoder f, PortDecoder g) => PortDecoder (a /\ b /\ c /\ d /\ e /\ f /\ g) where
+    decoder =
+        Json.Decode.tuple7 (\a b c d e f g -> a /\ b /\ c /\ d /\ e /\ f /\ g) decoder decoder decoder decoder decoder decoder decoder
+
+instance tupleABCDEFPortDecoder :: (PortDecoder a, PortDecoder b, PortDecoder c, PortDecoder d, PortDecoder e, PortDecoder f) => PortDecoder (a /\ b /\ c /\ d /\ e /\ f) where
+    decoder =
+        Json.Decode.tuple6 (\a b c d e f -> a /\ b /\ c /\ d /\ e /\ f) decoder decoder decoder decoder decoder decoder
+
+instance tupleABCDEPortDecoder :: (PortDecoder a, PortDecoder b, PortDecoder c, PortDecoder d, PortDecoder e) => PortDecoder (a /\ b /\ c /\ d /\ e) where
+    decoder =
+        Json.Decode.tuple5 (\a b c d e -> a /\ b /\ c /\ d /\ e) decoder decoder decoder decoder decoder
+
+instance tupleABCDPortDecoder :: (PortDecoder a, PortDecoder b, PortDecoder c, PortDecoder d) => PortDecoder (a /\ b /\ c /\ d) where
+    decoder =
+        Json.Decode.tuple4 (\a b c d -> a /\ b /\ c /\ d) decoder decoder decoder decoder
+
+instance tupleABCPortDecoder :: (PortDecoder a, PortDecoder b, PortDecoder c) => PortDecoder (a /\ b /\ c) where
+    decoder =
+        Json.Decode.tuple3 (\a b c -> a /\ b /\ c) decoder decoder decoder
+
+instance tupleABPortDecoder :: (PortDecoder a, PortDecoder b) => PortDecoder (a /\ b) where
+    decoder =
+        Json.Decode.tuple2 Tuple decoder decoder 
 
 
 -- TODO: Once we switch to 0.12, instances for Records.
