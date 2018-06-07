@@ -286,7 +286,7 @@ instance tupleABCPortDecoder :: (PortDecoder a, PortDecoder b, PortDecoder c) =>
 
 instance tupleABPortDecoder :: (PortDecoder a, PortDecoder b) => PortDecoder (a /\ b) where
     decoder =
-        Json.Decode.tuple2 Tuple decoder decoder 
+        Json.Decode.tuple2 Tuple decoder decoder
 
 
 instance maybePortDecoder :: PortDecoder a => PortDecoder (Maybe a) where
