@@ -33,6 +33,7 @@
 
 module Elm.Port
     ( class PortEncoder, decoder, defaultDecoder
+    , class PortEncoderFields, portEncoderFields
     , class PortDecoder, encoder, defaultEncoder
     , fromPort, toPort
     ) where
@@ -40,17 +41,21 @@ module Elm.Port
 import Data.Foreign (Foreign, toForeign)
 import Data.Foreign.Class (class Decode, class Encode, decode)
 import Data.Foreign.Class (encode) as Data.Foreign.Class
-import Data.List (List)
+import Data.List (List(..)) as Data.List
+import Data.List (List, (:))
 import Data.Maybe (Maybe, maybe)
+import Data.Record.Unsafe (unsafeGet)
 import Data.Sequence (Seq)
 import Data.Tuple (Tuple(..))
 import Data.Tuple.Nested (type (/\), (/\))
 import Elm.Json.Decode (Decoder, decodeValue, fromForeign, succeed)
 import Elm.Json.Decode (array, list, maybe, tuple2, tuple3, tuple4, tuple5, tuple6, tuple7, tuple8, unfoldable) as Json.Decode
-import Elm.Json.Encode (Value)
+import Elm.Json.Encode (Value, object)
 import Elm.Json.Encode (array, list, null) as Json.Encode
 import Elm.Result (Result)
 import Prelude (Unit, const, map, unit, ($), (<<<))
+import Type.Prelude (class IsSymbol, class RowToList, SProxy(..), reflectSymbol)
+import Type.Row (RLProxy(..), Nil, Cons)
 
 
 -- | A class for types which can be decoded when arriving via a `port` or at
@@ -284,9 +289,6 @@ instance tupleABPortDecoder :: (PortDecoder a, PortDecoder b) => PortDecoder (a 
         Json.Decode.tuple2 Tuple decoder decoder 
 
 
--- TODO: Once we switch to 0.12, instances for Records.
-
-
 instance maybePortDecoder :: PortDecoder a => PortDecoder (Maybe a) where
     decoder = Json.Decode.maybe decoder
 
@@ -299,3 +301,34 @@ instance foreignPortDecoder :: PortDecoder Foreign where
 
 instance foreignPortEncoder :: PortEncoder Foreign where
     encoder = defaultEncoder
+
+
+class PortEncoderFields rowlist row where
+    portEncoderFields :: RLProxy rowlist -> Record row -> List (String /\ Value)
+
+instance portEncoderFieldsNil :: PortEncoderFields Nil row where
+    portEncoderFields _ _ = Data.List.Nil
+
+instance portEncoderFieldsCons ::
+    ( IsSymbol key
+    , PortEncoderFields rowlistTail row
+    , PortEncoder focus
+    ) =>
+    PortEncoderFields (Cons key focus rowlistTail) row
+    where
+    portEncoderFields _ record =
+        (key /\ encoder focus) : tail
+            where
+                key = reflectSymbol (SProxy :: SProxy key)
+                focus = unsafeGet key record :: focus
+                tail = portEncoderFields (RLProxy :: RLProxy rowlistTail) record
+
+
+instance portEncoderRecord ::
+    ( RowToList rs ls
+    , PortEncoderFields ls rs
+    ) =>
+    PortEncoder (Record rs)
+    where
+    encoder record =
+        object $ portEncoderFields (RLProxy :: RLProxy ls) record
