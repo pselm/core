@@ -21,6 +21,11 @@
 -- | | Maybe    | Null, or the bare value   |
 -- | | Json.Encode.Value | Arbitrary Javascript value |
 -- |
+-- | These all are given `PortEncoder` and `PortDecoder` instances here, which
+-- | encode and decode them in the same way that Elm's "port" mechanism does.
+-- | If you should want to send other values through ports, you can create your
+-- | own instances if you like. (Or manually convert to and from a `Value`).
+-- |
 -- | This is something like the `Encode` and `Decode` type-classes that
 -- | purescript-foreign-generic provide, but the Javascript representations are
 -- | not necessarily equivalent. So, we create our own classes here which
