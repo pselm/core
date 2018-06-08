@@ -35,6 +35,7 @@ module Elm.Port
     ( class PortEncoder, decoder, defaultDecoder
     , class PortEncoderFields, portEncoderFields
     , class PortDecoder, encoder, defaultEncoder
+    , class PortDecoderFields, portDecoderFields
     , fromPort, toPort
     ) where
 
@@ -44,18 +45,19 @@ import Data.Foreign.Class (encode) as Data.Foreign.Class
 import Data.List (List(..)) as Data.List
 import Data.List (List, (:))
 import Data.Maybe (Maybe, maybe)
+import Data.Record (insert)
 import Data.Record.Unsafe (unsafeGet)
 import Data.Sequence (Seq)
 import Data.Tuple (Tuple(..))
 import Data.Tuple.Nested (type (/\), (/\))
-import Elm.Json.Decode (Decoder, decodeValue, fromForeign, succeed)
+import Elm.Json.Decode (Decoder, decodeValue, field, fromForeign, succeed)
 import Elm.Json.Decode (array, list, maybe, tuple2, tuple3, tuple4, tuple5, tuple6, tuple7, tuple8, unfoldable) as Json.Decode
 import Elm.Json.Encode (Value, object)
 import Elm.Json.Encode (array, list, null) as Json.Encode
 import Elm.Result (Result)
-import Prelude (Unit, const, map, unit, ($), (<<<))
-import Type.Prelude (class IsSymbol, class RowToList, SProxy(..), reflectSymbol)
-import Type.Row (RLProxy(..), Nil, Cons)
+import Prelude (Unit, bind, const, map, pure, unit, ($), (<<<))
+import Type.Prelude (class IsSymbol, class RowLacks, class RowToList, SProxy(SProxy), reflectSymbol)
+import Type.Row (Cons, Nil, RLProxy(RLProxy), kind RowList)
 
 
 -- | A class for types which can be decoded when arriving via a `port` or at
@@ -303,32 +305,61 @@ instance foreignPortEncoder :: PortEncoder Foreign where
     encoder = defaultEncoder
 
 
-class PortEncoderFields rowlist row where
-    portEncoderFields :: RLProxy rowlist -> Record row -> List (String /\ Value)
+class PortEncoderFields (list :: RowList) (row :: # Type) where
+    portEncoderFields :: RLProxy list -> Record row -> List (String /\ Value)
 
 instance portEncoderFieldsNil :: PortEncoderFields Nil row where
     portEncoderFields _ _ = Data.List.Nil
 
 instance portEncoderFieldsCons ::
     ( IsSymbol key
-    , PortEncoderFields rowlistTail row
+    , PortEncoderFields tail row
     , PortEncoder focus
     ) =>
-    PortEncoderFields (Cons key focus rowlistTail) row
-    where
-    portEncoderFields _ record =
-        (key /\ encoder focus) : tail
+    PortEncoderFields (Cons key focus tail) row where
+        portEncoderFields _ record =
+            (key /\ encoder focus) : tail
             where
                 key = reflectSymbol (SProxy :: SProxy key)
                 focus = unsafeGet key record :: focus
-                tail = portEncoderFields (RLProxy :: RLProxy rowlistTail) record
+                tail = portEncoderFields (RLProxy :: RLProxy tail) record
 
 
 instance portEncoderRecord ::
-    ( RowToList rs ls
-    , PortEncoderFields ls rs
+    ( RowToList row list
+    , PortEncoderFields list row
     ) =>
-    PortEncoder (Record rs)
-    where
-    encoder record =
-        object $ portEncoderFields (RLProxy :: RLProxy ls) record
+    PortEncoder (Record row) where
+        encoder record =
+            object $ portEncoderFields (RLProxy :: RLProxy list) record
+
+
+instance portDecoderRecord ::
+    ( RowToList row list
+    , PortDecoderFields list row
+    ) =>
+    PortDecoder (Record row) where
+        decoder =
+            portDecoderFields (RLProxy :: RLProxy list)
+
+
+class PortDecoderFields (list :: RowList) (row :: # Type) | list -> row where
+    portDecoderFields :: RLProxy list -> Decoder (Record row)
+
+instance portDecoderFieldsNil :: PortDecoderFields Nil () where
+    portDecoderFields _ = pure {}
+
+instance portDecoderFieldsCons ::
+    ( PortDecoder focus
+    , PortDecoderFields listRest rowRest
+    , RowLacks key rowRest
+    , RowCons key focus rowRest rowFull
+    , RowToList rowFull (Cons key focus listRest)
+    , IsSymbol key
+    ) =>
+    PortDecoderFields (Cons key focus listRest) rowFull where
+        portDecoderFields _ = do
+            let key = reflectSymbol (SProxy :: SProxy key)
+            field <- field key decoder
+            rec <- portDecoderFields (RLProxy :: RLProxy listRest)
+            pure $ insert (SProxy :: SProxy key) field rec

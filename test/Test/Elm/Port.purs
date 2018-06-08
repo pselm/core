@@ -2,13 +2,14 @@ module Test.Elm.Port (tests) where
 
 import Data.List (List(..), (:))
 import Data.Maybe (Maybe(..))
+import Data.Record (equal) as Data.Record
 import Data.Tuple.Nested ((/\))
 import Elm.Json.Encode (encode)
 import Elm.Port (fromPort, toPort)
 import Elm.Result (Result(..))
 import Prelude (class Eq, class Show, discard, flip, ($))
 import Test.Unit (TestSuite, Test, suite, test)
-import Test.Unit.Assert (equal)
+import Test.Unit.Assert (assert, equal)
 
 
 infixl 9 equals as ===
@@ -81,3 +82,11 @@ tests =
                 fromPort (toPort [17, 18]) === Ok (17 /\ 18)
                 fromPort (toPort [17, 18, 19]) === Ok (17 /\ 18 /\ 19)
                 fromPort (toPort [17, 18, 19, 20]) === Ok (17 /\ 18 /\ 19 /\ 20)
+
+            test "records" do
+                case fromPort (toPort {fred: 17, bob: 23.5}) of
+                    Ok r ->
+                        assert "no match" $ r `Data.Record.equal` {fred: 17, bob: 23.5}
+
+                    Err err ->
+                        assert err false

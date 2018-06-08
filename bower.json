@@ -36,6 +36,7 @@
     "purescript-sequences": "^1.0.0",
     "purescript-sets": "^3.0.0",
     "purescript-strings": "^3.0.0",
+    "purescript-typelevel-prelude": "^2.7.0",
     "purescript-unsafe-reference": "^2.0.0"
   },
   "devDependencies": {
