@@ -6,7 +6,7 @@
     "clean": "rimraf output && rimraf .pulp-cache",
     "docs": "pulp docs",
     "test": "pulp test",
-    "simple": "pulp run -m Examples.Simple -I examples"
+    "simple": "pulp build -m Examples.Simple -I examples --optimise --to build/simple.js && echo \"Elm['Examples.Simple'].worker();\" >> build/simple.js && node build/simple.js"
   },
   "devDependencies": {
     "bower": "^1.8.4",
