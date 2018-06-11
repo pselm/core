@@ -49,6 +49,7 @@ tests =
                 encode 0 (toPort $ 17 /\ 18) === "[17,18]"
                 encode 0 (toPort $ 17 /\ 18 /\ 19) === "[17,18,19]"
                 encode 0 (toPort $ 17 /\ 18 /\ 19 /\ 20) === "[17,18,19,20]"
+                encode 0 (toPort $ 17 /\ [18, 19] /\ [20, 21]) === "[17,[18,19],[20,21]]"
 
             test "records" do
                 encode 0 (toPort {fred: 17, bob: 23.5}) === "{\"bob\":23.5,\"fred\":17}"

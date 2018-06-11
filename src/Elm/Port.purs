@@ -37,9 +37,9 @@
 -- | to a decoder or encoder is pretty easy.
 
 module Elm.Port
-    ( class PortEncoder, decoder, defaultDecoder
+    ( class PortEncoder, encoder, defaultEncoder
     , class PortEncoderFields, portEncoderFields
-    , class PortDecoder, encoder, defaultEncoder
+    , class PortDecoder, decoder, defaultDecoder
     , class PortDecoderFields, portDecoderFields
     , fromPort, toPort
     ) where
